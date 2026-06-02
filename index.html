@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Babke Kebab & Plates — Authentic Middle Eastern Street Food in Sousse</title>
+  <meta name="description" content="Savor the finest charcoal-grilled kebabs, vertical-spit shawarma, loaded fries, and authentic Lebanese mezze in Hammam Sousse. Order online today!">
+  <!-- Google Fonts: Outfit (headings) & Plus Jakarta Sans (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/png" href="assets/BabkeLogo.png">
+  <script defer src="hero-spin.js"></script>
+  <script defer src="embers-canvas.js"></script>
+  <script defer src="cart.js"></script>
+  <script defer src="translations.js"></script>
+  <script defer src="preloader-reveal.js"></script>
+</head>
+<body>
+
+  <!-- Cinematic Logo Fire Preloader -->
+  <div id="cinematic-preloader">
+    <div class="preloader-smoke-bg"></div>
+    <canvas id="preloader-embers-canvas"></canvas>
+    <div class="preloader-container">
+      <div class="preloader-logo-wrapper">
+        <div class="preloader-fire-glow"></div>
+        <img src="assets/logo.png" alt="Babke Logo" class="preloader-logo-img">
+      </div>
+    </div>
+  </div>
+
+  <!-- Background Smoke & Fire Glow Blobs -->
+  <div class="fire-glow fire-glow-1"></div>
+  <div class="fire-glow fire-glow-2"></div>
+
+  <!-- NAVIGATION HEADER -->
+  <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="#home" class="logo">
+        <div class="logo-fire-container">
+          <div class="logo-fire-glow"></div>
+          <span class="spark s-1"></span>
+          <span class="spark s-2"></span>
+          <span class="spark s-3"></span>
+          <span class="spark s-4"></span>
+          <span class="spark s-5"></span>
+          <span class="spark s-6"></span>
+          <img src="assets/logo2.png" alt="Babke Kebab &amp; Plates" class="logo-img">
+        </div>
+      </a>
+
+      <!-- Desktop Links -->
+      <nav class="nav-menu" id="nav-menu">
+        <a href="#home" class="nav-link active" data-translate="nav_home">Home</a>
+        <a href="#menu" class="nav-link" data-translate="nav_menu">Menu</a>
+        <a href="#about" class="nav-link" data-translate="nav_about">Our Story</a>
+        <a href="#gallery" class="nav-link" data-translate="nav_gallery">Socials</a>
+        <a href="#reviews" class="nav-link" data-translate="nav_reviews">Reviews</a>
+        <a href="#contact" class="nav-link" data-translate="nav_contact">Find Us</a>
+      </nav>
+
+      <!-- Action Button -->
+      <div class="nav-actions">
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle Theme">
+          <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6.34 17.66l-1.41 1.41"/><path d="M19.07 4.93l-1.41 1.41"/>
+          </svg>
+          <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+          </svg>
+        </button>
+
+        <a href="#contact" class="btn-delivery-pulse">
+          <span>Order Now</span>
+        </a>
+        <!-- Mobile Toggle -->
+        <button class="burger-menu" id="burger-menu" aria-label="Toggle Navigation Menu">
+          <span class="burger-bar"></span>
+          <span class="burger-bar"></span>
+          <span class="burger-bar"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="hero-section" id="home">
+    <div class="hero-container">
+      <div class="hero-content">
+        <div class="award-hero-badge">
+          <span>MEILLEUR CHAWARMA 2025 BY TORCHI.TN</span>
+        </div>
+        <div class="hero-badge">
+          <span class="pulse-dot"></span>
+          <span>Sousse's Favorite Kebab Spot</span>
+        </div>
+        <h1 class="hero-title">
+          THE STREETS OF <span class="highlight">SOUSSE</span> JUST GOT FLAVOR.
+        </h1>
+        <p class="hero-description">
+          Charcoal-grilled Turkish Adana, toasted Lebanese-style chicken shawarma, and loaded crispy fries dripping with our signature garlic whip and spices. Hand-carved daily, served fresh.
+        </p>
+        
+        <div class="hero-actions">
+          <a href="#menu" class="btn-primary-food">Explore the Menu</a>
+          <a href="#contact" class="btn-secondary-dark">Order Delivery</a>
+        </div>
+
+        <div class="hero-stats">
+          <div class="hero-stat-item">
+            <span class="stat-num">100%</span>
+            <span class="stat-txt">Charcoal Grilled</span>
+          </div>
+          <div class="hero-stat-item">
+            <span class="stat-num">15+</span>
+            <span class="stat-txt">Levantine Spices</span>
+          </div>
+          <div class="hero-stat-item">
+            <span class="stat-num">23k+</span>
+            <span class="stat-txt">Social Followers</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hero Visual (Interactive Glow Disc with Particle Embers) -->
+      <div class="hero-visual">
+        <div class="glow-disc-wrapper">
+          <div class="glow-disc-backdrop"></div>
+          <canvas id="embers-canvas"></canvas>
+          <img src="assets/Plate.png" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=800&auto=format&fit=crop&q=80';" alt="Authentic Babke Charcoal Grilled Kebab Plate" class="hero-food-img">
+          
+          <!-- floating interactive tags -->
+          <div class="floating-tag tag-1">
+            <span data-translate="hero_tag_harissa">Spicy Harissa</span>
+          </div>
+          <div class="floating-tag tag-2">
+            <span data-translate="hero_tag_toum">Garlic Toum</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES / ACCENTS -->
+  <section class="accents-bar">
+    <div class="scrolling-ticker">
+      <div class="ticker-content">
+        <span data-translate="ticker_dine"> DINE IN & TAKEAWAY</span>
+        <span>•</span>
+        <span data-translate="ticker_wraps">  SPICY SHAWARMA WRAPS</span>
+        <span>•</span>
+        <span data-translate="ticker_adana">   CHARCOAL GRILLED ADANA</span>
+        <span>•</span>
+        <span data-translate="ticker_fries">  LOADED CHEDDAR FRIES</span>
+        <span>•</span>
+        <span data-translate="ticker_hummus">  FRESH CHICKPEA HUMMUS</span>
+        <span>•</span>
+        <span data-translate="ticker_delivery">  FAST SOUSSE DELIVERY</span>
+        <span>•</span>
+      </div>
+      <div class="ticker-content" aria-hidden="true">
+        <span data-translate="ticker_dine"> DINE IN & TAKEAWAY</span>
+        <span>•</span>
+        <span data-translate="ticker_wraps">  SPICY SHAWARMA WRAPS</span>
+        <span>•</span>
+        <span data-translate="ticker_adana">   CHARCOAL GRILLED ADANA</span>
+        <span>•</span>
+        <span data-translate="ticker_fries">  LOADED CHEDDAR FRIES</span>
+        <span>•</span>
+        <span data-translate="ticker_hummus">  FRESH CHICKPEA HUMMUS</span>
+        <span>•</span>
+        <span data-translate="ticker_delivery">  FAST SOUSSE DELIVERY</span>
+        <span>•</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTIVE MENU SECTION -->
+  <section class="menu-section" id="menu">
+    <div class="section-header">
+      <h2 class="section-title" data-translate="menu_section_title">CHOOSE YOUR CRAVING</h2>
+      <p class="section-subtitle" data-translate="menu_section_subtitle">Crafted with authentic Lebanese ingredients and grilled over red-hot embers.</p>
+    </div>
+
+    <div class="menu-container">
+      <!-- Menu Filters Side-Column -->
+      <div class="menu-filters-wrapper">
+        <div class="menu-tabs-glass" role="tablist">
+          <button class="menu-tab active" data-category="wraps" role="tab">
+            <span class="tab-label" data-translate="tab_wraps">Wraps & Sandwiches</span>
+          </button>
+          <button class="menu-tab" data-category="plates" role="tab">
+            <span class="tab-label" data-translate="tab_plates">Feast Platters</span>
+          </button>
+          <button class="menu-tab" data-category="mezze" role="tab">
+            <span class="tab-label" data-translate="tab_mezze">Mezze & Dips</span>
+          </button>
+          <button class="menu-tab" data-category="specialties" role="tab">
+            <span class="tab-label" data-translate="tab_specialties">Specialties</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Menu Items Grid -->
+      <div class="menu-items-grid" id="menu-items-grid">
+        <!-- Wraps Category (Default visible) -->
+        <article class="menu-item-card" data-cat="wraps">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/shawarma_wrap.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1561651823-34feb02250e4?w=600&auto=format&fit=crop&q=80';" alt="Babke Chicken Shawarma Wrap" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag best-seller" style="background:#ffb830;color:#000000;font-weight:900;letter-spacing:0.02em;" data-translate="menu_item1_tag_award">Meilleur Chawarma 2025</span>
+              <span class="card-tag spicy" data-translate="menu_item1_tag_spicy">Spicy Option</span>
+              <span class="card-tag best-seller" data-translate="menu_item1_tag_seller">Best Seller</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item1_title">Chicken Shawarma Wrap</h3>
+              <span class="menu-item-price">12.5 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item1_desc">
+              Slow-roasted vertical spit chicken shawarma, homemade Lebanese garlic paste (toum), tangy cucumber pickles, French fries wrapped in thin flatbread and toasted to crispy gold.
+            </p>
+          </div>
+        </article>
+
+        <article class="menu-item-card" data-cat="wraps">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/two_viandes.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80';" alt="Babke 2 Viandes Wrap" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag special" data-translate="menu_item2_tag_sig">Signature</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item2_title">Babke "2 Viandes" Wrap</h3>
+              <span class="menu-item-price">16.0 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item2_desc">
+              The ultimate meat union. Toasted wrap filled with slow-cooked chicken shawarma AND tender minced beef kebab, rich garlic whip, hummus layer, fresh onions, tomatoes, and sumac.
+            </p>
+          </div>
+        </article>
+
+        <article class="menu-item-card" data-cat="wraps">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/cheddarli_taouk.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80';" alt="Sandwich Cheddarli Taouk" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag cheese" data-translate="menu_item3_tag_cheese">Extra Cheesy</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item3_title">Cheddarli Taouk</h3>
+              <span class="menu-item-price">14.0 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item3_desc">
+              Skewered cubes of marinated breast chicken (Chich Taouk) grilled over open charcoal, rolled in flatbread and flooded with rich, warm liquid cheddar cheese sauce.
+            </p>
+          </div>
+        </article>
+
+        <article class="menu-item-card" data-cat="wraps">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/falafel_wrap.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80';" alt="Traditional Falafel Wrap" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag vegan" data-translate="menu_item4_tag_vegan">Vegan</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item4_title">Crispy Falafel Wrap</h3>
+              <span class="menu-item-price">9.5 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item4_desc">
+              Vibrant homemade falafel discs fried to absolute crispiness, loaded with nutty sesame tahini sauce, fresh mint leaves, pickled turnips, tomatoes, radishes, and sliced cucumber.
+            </p>
+          </div>
+        </article>
+
+        <!-- Plates Category (Hidden by default) -->
+        <article class="menu-item-card" data-cat="plates" style="display: none;">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/plat_royal.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80';" alt="Plat Royal Babke" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag best-seller" data-translate="menu_item5_tag_royal">Royal Feast</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item5_title">Plat Royal Babke</h3>
+              <span class="menu-item-price">34.0 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item5_desc">
+              The king of the grill. A massive platter showcasing two skewers of charcoal Adana kebab, one skewer of Chich Taouk, chicken shawarma carvings, served with creamy hummus, garlic whip, fries, and warm pita.
+            </p>
+          </div>
+        </article>
+
+        <article class="menu-item-card" data-cat="plates" style="display: none;">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/plat_adana.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80';" alt="Plat Kebab Adana" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag spicy" data-translate="menu_item6_tag_heat">Medium Heat</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item6_title">Plat Kebab Adana</h3>
+              <span class="menu-item-price">22.0 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item6_desc">
+              Traditional hand-minced beef and lamb shoulder kebab mixed with red bell peppers, authentic spices, grilled over red-hot charcoal. Served on flatbread with chargrilled tomatoes and sumac-onion salad.
+            </p>
+          </div>
+        </article>
+
+        <article class="menu-item-card" data-cat="plates" style="display: none;">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/plat_chawarma.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80';" alt="Plat Chawarma Plate" class="menu-item-img">
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item7_title">Plat Chawarma</h3>
+              <span class="menu-item-price">18.5 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item7_desc">
+              A mountain of vertical-spit carved chicken shawarma, drizzled with Lebanese garlic whip, served with fresh house tabbouleh salad, crisp French fries, pickles, and grilled flatbread.
+            </p>
+          </div>
+        </article>
+
+        <!-- Mezze Category (Hidden by default) -->
+        <article class="menu-item-card" data-cat="mezze" style="display: none;">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/hummus_shawarma.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80';" alt="Creamy Hummus with Shawarma" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag best-seller" data-translate="menu_item8_tag_pop">Popular</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item8_title">Hummus & Shawarma Dip</h3>
+              <span class="menu-item-price">11.0 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item8_desc">
+              Smooth, rich chickpea purée blended with premium sesame tahini, fresh lemon juice, garlic, topped with warm, juicy chicken shawarma carvings, toasted pine nuts, sumac, and olive oil.
+            </p>
+          </div>
+        </article>
+
+        <article class="menu-item-card" data-cat="mezze" style="display: none;">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/baba_ghanoush.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80';" alt="Smoky Baba Ghanoush" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag vegan" data-translate="menu_item4_tag_vegan">Vegan</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item9_title">Smoky Baba Ghanoush</h3>
+              <span class="menu-item-price">8.5 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item9_desc">
+              Charcoal-roasted eggplant mashed with sesame tahini, garlic, lemon juice, sumac, and extra virgin olive oil, crowned with fresh pomegranate seeds for a sweet burst.
+            </p>
+          </div>
+        </article>
+
+        <article class="menu-item-card" data-cat="mezze" style="display: none;">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/tabbouleh.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80';" alt="Fresh House Tabbouleh" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag vegan" data-translate="menu_item4_tag_vegan">Vegan</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item10_title">Vibrant Lebanese Tabbouleh</h3>
+              <span class="menu-item-price">7.5 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item10_desc">
+              Super finely hand-chopped flat-leaf parsley, fresh mint, red ripe tomatoes, green onions, and fine bulgur wheat, tossed in a zesty freshly squeezed lemon juice and cold olive oil dressing.
+            </p>
+          </div>
+        </article>
+
+        <!-- Specialties Category (Hidden by default) -->
+        <article class="menu-item-card" data-cat="specialties" style="display: none;">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/loaded_fries.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=600&auto=format&fit=crop&q=80';" alt="Loaded Babke Fries" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag cheese" data-translate="menu_item11_tag_cheat">Cheat Meal Dream</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item11_title">Spicy Loaded Babke Fries</h3>
+              <span class="menu-item-price">14.5 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item11_desc">
+              A mountain of house-cut golden fries loaded with slow-roasted chicken shawarma strips, flooded with warm cheddar cheese sauce, garlic whip, and a fiery drizzle of Tunisian harissa-mayo.
+            </p>
+          </div>
+        </article>
+
+        <article class="menu-item-card" data-cat="specialties" style="display: none;">
+          <div class="menu-item-img-wrapper">
+            <img src="assets/fattet_chawarma.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&auto=format&fit=crop&q=80';" alt="Fattet Chicken Chawarma" class="menu-item-img">
+            <div class="menu-item-tags">
+              <span class="card-tag special" data-translate="menu_item12_tag_chef">Chef Special</span>
+            </div>
+          </div>
+          <div class="menu-item-body">
+            <div class="menu-item-header">
+              <h3 data-translate="menu_item12_title">Fattet Chawarma</h3>
+              <span class="menu-item-price">17.5 TND</span>
+            </div>
+            <p class="menu-item-text" data-translate="menu_item12_desc">
+              An incredible Levantine comfort dish. Layers of crispy toasted pita bread chips, spiced basmati rice, slow-cooked chicken shawarma, bathed in a warm garlic-tahini yogurt sauce, and sprinkled with fried pine nuts.
+            </p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- STORY / ABOUT SECTION -->
+  <section class="about-section" id="about">
+    <div class="about-container">
+      <div class="about-visual">
+        <div class="about-grid-images">
+          <img src="assets/story_1.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80';" alt="Babke Charcoal Embers Grilling" class="about-img-1">
+          <img src="assets/story_2.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80';" alt="Babke Fresh Spices Display" class="about-img-2">
+        </div>
+        <div class="about-badge-years">
+          <h3>Est.</h3>
+          <span>2022</span>
+        </div>
+      </div>
+
+      <div class="about-content">
+        <div class="hero-badge">
+          <span data-translate="about_heritage">OUR HERITAGE</span>
+        </div>
+        <h2 class="section-title text-left" data-translate="about_section_title">FROM THE LEVANT STRAIGHT TO HAMMAM SOUSSE</h2>
+        <p class="about-p" data-translate="about_p1">
+          At <strong>Babke Kebab & Plates</strong>, we don’t believe in shortcuts. We set out with a clear, singular goal: to elevate the standard street kebab into a culinary experience. 
+        </p>
+        <p class="about-p" data-translate="about_p2">
+          Every single day, our team hand-stacks layers of premium, marinated chicken onto our vertical spit, creating the iconic slow-roasted shawarma. We hand-knead and spice our minced beef for our signature charcoal Adana skewers. Our legendary Lebanese garlic whip (toum) is made in-house using traditional techniques—never pre-packaged.
+        </p>
+        <p class="about-p" data-translate="about_p3">
+          Located in the heart of Hammam Sousse, we blend authentic spices from the Levant with Sousse’s modern, trendy dining vibe. We invite you to sit back, watch the charcoal flame rise, and enjoy street-food the way it was meant to be made.
+        </p>
+        
+        <div class="about-features-grid">
+          <div class="about-feat-item">
+            <div class="feat-icon-container">
+              <svg class="feat-icon-svg" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div>
+              <h4 data-translate="about_fresh">100% Fresh Daily</h4>
+              <p data-translate="about_fresh_desc">Vegetables sliced and sauces whipped fresh every single morning.</p>
+            </div>
+          </div>
+          <div class="about-feat-item">
+            <div class="feat-icon-container">
+              <svg class="feat-icon-svg" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+              </svg>
+            </div>
+            <div>
+              <h4 data-translate="about_charcoal">Authentic Oak Charcoal</h4>
+              <p data-translate="about_charcoal_desc">We grill exclusively over pure wood embers for that signature smokiness.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTAGRAM / GALLERY GRID SECTION -->
+  <section class="gallery-section" id="gallery">
+    <div class="section-header">
+      <h2 class="section-title">FEAST WITH YOUR EYES</h2>
+      <p class="section-subtitle">Follow us on Instagram <a href="https://www.instagram.com/babke_kebab/" target="_blank" class="instagram-link">@babke_kebab</a> for your daily dose of smoke and cheddar.</p>
+    </div>
+
+    <!-- Instagram Mockup Grid -->
+    <div class="gallery-grid-container">
+      <div class="gallery-grid">
+        <div class="gallery-item-card" data-src="assets/insta_1.jpg">
+          <img src="assets/insta_1.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=500&auto=format&fit=crop&q=80';" alt="Babke Charcoal Kebabs skewers on fire" class="gallery-img">
+          <div class="gallery-overlay">
+            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+            <span class="gallery-likes">
+              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              1.2k
+            </span>
+          </div>
+        </div>
+
+        <div class="gallery-item-card" data-src="assets/insta_2.jpg">
+          <img src="assets/insta_2.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1561651823-34feb02250e4?w=500&auto=format&fit=crop&q=80';" alt="Toasted Chicken Shawarma Wraps dripping garlic whip" class="gallery-img">
+          <div class="gallery-overlay">
+            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+            <span class="gallery-likes">
+              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              954
+            </span>
+          </div>
+        </div>
+
+        <div class="gallery-item-card" data-src="assets/insta_3.jpg">
+          <img src="assets/insta_3.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=500&auto=format&fit=crop&q=80';" alt="Beautiful Middle Eastern Mezze Platters with fresh hummus and pita" class="gallery-img">
+          <div class="gallery-overlay">
+            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+            <span class="gallery-likes">
+              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              821
+            </span>
+          </div>
+        </div>
+
+        <div class="gallery-item-card" data-src="assets/insta_4.jpg">
+          <img src="assets/insta_4.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=500&auto=format&fit=crop&q=80';" alt="Mouthwatering street food visual" class="gallery-img">
+          <div class="gallery-overlay">
+            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+            <span class="gallery-likes">
+              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              1.5k
+            </span>
+          </div>
+        </div>
+
+        <div class="gallery-item-card" data-src="assets/insta_5.jpg">
+          <img src="assets/insta_5.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&auto=format&fit=crop&q=80';" alt="Grilling skewers under flames" class="gallery-img">
+          <div class="gallery-overlay">
+            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+            <span class="gallery-likes">
+              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              1.1k
+            </span>
+          </div>
+        </div>
+
+        <div class="gallery-item-card" data-src="assets/insta_6.jpg">
+          <img src="assets/insta_6.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=500&auto=format&fit=crop&q=80';" alt="Delicious chicken platter close-up" class="gallery-img">
+          <div class="gallery-overlay">
+            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+            <span class="gallery-likes">
+              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              998
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS / REAL REVIEWS SECTION -->
+  <section class="reviews-section" id="reviews">
+    <div class="section-header">
+      <h2 class="section-title">STREET CREDIBILITY</h2>
+      <p class="section-subtitle">Real feedback from real diners. No fluff, just pure flavor reviews.</p>
+    </div>
+
+    <!-- Testimonial Slider Wrapper -->
+    <div class="reviews-container">
+      <div class="reviews-slider-track" id="reviews-slider-track">
+        <div class="review-slide active">
+          <div class="review-header">
+            <div class="stars">★★★★★</div>
+            <span class="review-date">Google Review</span>
+          </div>
+          <p class="review-text">
+            "Honestly the best chicken shawarma in Hammam Sousse! The garlic paste (toum) is absolutely perfect, just like the traditional Lebanese one. Portion is huge and the meat is not dry at all. 10/10."
+          </p>
+          <div class="review-author">
+            <span class="author-avatar">A</span>
+            <div>
+              <h4>Anis Ben Amor</h4>
+              <p>Local Guide • Sousse</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="review-slide">
+          <div class="review-header">
+            <div class="stars">★★★★★</div>
+            <span class="review-date">Google Review</span>
+          </div>
+          <p class="review-text">
+            "Terrific service and cozy, friendly atmosphere! If you haven't ordered the loaded Babke Fries or the Cheddarli Taouk, you are missing out on life. Generous portions and very fair prices."
+          </p>
+          <div class="review-author">
+            <span class="author-avatar">M</span>
+            <div>
+              <h4>Mariem Guedouar</h4>
+              <p>Local Guide • Hammam Sousse</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="review-slide">
+          <div class="review-header">
+            <div class="stars">★★★★★</div>
+            <span class="review-date">Google Review</span>
+          </div>
+          <p class="review-text">
+            "The Kebab Adana has an incredible charcoal smokiness. You can tell they use proper wood embers instead of standard electric grills. Hummus is velvety and has authentic olive oil on top."
+          </p>
+          <div class="review-author">
+            <span class="author-avatar">K</span>
+            <div>
+              <h4>Karim Jellouli</h4>
+              <p>Food Enthusiast</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slider Controls -->
+      <div class="slider-controls">
+        <button id="btn-prev-review" class="btn-icon" aria-label="Previous Review">
+          &#8592;
+        </button>
+        <button id="btn-next-review" class="btn-icon" aria-label="Next Review">
+          &#8594;
+        </button>
+      </div>
+
+      <!-- Direct Google Reviews Link Button -->
+      <div class="reviews-link-wrapper">
+        <a href="https://www.google.com/search?q=Babke+Kebab+and+Plates+Hammam+Sousse#lrd=0x1302758129e71ec9:0x86ea8abcb51f337,1" target="_blank" class="btn-google-reviews" data-translate="read_more_reviews">
+          <span>READ MORE REAL GOOGLE REVIEWS (4.3/5 ★ based on 500+ reviews)</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOCATION & DELIVERY INTEGRATION SECTION -->
+  <section class="contact-section" id="contact">
+    <div class="contact-container">
+      <div class="contact-details-panel">
+        <div class="hero-badge">
+          <span data-translate="contact_locate">LOCATE & CRAVE</span>
+        </div>
+        <h2 class="section-title text-left" data-translate="contact_title">VISIT THE STREET OF EMBER</h2>
+        
+        <div class="info-blocks-grid">
+          <div class="info-block">
+            <div class="info-icon-container">
+              <svg class="info-icon-svg" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </div>
+            <div>
+              <h3 data-translate="contact_location_title">Our Location</h3>
+              <p data-translate="contact_location_desc">Avenue des Orangers, Hammam Sousse, Tunisia</p>
+            </div>
+          </div>
+ 
+          <div class="info-block">
+            <div class="info-icon-container">
+              <svg class="info-icon-svg" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+            </div>
+            <div>
+              <h3 data-translate="contact_phone">Call the Grill</h3>
+              <p><a href="tel:+21673821999" class="phone-link" data-translate="contact_phone_desc">+216 73 821 999</a></p>
+            </div>
+          </div>
+ 
+          <div class="info-block">
+            <div class="info-icon-container">
+              <svg class="info-icon-svg" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div>
+              <h3 data-translate="contact_hours">Operating Hours</h3>
+              <p data-translate="contact_hours_desc1">Mon - Thu: 11:30 AM - Midnight</p>
+              <p data-translate="contact_hours_desc2">Fri - Sun: 11:30 AM - 1:00 AM</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delivery App Integrations -->
+        <div class="delivery-integration-card glass-card">
+          <h4 data-translate="contact_delivery_card_title">GET IT DELIVERED TO YOUR COUCH</h4>
+          <p data-translate="contact_delivery_card_desc">Order direct through Sousse's leading food apps for blazing fast delivery straight to your doorstep.</p>
+          <div class="delivery-buttons-grid">
+            <a href="https://yassir.com" target="_blank" class="btn-delivery yassir">
+              <span class="delivery-name">Yassir Express</span>
+              <span class="delivery-badge" data-translate="contact_delivery_btn">Order</span>
+            </a>
+            <a href="https://glovoapp.com" target="_blank" class="btn-delivery glovo">
+              <span class="delivery-name">Glovo Sousse</span>
+              <span class="delivery-badge" data-translate="contact_delivery_btn">Order</span>
+            </a>
+            <a href="https://www.facebook.com/ZigZag.Tunisie/" target="_blank" class="btn-delivery zigzag">
+              <span class="delivery-name">Zigzag Delivery</span>
+              <span class="delivery-badge" data-translate="contact_delivery_btn">Order</span>
+            </a>
+            <a href="https://menutium.com/" target="_blank" class="btn-delivery menutium">
+              <span class="delivery-name">Menutium</span>
+              <span class="delivery-badge" data-translate="contact_delivery_btn">Order</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map Display (Stylized Interactive Dark Vector) -->
+      <div class="map-panel">
+        <a href="https://maps.google.com/?q=Babke+Kebab+and+Plates+Hammam+Sousse" target="_blank" class="map-directions-link-wrapper" aria-label="Open Babke Location on Google Maps">
+          <div class="stylized-map-container glass-card">
+            <div class="map-header">
+              <div class="map-dot"></div>
+              <span data-translate="contact_map_title">Interactive Map — Sousse Center</span>
+            </div>
+            <!-- Clean SVG stylized street layout representing Avenue des Orangers Sousse area -->
+            <svg class="map-vector" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="400" height="300" rx="12" fill="#ece4e0"/>
+              <path d="M-10 120 H410" stroke="#d0c4be" stroke-width="12"/>
+              <path d="M120 -10 V310" stroke="#d0c4be" stroke-width="16"/>
+              <path d="M280 -10 V310" stroke="#d0c4be" stroke-width="8"/>
+              <path d="M-10 210 H410" stroke="#d0c4be" stroke-width="10"/>
+              <!-- Avenue labels -->
+              <text x="10" y="105" fill="hsl(5, 15%, 55%)" font-size="8" font-family="Outfit" font-weight="600" letter-spacing="1">AV. DES ORANGERS</text>
+              <text x="135" y="40" fill="hsl(5, 15%, 55%)" font-size="8" font-family="Outfit" font-weight="600" letter-spacing="1" transform="rotate(90 135 40)">RUE DE ROME</text>
+              <text x="10" y="195" fill="hsl(5, 15%, 55%)" font-size="8" font-family="Outfit" font-weight="600" letter-spacing="1">AVENUE HEDI CHAKER</text>
+              <!-- Map marker -->
+              <g class="map-marker-glow" transform="translate(120, 120)">
+                <circle cx="0" cy="0" r="16" fill="rgba(192, 58, 46, 0.18)"/>
+                <circle cx="0" cy="0" r="8" fill="rgba(192, 58, 46, 0.4)"/>
+                <circle cx="0" cy="0" r="4" fill="hsl(5, 62%, 46%)"/>
+              </g>
+              <g transform="translate(142, 115)">
+                <rect x="0" y="0" width="105" height="28" rx="6" fill="#ffffff" stroke="hsl(5, 62%, 46%)" stroke-width="1"/>
+                <text x="8" y="12" fill="hsl(5, 15%, 16%)" font-size="7" font-family="Outfit" font-weight="700">BABKE KEBAB</text>
+                <text x="8" y="21" fill="hsl(5, 62%, 46%)" font-size="6" font-family="Outfit" font-weight="600" data-translate="contact_map_label_sub">HAMMAM SOUSSE</text>
+              </g>
+            </svg>
+            <div class="map-footer">
+              <span class="btn-map-directions" data-translate="contact_map_directions">
+                GET DIRECTIONS ON GOOGLE MAPS ➔
+              </span>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIGHTBOX IMAGE ZOOM MODAL -->
+  <div class="lightbox-overlay" id="lightbox-overlay" role="dialog" aria-modal="true">
+    <button class="lightbox-close" id="lightbox-close" aria-label="Close Gallery Image">
+      &#x2715;
+    </button>
+    <img src="" id="lightbox-img" alt="Zoomed Kebab Food Post" class="lightbox-zoomed-img">
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <img src="assets/logo2.png" alt="Babke Kebab &amp; Plates" class="footer-logo-img">
+        <p data-translate="footer_desc">Elevating the street kebab experience with Levant spices and charcoal embers in Hammam Sousse.</p>
+      </div>
+      <div class="footer-links">
+        <h4 data-translate="footer_nav_title">Navigation</h4>
+        <a href="#home" data-translate="footer_nav_home">Home</a>
+        <a href="#menu" data-translate="footer_nav_menu">Menu</a>
+        <a href="#about" data-translate="footer_nav_about">Our Story</a>
+        <a href="#gallery" data-translate="footer_nav_gallery">Social Gallery</a>
+      </div>
+      <div class="footer-socials">
+        <h4 data-translate="footer_stay_connected">Stay Connected</h4>
+        <div class="social-icons">
+          <a href="https://www.instagram.com/babke_kebab/" target="_blank" aria-label="Instagram">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+          </a>
+          <a href="https://tiktok.com" target="_blank" aria-label="TikTok">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p data-translate="footer_rights">&copy; 2026 Babke Kebab & Plates. Built with passion for street food.</p>
+    </div>
+  </footer>
+
+  <!-- Script File -->
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "babke-kebab-website",
+  "version": "1.0.0",
+  "description": "Authentic and trendy Middle Eastern street-food restaurant website for Babke Kebab & Plates in Hammam Sousse.",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx -y serve .",
+    "dev": "npx -y serve ."
+  },
+  "keywords": [
+    "restaurant",
+    "kebab",
+    "shawarma",
+    "glassmorphism",
+    "responsive"
+  ],
+  "author": "Antigravity",
+  "license": "MIT"
+}
