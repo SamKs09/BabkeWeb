@@ -148,13 +148,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize and play reveal as soon as the high-res logo finishes loading
   const playIntro = () => {
-    initParticles();
-    animate();
+    // Disable canvas and particle physics on mobile screens to save performance
+    if (window.innerWidth >= 768) {
+      initParticles();
+      animate();
+    } else {
+      canvas.style.display = 'none';
+    }
     
     // Trigger logo fade-in & scale-up and fire glow activation
     setTimeout(() => {
       logoImg.classList.add('visible');
-      fireGlow.classList.add('visible');
+      if (window.innerWidth >= 768) {
+        fireGlow.classList.add('visible');
+      }
     }, 150);
   };
 

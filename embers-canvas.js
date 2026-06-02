@@ -6,6 +6,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('embers-canvas');
   if (!canvas) return;
 
+  // Disable completely on mobile viewports to prevent particle processing and paint loads
+  if (window.innerWidth < 768) {
+    canvas.style.display = 'none';
+    return;
+  }
+
   const ctx = canvas.getContext('2d');
   let animationFrameId;
   let particles = [];

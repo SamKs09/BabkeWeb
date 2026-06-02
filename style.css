@@ -3464,3 +3464,36 @@ body.rtl-active .cart-address-input-wrapper input {
   color: var(--text-primary);
   text-shadow: 0 0 10px rgba(255, 90, 31, 0.5);
 }
+
+/* Reclaim performance on mobile viewports by disabling intensive fire & ember glow elements */
+@media (max-width: 768px) {
+  /* Hide navbar logo spark particles */
+  .logo-fire-container .spark {
+    display: none !important;
+    animation: none !important;
+  }
+  
+  /* Hide navbar logo glow blob behind logo */
+  .logo-fire-glow {
+    display: none !important;
+    animation: none !important;
+  }
+
+  /* Hide preloader glowing blobs */
+  .preloader-fire-glow {
+    display: none !important;
+    animation: none !important;
+  }
+
+  /* Hide page-wide background glowing blobs */
+  .fire-glow {
+    display: none !important;
+    animation: none !important;
+  }
+
+  /* Hide ambient background body fire glows */
+  body::before {
+    display: none !important;
+    animation: none !important;
+  }
+}
