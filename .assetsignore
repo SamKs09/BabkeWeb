@@ -1,0 +1,12 @@
+node_modules
+.git
+.github
+.wrangler
+wrangler.jsonc
+wrangler.toml
+package.json
+package-lock.json
+bun.lockb
+.cloudflareignore
+.wranglerignore
+*.log
