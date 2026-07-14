@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Babke Kebab & Plates — Restaurant Management Dashboard</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="../styles/admin.css">
+  
+  <!-- App Configuration & Database layer -->
+  <script src="../config/settings.js"></script>
+  <script src="../data/defaultData.js"></script>
+  <script src="../data/store.js"></script>
+  
+  <!-- Admin scripts (deferred) -->
+  <script defer src="admin.js"></script>
+</head>
+<body>
+
+  <!-- ROOT CONTAINER FOR DYNAMIC RENDERING -->
+  <div id="admin-app-root">
+    
+    <!-- 1. LOGIN SCREEN STATE (Default rendered until auth check) -->
+    <div class="login-screen-wrapper" id="login-screen-wrapper">
+      <div class="login-card glass-card">
+        <img src="../assets/logo.png" alt="Babke Logo" class="login-logo" onerror="this.src='../assets/BabkeLogo.png'">
+        <h2>Admin Portal</h2>
+        <p>Enter credentials to access the Babke Restaurant Dashboard.</p>
+        
+        <form class="login-form" id="admin-login-form">
+          <div class="login-input-group">
+            <label for="login-username">Username</label>
+            <input type="text" id="login-username" required autocomplete="username">
+          </div>
+          <div class="login-input-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" required autocomplete="current-password">
+          </div>
+          
+          <div class="login-error-msg" id="login-error-msg">Invalid Username or Password!</div>
+          
+          <button type="submit" class="btn-login-submit">Login to Dashboard</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 2. MAIN DASHBOARD SHELL STATE (Hidden initially) -->
+    <div class="admin-shell" id="admin-shell" style="display: none;">
+      <!-- Sidebar -->
+      <aside class="admin-sidebar">
+        <div class="sidebar-header">
+          <img src="../assets/logo.png" alt="Babke Logo" class="sidebar-logo" onerror="this.src='../assets/BabkeLogo.png'">
+          <div class="sidebar-brand">
+            <h4>Babke Kebab</h4>
+            <span>Management</span>
+          </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+          <button class="nav-item-btn active" data-panel="overview">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span>Overview</span>
+          </button>
+          <button class="nav-item-btn" data-panel="menu">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span>Menu Items</span>
+          </button>
+          <button class="nav-item-btn" data-panel="content">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span>Web Content</span>
+          </button>
+          <button class="nav-item-btn" data-panel="gallery">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>Social Gallery</span>
+          </button>
+          <button class="nav-item-btn" data-panel="reviews">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>Reviews</span>
+          </button>
+          <button class="nav-item-btn" data-panel="events">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="2"/></svg>
+            <span>Events Management</span>
+          </button>
+          <button class="nav-item-btn" data-panel="orders-reservations">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Orders & Bookings</span>
+          </button>
+        </nav>
+        
+        <div class="sidebar-footer">
+          <button class="nav-item-btn logout-btn" id="btn-admin-logout">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Panel View -->
+      <main class="admin-main-container">
+        <!-- Top Bar Header -->
+        <header class="admin-top-bar">
+          <div class="panel-title">
+            <h2 id="admin-panel-title">Dashboard Overview</h2>
+          </div>
+          
+          <div class="top-bar-actions">
+            <!-- Theme toggle -->
+            <button class="theme-toggle-btn-admin" id="admin-theme-toggle" aria-label="Toggle Theme">
+              <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6.34 17.66l-1.41 1.41"/><path d="M19.07 4.93l-1.41 1.41"/></svg>
+              <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            </button>
+            
+            <a href="../index.html" target="_blank" class="btn-admin-secondary">
+              <span>View Site</span>
+            </a>
+          </div>
+        </header>
+
+        <!-- Dynamic Body Area -->
+        <section class="admin-body-content" id="admin-body-content">
+          <!-- Dynamically loaded panels (admin.js) -->
+        </section>
+      </main>
+    </div>
+
+  </div>
+
+  <!-- 3. DIALOG MODALS -->
+  
+  <!-- A. Menu Item Editor Dialog Modal -->
+  <div class="admin-modal-overlay" id="menu-editor-modal">
+    <div class="admin-modal-card">
+      <div class="admin-modal-header">
+        <h3 id="menu-modal-title">Add Menu Item</h3>
+        <button class="btn-close-modal-admin" id="btn-close-menu-modal">&times;</button>
+      </div>
+      <form id="menu-item-form">
+        <div class="admin-modal-body">
+          <input type="hidden" id="menu-form-item-id">
+          
+          <div class="form-grid-admin">
+            <div class="form-group-admin">
+              <label for="menu-form-category">Category</label>
+              <select id="menu-form-category" required>
+                <option value="wraps">Wraps & Sandwiches</option>
+                <option value="plates">Feast Platters</option>
+                <option value="mezze">Mezze & Dips</option>
+                <option value="specialties">Specialties</option>
+              </select>
+            </div>
+            <div class="form-group-admin">
+              <label for="menu-form-price">Price (TND)</label>
+              <input type="number" id="menu-form-price" step="0.5" min="0" placeholder="e.g. 12.5" required>
+            </div>
+          </div>
+
+          <!-- Image Uploader Row -->
+          <div class="form-group-admin full-width" style="margin-bottom: 20px;">
+            <label>Item Image</label>
+            <div class="image-uploader-row">
+              <div class="image-preview-box" id="menu-form-image-preview">
+                <span class="placeholder-icon">📸</span>
+              </div>
+              <div style="flex: 1;">
+                <input type="file" id="menu-form-file-input" accept="image/*" class="image-upload-input">
+                <input type="hidden" id="menu-form-image-base64">
+                <p style="font-size: 0.72rem; color: var(--text-admin-muted); margin-top: 4px;">Convert image to base64 immediately for client storage.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabs for Localized Content editing (EN, FR, TN) -->
+          <!-- English -->
+          <div class="lang-edit-section">
+            <div class="lang-section-header">English (EN) Details</div>
+            <div class="form-group-admin" style="margin-bottom: 12px;">
+              <label for="menu-form-title-en">Title (EN)</label>
+              <input type="text" id="menu-form-title-en" placeholder="e.g. Chicken Shawarma Wrap" required>
+            </div>
+            <div class="form-group-admin" style="margin-bottom: 12px;">
+              <label for="menu-form-desc-en">Description (EN)</label>
+              <textarea id="menu-form-desc-en" rows="2" placeholder="Item description in English..." required></textarea>
+            </div>
+            <div class="form-group-admin">
+              <label for="menu-form-tags-en">Tags (EN, comma separated)</label>
+              <input type="text" id="menu-form-tags-en" placeholder="e.g. Best Seller, Spicy Option">
+            </div>
+          </div>
+
+          <!-- French -->
+          <div class="lang-edit-section">
+            <div class="lang-section-header">Français (FR) Details</div>
+            <div class="form-group-admin" style="margin-bottom: 12px;">
+              <label for="menu-form-title-fr">Titre (FR)</label>
+              <input type="text" id="menu-form-title-fr" placeholder="ex : Chawarma Poulet Classique" required>
+            </div>
+            <div class="form-group-admin" style="margin-bottom: 12px;">
+              <label for="menu-form-desc-fr">Description (FR)</label>
+              <textarea id="menu-form-desc-fr" rows="2" placeholder="Description en Français..." required></textarea>
+            </div>
+            <div class="form-group-admin">
+              <label for="menu-form-tags-fr">Tags (FR, comma separated)</label>
+              <input type="text" id="menu-form-tags-fr" placeholder="ex : Best-Seller, Option Épicé">
+            </div>
+          </div>
+
+          <!-- Tunisian -->
+          <div class="lang-edit-section">
+            <div class="lang-section-header">تـونسي (TN) Details</div>
+            <div class="form-group-admin" style="margin-bottom: 12px; text-align: right;">
+              <label for="menu-form-title-tn" style="display:block; text-align:right;">الاسم (TN)</label>
+              <input type="text" id="menu-form-title-tn" placeholder="مثال: لفة شاورما دجاج" required dir="rtl">
+            </div>
+            <div class="form-group-admin" style="margin-bottom: 12px; text-align: right;">
+              <label for="menu-form-desc-tn" style="display:block; text-align:right;">الوصف (TN)</label>
+              <textarea id="menu-form-desc-tn" rows="2" placeholder="تفاصيل الطبق بالتونسي..." required dir="rtl"></textarea>
+            </div>
+            <div class="form-group-admin" style="text-align: right;">
+              <label for="menu-form-tags-tn" style="display:block; text-align:right;">العلامات (TN, comma separated)</label>
+              <input type="text" id="menu-form-tags-tn" placeholder="مثال: الأكثر طلبًا، محرحر" dir="rtl">
+            </div>
+          </div>
+
+        </div>
+        <div class="admin-modal-footer">
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-menu-editor">Cancel</button>
+          <button type="submit" class="btn-admin-primary">Save Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- B. Review Editor Dialog Modal -->
+  <div class="admin-modal-overlay" id="review-editor-modal">
+    <div class="admin-modal-card" style="max-width: 480px;">
+      <div class="admin-modal-header">
+        <h3 id="review-modal-title">Add Review</h3>
+        <button class="btn-close-modal-admin" id="btn-close-review-modal">&times;</button>
+      </div>
+      <form id="review-item-form">
+        <div class="admin-modal-body">
+          <input type="hidden" id="review-form-id">
+          
+          <div class="form-group-admin" style="margin-bottom: 16px;">
+            <label for="review-form-author">Author Name</label>
+            <input type="text" id="review-form-author" placeholder="e.g. Anis Ben Amor" required>
+          </div>
+          
+          <div class="form-grid-admin" style="margin-bottom: 16px;">
+            <div class="form-group-admin">
+              <label for="review-form-role">Author Role / Caption</label>
+              <input type="text" id="review-form-role" placeholder="e.g. Local Guide • Sousse" required>
+            </div>
+            <div class="form-group-admin">
+              <label for="review-form-stars">Stars</label>
+              <select id="review-form-stars" required>
+                <option value="5" selected>5 Stars ★★★★★</option>
+                <option value="4">4 Stars ★★★★☆</option>
+                <option value="3">3 Stars ★★★☆☆</option>
+                <option value="2">2 Stars ★★☆☆☆</option>
+                <option value="1">1 Star ★☆☆☆☆</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group-admin" style="margin-bottom: 16px;">
+            <label for="review-form-text">Review Content</label>
+            <textarea id="review-form-text" rows="3" placeholder="Write customer feedback here..." required></textarea>
+          </div>
+
+          <div class="form-group-admin">
+            <label for="review-form-date">Date / Platform Source</label>
+            <input type="text" id="review-form-date" placeholder="e.g. Google Review" value="Google Review" required>
+          </div>
+        </div>
+        <div class="admin-modal-footer">
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-review-editor">Cancel</button>
+          <button type="submit" class="btn-admin-primary">Save Review</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- C. Event Editor Dialog Modal -->
+  <div class="admin-modal-overlay" id="event-editor-modal">
+    <div class="admin-modal-card">
+      <div class="admin-modal-header">
+        <h3 id="event-modal-title">Add Event</h3>
+        <button class="btn-close-modal-admin" id="btn-close-event-modal">&times;</button>
+      </div>
+      <form id="event-item-form">
+        <div class="admin-modal-body">
+          <input type="hidden" id="event-form-id">
+          
+          <div class="form-grid-admin">
+            <div class="form-group-admin">
+              <label for="event-form-date">Event Date</label>
+              <input type="date" id="event-form-date" required>
+            </div>
+            <div class="form-group-admin">
+              <label for="event-form-status">Status</label>
+              <select id="event-form-status" required>
+                <option value="draft">Draft</option>
+                <option value="published" selected>Published</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Image Uploader Row -->
+          <div class="form-group-admin full-width" style="margin-top: 16px; margin-bottom: 20px;">
+            <label>Event Cover Image</label>
+            <div class="image-uploader-row">
+              <div class="image-preview-box" id="event-form-image-preview">
+                <span class="placeholder-icon">📸</span>
+              </div>
+              <div style="flex: 1;">
+                <input type="file" id="event-form-file-input" accept="image/*" class="image-upload-input">
+                <input type="hidden" id="event-form-image-base64">
+                <p style="font-size: 0.72rem; color: var(--text-admin-muted); margin-top: 4px;">Convert image to base64 immediately for client storage.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- English -->
+          <div class="lang-edit-section">
+            <div class="lang-section-header">English (EN) Details</div>
+            <div class="form-group-admin" style="margin-bottom: 12px;">
+              <label for="event-form-title-en">Title (EN)</label>
+              <input type="text" id="event-form-title-en" placeholder="e.g. The Village Stand" required>
+            </div>
+            <div class="form-grid-admin" style="margin-bottom: 12px;">
+              <div class="form-group-admin">
+                <label for="event-form-duration-en">Duration (EN)</label>
+                <input type="text" id="event-form-duration-en" placeholder="e.g. 3 Days (6 PM - Midnight)" required>
+              </div>
+              <div class="form-group-admin">
+                <label for="event-form-location-en">Location (EN)</label>
+                <input type="text" id="event-form-location-en" placeholder="e.g. The Village, Hammam Sousse" required>
+              </div>
+            </div>
+            <div class="form-group-admin">
+              <label for="event-form-desc-en">Description (EN)</label>
+              <textarea id="event-form-desc-en" rows="2" placeholder="Describe our presence / stand in English..." required></textarea>
+            </div>
+          </div>
+
+          <!-- French -->
+          <div class="lang-edit-section">
+            <div class="lang-section-header">Français (FR) Details</div>
+            <div class="form-group-admin" style="margin-bottom: 12px;">
+              <label for="event-form-title-fr">Titre (FR)</label>
+              <input type="text" id="event-form-title-fr" placeholder="ex : Stand The Village">
+            </div>
+            <div class="form-grid-admin" style="margin-bottom: 12px;">
+              <div class="form-group-admin">
+                <label for="event-form-duration-fr">Durée (FR)</label>
+                <input type="text" id="event-form-duration-fr" placeholder="ex : 3 Jours (18h - Minuit)">
+              </div>
+              <div class="form-group-admin">
+                <label for="event-form-location-fr">Lieu (FR)</label>
+                <input type="text" id="event-form-location-fr" placeholder="ex : Le Village, Hammam Sousse">
+              </div>
+            </div>
+            <div class="form-group-admin">
+              <label for="event-form-desc-fr">Description (FR)</label>
+              <textarea id="event-form-desc-fr" rows="2" placeholder="Décrivez notre présence en français..."></textarea>
+            </div>
+          </div>
+
+          <!-- Tunisian Arabic -->
+          <div class="lang-edit-section" style="direction: rtl;">
+            <div class="lang-section-header" style="text-align: right;">تـونسي (TN) Details</div>
+            <div class="form-group-admin" style="margin-bottom: 12px; text-align: right;">
+              <label for="event-form-title-tn">العنوان (TN)</label>
+              <input type="text" id="event-form-title-tn" placeholder="مثال: معرض القرية" style="text-align: right;">
+            </div>
+            <div class="form-grid-admin" style="margin-bottom: 12px; text-align: right;">
+              <div class="form-group-admin">
+                <label for="event-form-location-tn">الموقع (TN)</label>
+                <input type="text" id="event-form-location-tn" placeholder="مثال: القرية، حمام سوسة" style="text-align: right;">
+              </div>
+              <div class="form-group-admin">
+                <label for="event-form-duration-tn">المدة (TN)</label>
+                <input type="text" id="event-form-duration-tn" placeholder="مثال: 3 أيام (من 6 مساءً)" style="text-align: right;">
+              </div>
+            </div>
+            <div class="form-group-admin" style="text-align: right;">
+              <label for="event-form-desc-tn">الوصف (TN)</label>
+              <textarea id="event-form-desc-tn" rows="2" placeholder="أوصف حضورنا باللغة التونسية..." style="text-align: right;"></textarea>
+            </div>
+          </div>
+
+        </div>
+        <div class="admin-modal-footer">
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-event-editor">Cancel</button>
+          <button type="submit" class="btn-admin-primary">Save Event</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</body>
+</html>

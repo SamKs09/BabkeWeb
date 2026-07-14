@@ -5,18 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Babke Kebab & Plates — Authentic Middle Eastern Street Food in Sousse</title>
   <meta name="description" content="Savor the finest charcoal-grilled kebabs, vertical-spit shawarma, loaded fries, and authentic Lebanese mezze in Hammam Sousse. Order online today!">
+  
   <!-- Google Fonts: Outfit (headings) & Plus Jakarta Sans (body) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/chatbot.css">
+  
+  <!-- Logo Icon -->
   <link rel="icon" type="image/png" href="assets/BabkeLogo.png">
-  <script defer src="hero-spin.js"></script>
-  <script defer src="embers-canvas.js"></script>
-  <script defer src="cart.js"></script>
-  <script defer src="translations.js"></script>
-  <script defer src="preloader-reveal.js"></script>
+  
+  <!-- App Configuration & Mock Database Layer -->
+  <script src="config/settings.js"></script>
+  <script src="data/defaultData.js"></script>
+  <script src="data/store.js"></script>
+  
+  <!-- Components Templates -->
+  <script src="components/cartDrawer.js"></script>
+  <script src="components/reservationForm.js"></script>
+  <script src="components/foodChatbot.js"></script>
+
+  <!-- Core Scripts (Deferred) -->
+  <script defer src="scripts/hero-spin.js"></script>
+  <script defer src="scripts/embers.js"></script>
+  <script defer src="scripts/translations.js"></script>
+  <script defer src="scripts/cart.js"></script>
+  <script defer src="scripts/chatbot.js"></script>
+  <script defer src="scripts/preloader.js"></script>
 </head>
 <body>
 
@@ -57,6 +75,7 @@
         <a href="#home" class="nav-link active" data-translate="nav_home">Home</a>
         <a href="#menu" class="nav-link" data-translate="nav_menu">Menu</a>
         <a href="#about" class="nav-link" data-translate="nav_about">Our Story</a>
+        <a href="#events" class="nav-link" data-translate="nav_events">Events</a>
         <a href="#gallery" class="nav-link" data-translate="nav_gallery">Socials</a>
         <a href="#reviews" class="nav-link" data-translate="nav_reviews">Reviews</a>
         <a href="#contact" class="nav-link" data-translate="nav_contact">Find Us</a>
@@ -75,8 +94,9 @@
         </button>
 
         <a href="#contact" class="btn-delivery-pulse">
-          <span>Order Now</span>
+          <span data-translate="nav_order_now">Order Now</span>
         </a>
+        
         <!-- Mobile Toggle -->
         <button class="burger-menu" id="burger-menu" aria-label="Toggle Navigation Menu">
           <span class="burger-bar"></span>
@@ -92,36 +112,36 @@
     <div class="hero-container">
       <div class="hero-content">
         <div class="award-hero-badge">
-          <span>MEILLEUR CHAWARMA 2025 BY TORCHI.TN</span>
+          <span data-translate="hero_award">MEILLEUR CHAWARMA 2025 BY TORCHI.TN</span>
         </div>
         <div class="hero-badge">
           <span class="pulse-dot"></span>
-          <span>Sousse's Favorite Kebab Spot</span>
+          <span data-translate="hero_badge">Sousse's Favorite Kebab Spot</span>
         </div>
-        <h1 class="hero-title">
+        <h1 class="hero-title" data-translate="hero_title">
           THE STREETS OF <span class="highlight">SOUSSE</span> JUST GOT FLAVOR.
         </h1>
-        <p class="hero-description">
+        <p class="hero-description" data-translate="hero_desc">
           Charcoal-grilled Turkish Adana, toasted Lebanese-style chicken shawarma, and loaded crispy fries dripping with our signature garlic whip and spices. Hand-carved daily, served fresh.
         </p>
         
         <div class="hero-actions">
-          <a href="#menu" class="btn-primary-food">Explore the Menu</a>
-          <a href="#contact" class="btn-secondary-dark">Order Delivery</a>
+          <a href="#menu" class="btn-primary-food" data-translate="hero_explore_menu">Explore the Menu</a>
+          <a href="#contact" class="btn-secondary-dark" data-translate="hero_order_delivery">Order Delivery</a>
         </div>
 
         <div class="hero-stats">
           <div class="hero-stat-item">
             <span class="stat-num">100%</span>
-            <span class="stat-txt">Charcoal Grilled</span>
+            <span class="stat-txt" data-translate="hero_stat_charcoal">Charcoal Grilled</span>
           </div>
           <div class="hero-stat-item">
             <span class="stat-num">15+</span>
-            <span class="stat-txt">Levantine Spices</span>
+            <span class="stat-txt" data-translate="hero_stat_spices">Levantine Spices</span>
           </div>
           <div class="hero-stat-item">
             <span class="stat-num">23k+</span>
-            <span class="stat-txt">Social Followers</span>
+            <span class="stat-txt" data-translate="hero_stat_social">Social Followers</span>
           </div>
         </div>
       </div>
@@ -205,226 +225,9 @@
         </div>
       </div>
 
-      <!-- Menu Items Grid -->
-      <div class="menu-items-grid" id="menu-items-grid">
-        <!-- Wraps Category (Default visible) -->
-        <article class="menu-item-card" data-cat="wraps">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/shawarma_wrap.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1561651823-34feb02250e4?w=600&auto=format&fit=crop&q=80';" alt="Babke Chicken Shawarma Wrap" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag best-seller" style="background:#ffb830;color:#000000;font-weight:900;letter-spacing:0.02em;" data-translate="menu_item1_tag_award">Meilleur Chawarma 2025</span>
-              <span class="card-tag spicy" data-translate="menu_item1_tag_spicy">Spicy Option</span>
-              <span class="card-tag best-seller" data-translate="menu_item1_tag_seller">Best Seller</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item1_title">Chicken Shawarma Wrap</h3>
-              <span class="menu-item-price">12.5 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item1_desc">
-              Slow-roasted vertical spit chicken shawarma, homemade Lebanese garlic paste (toum), tangy cucumber pickles, French fries wrapped in thin flatbread and toasted to crispy gold.
-            </p>
-          </div>
-        </article>
-
-        <article class="menu-item-card" data-cat="wraps">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/two_viandes.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80';" alt="Babke 2 Viandes Wrap" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag special" data-translate="menu_item2_tag_sig">Signature</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item2_title">Babke "2 Viandes" Wrap</h3>
-              <span class="menu-item-price">16.0 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item2_desc">
-              The ultimate meat union. Toasted wrap filled with slow-cooked chicken shawarma AND tender minced beef kebab, rich garlic whip, hummus layer, fresh onions, tomatoes, and sumac.
-            </p>
-          </div>
-        </article>
-
-        <article class="menu-item-card" data-cat="wraps">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/cheddarli_taouk.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80';" alt="Sandwich Cheddarli Taouk" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag cheese" data-translate="menu_item3_tag_cheese">Extra Cheesy</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item3_title">Cheddarli Taouk</h3>
-              <span class="menu-item-price">14.0 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item3_desc">
-              Skewered cubes of marinated breast chicken (Chich Taouk) grilled over open charcoal, rolled in flatbread and flooded with rich, warm liquid cheddar cheese sauce.
-            </p>
-          </div>
-        </article>
-
-        <article class="menu-item-card" data-cat="wraps">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/falafel_wrap.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80';" alt="Traditional Falafel Wrap" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag vegan" data-translate="menu_item4_tag_vegan">Vegan</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item4_title">Crispy Falafel Wrap</h3>
-              <span class="menu-item-price">9.5 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item4_desc">
-              Vibrant homemade falafel discs fried to absolute crispiness, loaded with nutty sesame tahini sauce, fresh mint leaves, pickled turnips, tomatoes, radishes, and sliced cucumber.
-            </p>
-          </div>
-        </article>
-
-        <!-- Plates Category (Hidden by default) -->
-        <article class="menu-item-card" data-cat="plates" style="display: none;">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/plat_royal.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80';" alt="Plat Royal Babke" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag best-seller" data-translate="menu_item5_tag_royal">Royal Feast</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item5_title">Plat Royal Babke</h3>
-              <span class="menu-item-price">34.0 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item5_desc">
-              The king of the grill. A massive platter showcasing two skewers of charcoal Adana kebab, one skewer of Chich Taouk, chicken shawarma carvings, served with creamy hummus, garlic whip, fries, and warm pita.
-            </p>
-          </div>
-        </article>
-
-        <article class="menu-item-card" data-cat="plates" style="display: none;">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/plat_adana.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80';" alt="Plat Kebab Adana" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag spicy" data-translate="menu_item6_tag_heat">Medium Heat</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item6_title">Plat Kebab Adana</h3>
-              <span class="menu-item-price">22.0 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item6_desc">
-              Traditional hand-minced beef and lamb shoulder kebab mixed with red bell peppers, authentic spices, grilled over red-hot charcoal. Served on flatbread with chargrilled tomatoes and sumac-onion salad.
-            </p>
-          </div>
-        </article>
-
-        <article class="menu-item-card" data-cat="plates" style="display: none;">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/plat_chawarma.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80';" alt="Plat Chawarma Plate" class="menu-item-img">
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item7_title">Plat Chawarma</h3>
-              <span class="menu-item-price">18.5 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item7_desc">
-              A mountain of vertical-spit carved chicken shawarma, drizzled with Lebanese garlic whip, served with fresh house tabbouleh salad, crisp French fries, pickles, and grilled flatbread.
-            </p>
-          </div>
-        </article>
-
-        <!-- Mezze Category (Hidden by default) -->
-        <article class="menu-item-card" data-cat="mezze" style="display: none;">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/hummus_shawarma.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80';" alt="Creamy Hummus with Shawarma" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag best-seller" data-translate="menu_item8_tag_pop">Popular</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item8_title">Hummus & Shawarma Dip</h3>
-              <span class="menu-item-price">11.0 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item8_desc">
-              Smooth, rich chickpea purée blended with premium sesame tahini, fresh lemon juice, garlic, topped with warm, juicy chicken shawarma carvings, toasted pine nuts, sumac, and olive oil.
-            </p>
-          </div>
-        </article>
-
-        <article class="menu-item-card" data-cat="mezze" style="display: none;">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/baba_ghanoush.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80';" alt="Smoky Baba Ghanoush" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag vegan" data-translate="menu_item4_tag_vegan">Vegan</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item9_title">Smoky Baba Ghanoush</h3>
-              <span class="menu-item-price">8.5 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item9_desc">
-              Charcoal-roasted eggplant mashed with sesame tahini, garlic, lemon juice, sumac, and extra virgin olive oil, crowned with fresh pomegranate seeds for a sweet burst.
-            </p>
-          </div>
-        </article>
-
-        <article class="menu-item-card" data-cat="mezze" style="display: none;">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/tabbouleh.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80';" alt="Fresh House Tabbouleh" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag vegan" data-translate="menu_item4_tag_vegan">Vegan</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item10_title">Vibrant Lebanese Tabbouleh</h3>
-              <span class="menu-item-price">7.5 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item10_desc">
-              Super finely hand-chopped flat-leaf parsley, fresh mint, red ripe tomatoes, green onions, and fine bulgur wheat, tossed in a zesty freshly squeezed lemon juice and cold olive oil dressing.
-            </p>
-          </div>
-        </article>
-
-        <!-- Specialties Category (Hidden by default) -->
-        <article class="menu-item-card" data-cat="specialties" style="display: none;">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/loaded_fries.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=600&auto=format&fit=crop&q=80';" alt="Loaded Babke Fries" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag cheese" data-translate="menu_item11_tag_cheat">Cheat Meal Dream</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item11_title">Spicy Loaded Babke Fries</h3>
-              <span class="menu-item-price">14.5 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item11_desc">
-              A mountain of house-cut golden fries loaded with slow-roasted chicken shawarma strips, flooded with warm cheddar cheese sauce, garlic whip, and a fiery drizzle of Tunisian harissa-mayo.
-            </p>
-          </div>
-        </article>
-
-        <article class="menu-item-card" data-cat="specialties" style="display: none;">
-          <div class="menu-item-img-wrapper">
-            <img src="assets/fattet_chawarma.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&auto=format&fit=crop&q=80';" alt="Fattet Chicken Chawarma" class="menu-item-img">
-            <div class="menu-item-tags">
-              <span class="card-tag special" data-translate="menu_item12_tag_chef">Chef Special</span>
-            </div>
-          </div>
-          <div class="menu-item-body">
-            <div class="menu-item-header">
-              <h3 data-translate="menu_item12_title">Fattet Chawarma</h3>
-              <span class="menu-item-price">17.5 TND</span>
-            </div>
-            <p class="menu-item-text" data-translate="menu_item12_desc">
-              An incredible Levantine comfort dish. Layers of crispy toasted pita bread chips, spiced basmati rice, slow-cooked chicken shawarma, bathed in a warm garlic-tahini yogurt sauce, and sprinkled with fried pine nuts.
-            </p>
-          </div>
-        </article>
+      <!-- Dynamic Menu Categories Sections -->
+      <div class="menu-categories-wrapper" id="menu-categories-wrapper">
+        <!-- Dynamically rendered by scripts/app.js -->
       </div>
     </div>
   </section>
@@ -487,81 +290,34 @@
     </div>
   </section>
 
+  <!-- UPCOMING EVENTS SECTION -->
+  <section class="events-section" id="events">
+    <div class="section-header">
+      <h2 class="section-title" data-translate="events_title">UPCOMING EVENTS</h2>
+      <p class="section-subtitle" data-translate="events_subtitle">Catch us hosting stands and preparing live street food at these local events.</p>
+    </div>
+
+    <div class="events-swiper-container">
+      <button class="swiper-btn prev-btn" id="event-prev-btn" aria-label="Previous event">&#8249;</button>
+      <button class="swiper-btn next-btn" id="event-next-btn" aria-label="Next event">&#8250;</button>
+      
+      <div class="events-swiper-track" id="events-swiper-track">
+        <!-- Dynamically rendered event cards -->
+      </div>
+    </div>
+  </section>
+
   <!-- INSTAGRAM / GALLERY GRID SECTION -->
   <section class="gallery-section" id="gallery">
     <div class="section-header">
-      <h2 class="section-title">FEAST WITH YOUR EYES</h2>
-      <p class="section-subtitle">Follow us on Instagram <a href="https://www.instagram.com/babke_kebab/" target="_blank" class="instagram-link">@babke_kebab</a> for your daily dose of smoke and cheddar.</p>
+      <h2 class="section-title" data-translate="gallery_title">FEAST WITH YOUR EYES</h2>
+      <p class="section-subtitle" data-translate="gallery_subtitle">Follow us on Instagram <a href="https://www.instagram.com/babke_kebab/" target="_blank" class="instagram-link">@babke_kebab</a> for your daily dose of smoke and cheddar.</p>
     </div>
 
-    <!-- Instagram Mockup Grid -->
+    <!-- Instagram Mockup Grid Placeholder -->
     <div class="gallery-grid-container">
       <div class="gallery-grid">
-        <div class="gallery-item-card" data-src="assets/insta_1.jpg">
-          <img src="assets/insta_1.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=500&auto=format&fit=crop&q=80';" alt="Babke Charcoal Kebabs skewers on fire" class="gallery-img">
-          <div class="gallery-overlay">
-            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-            <span class="gallery-likes">
-              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              1.2k
-            </span>
-          </div>
-        </div>
-
-        <div class="gallery-item-card" data-src="assets/insta_2.jpg">
-          <img src="assets/insta_2.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1561651823-34feb02250e4?w=500&auto=format&fit=crop&q=80';" alt="Toasted Chicken Shawarma Wraps dripping garlic whip" class="gallery-img">
-          <div class="gallery-overlay">
-            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-            <span class="gallery-likes">
-              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              954
-            </span>
-          </div>
-        </div>
-
-        <div class="gallery-item-card" data-src="assets/insta_3.jpg">
-          <img src="assets/insta_3.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=500&auto=format&fit=crop&q=80';" alt="Beautiful Middle Eastern Mezze Platters with fresh hummus and pita" class="gallery-img">
-          <div class="gallery-overlay">
-            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-            <span class="gallery-likes">
-              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              821
-            </span>
-          </div>
-        </div>
-
-        <div class="gallery-item-card" data-src="assets/insta_4.jpg">
-          <img src="assets/insta_4.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=500&auto=format&fit=crop&q=80';" alt="Mouthwatering street food visual" class="gallery-img">
-          <div class="gallery-overlay">
-            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-            <span class="gallery-likes">
-              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              1.5k
-            </span>
-          </div>
-        </div>
-
-        <div class="gallery-item-card" data-src="assets/insta_5.jpg">
-          <img src="assets/insta_5.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&auto=format&fit=crop&q=80';" alt="Grilling skewers under flames" class="gallery-img">
-          <div class="gallery-overlay">
-            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-            <span class="gallery-likes">
-              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              1.1k
-            </span>
-          </div>
-        </div>
-
-        <div class="gallery-item-card" data-src="assets/insta_6.jpg">
-          <img src="assets/insta_6.jpg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=500&auto=format&fit=crop&q=80';" alt="Delicious chicken platter close-up" class="gallery-img">
-          <div class="gallery-overlay">
-            <svg class="insta-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-            <span class="gallery-likes">
-              <svg class="like-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              998
-            </span>
-          </div>
-        </div>
+        <!-- Dynamically rendered by scripts/app.js -->
       </div>
     </div>
   </section>
@@ -569,63 +325,14 @@
   <!-- TESTIMONIALS / REAL REVIEWS SECTION -->
   <section class="reviews-section" id="reviews">
     <div class="section-header">
-      <h2 class="section-title">STREET CREDIBILITY</h2>
-      <p class="section-subtitle">Real feedback from real diners. No fluff, just pure flavor reviews.</p>
+      <h2 class="section-title" data-translate="reviews_title">STREET CREDIBILITY</h2>
+      <p class="section-subtitle" data-translate="reviews_subtitle">Real feedback from real diners. No fluff, just pure flavor reviews.</p>
     </div>
 
-    <!-- Testimonial Slider Wrapper -->
+    <!-- Testimonial Slider Wrapper Placeholder -->
     <div class="reviews-container">
       <div class="reviews-slider-track" id="reviews-slider-track">
-        <div class="review-slide active">
-          <div class="review-header">
-            <div class="stars">★★★★★</div>
-            <span class="review-date">Google Review</span>
-          </div>
-          <p class="review-text">
-            "Honestly the best chicken shawarma in Hammam Sousse! The garlic paste (toum) is absolutely perfect, just like the traditional Lebanese one. Portion is huge and the meat is not dry at all. 10/10."
-          </p>
-          <div class="review-author">
-            <span class="author-avatar">A</span>
-            <div>
-              <h4>Anis Ben Amor</h4>
-              <p>Local Guide • Sousse</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="review-slide">
-          <div class="review-header">
-            <div class="stars">★★★★★</div>
-            <span class="review-date">Google Review</span>
-          </div>
-          <p class="review-text">
-            "Terrific service and cozy, friendly atmosphere! If you haven't ordered the loaded Babke Fries or the Cheddarli Taouk, you are missing out on life. Generous portions and very fair prices."
-          </p>
-          <div class="review-author">
-            <span class="author-avatar">M</span>
-            <div>
-              <h4>Mariem Guedouar</h4>
-              <p>Local Guide • Hammam Sousse</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="review-slide">
-          <div class="review-header">
-            <div class="stars">★★★★★</div>
-            <span class="review-date">Google Review</span>
-          </div>
-          <p class="review-text">
-            "The Kebab Adana has an incredible charcoal smokiness. You can tell they use proper wood embers instead of standard electric grills. Hummus is velvety and has authentic olive oil on top."
-          </p>
-          <div class="review-author">
-            <span class="author-avatar">K</span>
-            <div>
-              <h4>Karim Jellouli</h4>
-              <p>Food Enthusiast</p>
-            </div>
-          </div>
-        </div>
+        <!-- Dynamically rendered by scripts/app.js -->
       </div>
 
       <!-- Slider Controls -->
@@ -698,6 +405,9 @@
           </div>
         </div>
 
+        <!-- Table Reservation Form Placeholder -->
+        <div id="reservation-form-placeholder"></div>
+
         <!-- Delivery App Integrations -->
         <div class="delivery-integration-card glass-card">
           <h4 data-translate="contact_delivery_card_title">GET IT DELIVERED TO YOUR COUCH</h4>
@@ -738,10 +448,12 @@
               <path d="M120 -10 V310" stroke="#d0c4be" stroke-width="16"/>
               <path d="M280 -10 V310" stroke="#d0c4be" stroke-width="8"/>
               <path d="M-10 210 H410" stroke="#d0c4be" stroke-width="10"/>
+              
               <!-- Avenue labels -->
               <text x="10" y="105" fill="hsl(5, 15%, 55%)" font-size="8" font-family="Outfit" font-weight="600" letter-spacing="1">AV. DES ORANGERS</text>
               <text x="135" y="40" fill="hsl(5, 15%, 55%)" font-size="8" font-family="Outfit" font-weight="600" letter-spacing="1" transform="rotate(90 135 40)">RUE DE ROME</text>
               <text x="10" y="195" fill="hsl(5, 15%, 55%)" font-size="8" font-family="Outfit" font-weight="600" letter-spacing="1">AVENUE HEDI CHAKER</text>
+              
               <!-- Map marker -->
               <g class="map-marker-glow" transform="translate(120, 120)">
                 <circle cx="0" cy="0" r="16" fill="rgba(192, 58, 46, 0.18)"/>
@@ -805,6 +517,6 @@
   </footer>
 
   <!-- Script File -->
-  <script src="app.js"></script>
+  <script src="scripts/app.js"></script>
 </body>
 </html>

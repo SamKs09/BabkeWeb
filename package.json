@@ -2,10 +2,16 @@
   "name": "babke-kebab-website",
   "version": "1.0.0",
   "description": "Authentic and trendy Middle Eastern street-food restaurant website for Babke Kebab & Plates in Hammam Sousse.",
-  "main": "index.html",
+  "main": "server.js",
   "scripts": {
-    "start": "npx -y serve .",
-    "dev": "npx -y serve ."
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.2.1"
   },
   "keywords": [
     "restaurant",
