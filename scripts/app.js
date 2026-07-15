@@ -5,6 +5,31 @@
 document.addEventListener('DOMContentLoaded', () => {
   const getLang = () => localStorage.getItem('babke_lang') || 'en';
 
+  // Global Immersive Toast Notification utility
+  window.showToast = (message) => {
+    let container = document.querySelector('.babke-toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'babke-toast-container';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'babke-toast';
+    toast.innerHTML = `
+      <div class="babke-toast-accent"></div>
+      <span style="font-weight: 600;">${message}</span>
+    `;
+
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 50);
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 400);
+    }, 4500);
+  };
+
   // 0. Immersive Theme Switcher Controls
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
   
@@ -238,12 +263,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Tags markup
         let tagsHtml = '';
         const tagsList = item.tags[lang] || item.tags['en'] || [];
-        tagsList.forEach(tag => {
+        const englishTags = item.tags['en'] || [];
+        tagsList.forEach((tag, idx) => {
           let style = '';
+          const engTag = englishTags[idx] || tag;
+          const tagClass = engTag.toLowerCase().replace(/[^a-z0-9]/g, '-');
           if (tag.includes('2025') || tag.toLowerCase().includes('seller') || tag.toLowerCase().includes('vendeur') || tag.includes('طلب')) {
             style = 'style="background:#ffb830;color:#000000;font-weight:900;letter-spacing:0.02em;"';
           }
-          tagsHtml += `<span class="card-tag" ${style}>${tag}</span>`;
+          tagsHtml += `<span class="card-tag ${tagClass}" ${style}>${tag}</span>`;
         });
 
         card.innerHTML = `
@@ -451,13 +479,14 @@ document.addEventListener('DOMContentLoaded', () => {
         ? (lang === 'fr' ? 'ANNULÉ' : (lang === 'tn' ? 'ملغي' : 'CANCELLED'))
         : (lang === 'fr' ? 'À VENIR' : (lang === 'tn' ? 'قريبًا' : 'UPCOMING'));
 
-      // Format date nicely if possible
-      let dateDisplay = evt.date;
+      // Parse Month & Day for the calendar sticker
+      let monthDisplay = 'EVENT';
+      let dayDisplay = '•';
       try {
         const dObj = new Date(evt.date);
         if (!isNaN(dObj.getTime())) {
-          const dateOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-          dateDisplay = dObj.toLocaleDateString(lang === 'tn' ? 'ar-TN' : (lang === 'fr' ? 'fr-FR' : 'en-US'), dateOptions);
+          monthDisplay = dObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+          dayDisplay = dObj.getDate();
         }
       } catch (err) {
         console.error(err);
@@ -466,29 +495,40 @@ document.addEventListener('DOMContentLoaded', () => {
       card.innerHTML = `
         <div class="event-image-wrapper">
           <img src="${evt.image}" loading="lazy" alt="${title}" onerror="this.onerror=null; this.src='${evt.fallbackImage}';" class="event-img">
-          <div class="event-status-badge ${evt.status === 'cancelled' ? 'cancelled' : 'upcoming'}">${statusLabel}</div>
+          <div class="event-calendar-badge">
+            <span class="cal-month">${monthDisplay}</span>
+            <span class="cal-day">${dayDisplay}</span>
+          </div>
+          <div class="event-status-tag ${evt.status === 'cancelled' ? 'cancelled' : 'upcoming'}">
+            <span class="status-dot"></span>
+            <span>${statusLabel}</span>
+          </div>
         </div>
         <div class="event-card-body">
-          <h4 class="event-card-title">${title}</h4>
-          <div class="event-meta">
-            <div class="event-meta-item">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              <span>${dateDisplay} • ${duration}</span>
+          <div>
+            <div class="event-badge-label">${evt.status === 'cancelled' ? (lang === 'fr' ? 'SÉANCE ARCHIVÉE' : (lang === 'tn' ? 'حدث سابق' : 'PAST EVENT')) : (lang === 'fr' ? 'BOUTIQUE ÉPHÉMÈRE' : (lang === 'tn' ? 'حدث خاص' : 'SPECIAL POP-UP'))}</div>
+            <h4 class="event-card-title">${title}</h4>
+            
+            <div class="event-meta-grid">
+              <div class="event-meta-row">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>${duration}</span>
+              </div>
+              <div class="event-meta-row">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>${location}</span>
+              </div>
             </div>
-            <div class="event-meta-item">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-              <span>${location}</span>
-            </div>
+            
+            <p class="event-card-desc">${desc}</p>
           </div>
-          <p class="event-card-desc">${desc}</p>
+          
+          <div class="event-card-footer">
+            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}" target="_blank" class="event-action-btn">
+              <span>${lang === 'fr' ? 'Itinéraire Google Maps' : (lang === 'tn' ? 'خرائط جوجل الموقع' : 'Get Directions on Maps')}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+            </a>
+          </div>
         </div>
       `;
 
@@ -551,7 +591,13 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
 
-      card.addEventListener('click', openLightbox);
+      card.addEventListener('click', (e) => {
+        if (item.link) {
+          window.open(item.link, '_blank');
+        } else {
+          openLightbox(e);
+        }
+      });
       grid.appendChild(card);
     });
   };

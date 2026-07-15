@@ -18,6 +18,9 @@
   <script src="../data/defaultData.js"></script>
   <script src="../data/store.js"></script>
   
+  <!-- Chart.js for Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  
   <!-- Admin scripts (deferred) -->
   <script defer src="admin.js"></script>
 </head>
@@ -91,6 +94,10 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             <span>Orders & Bookings</span>
           </button>
+          <button class="nav-item-btn" data-panel="leftovers">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M3 20h3"/><path d="M3 10h18"/><path d="M3 5h18"/><path d="M3 15h18"/></svg>
+            <span>Leftovers & Analytics</span>
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -110,12 +117,6 @@
           </div>
           
           <div class="top-bar-actions">
-            <!-- Theme toggle -->
-            <button class="theme-toggle-btn-admin" id="admin-theme-toggle" aria-label="Toggle Theme">
-              <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6.34 17.66l-1.41 1.41"/><path d="M19.07 4.93l-1.41 1.41"/></svg>
-              <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-            </button>
-            
             <a href="../index.html" target="_blank" class="btn-admin-secondary">
               <span>View Site</span>
             </a>
@@ -165,7 +166,7 @@
             <label>Item Image</label>
             <div class="image-uploader-row">
               <div class="image-preview-box" id="menu-form-image-preview">
-                <span class="placeholder-icon">📸</span>
+                <span class="placeholder-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
               </div>
               <div style="flex: 1;">
                 <input type="file" id="menu-form-file-input" accept="image/*" class="image-upload-input">
@@ -318,7 +319,7 @@
             <label>Event Cover Image</label>
             <div class="image-uploader-row">
               <div class="image-preview-box" id="event-form-image-preview">
-                <span class="placeholder-icon">📸</span>
+                <span class="placeholder-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
               </div>
               <div style="flex: 1;">
                 <input type="file" id="event-form-file-input" accept="image/*" class="image-upload-input">
@@ -401,6 +402,49 @@
         <div class="admin-modal-footer">
           <button type="button" class="btn-admin-secondary" id="btn-cancel-event-editor">Cancel</button>
           <button type="submit" class="btn-admin-primary">Save Event</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- D. Gallery Editor Dialog Modal -->
+  <div class="admin-modal-overlay" id="gallery-editor-modal">
+    <div class="admin-modal-card" style="max-width: 480px;">
+      <div class="admin-modal-header">
+        <h3 id="gallery-modal-title">Edit Gallery Photo</h3>
+        <button class="btn-close-modal-admin" id="btn-close-gallery-modal">&times;</button>
+      </div>
+      <form id="gallery-item-form">
+        <div class="admin-modal-body">
+          <input type="hidden" id="gallery-form-id">
+          
+          <div style="text-align: center; margin-bottom: 16px;">
+            <img id="gallery-form-preview" src="" style="max-width: 100%; max-height: 150px; border-radius: var(--radius-admin-sm); object-fit: contain; border: 1px solid var(--border-admin);">
+          </div>
+
+          <div class="form-group-admin" style="margin-bottom: 16px;">
+            <label for="gallery-form-link">Instagram Post Link</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="url" id="gallery-form-link" placeholder="e.g. https://www.instagram.com/p/DF..." required style="flex: 1; margin-bottom: 0;">
+              <button type="button" class="btn-admin-secondary" id="btn-fetch-instagram-likes" style="padding: 0 16px; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; height: 38px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                <span>Scrape Likes</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group-admin" style="margin-bottom: 16px;">
+            <label for="gallery-form-alt">Alt Text / Description</label>
+            <input type="text" id="gallery-form-alt" placeholder="e.g. Delicious Babke skewers" required>
+          </div>
+
+          <div class="form-group-admin">
+            <label for="gallery-form-likes">Likes Display Count</label>
+            <input type="text" id="gallery-form-likes" placeholder="e.g. 1.2k or 950" required>
+          </div>
+        </div>
+        <div class="admin-modal-footer">
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-gallery-editor">Cancel</button>
+          <button type="submit" class="btn-admin-primary">Save Changes</button>
         </div>
       </form>
     </div>

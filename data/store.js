@@ -438,6 +438,50 @@ const BabkeDB = {
     } catch (err) {
       console.error('Error deleting event from backend:', err);
     }
+  },
+
+  // LEFTOVERS
+  getLeftovers() {
+    return this.cache ? (this.cache.leftovers || []) : [];
+  },
+
+  async addLeftover(leftover) {
+    if (!this.cache) await this.init();
+    if (!this.cache.leftovers) this.cache.leftovers = [];
+    this.cache.leftovers.unshift(leftover);
+
+    window.dispatchEvent(new Event('babkeLeftoversChanged'));
+    babkeChannel.postMessage({ type: 'leftovers_changed' });
+
+    try {
+      const res = await fetch('/api/leftovers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leftover)
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error logging leftover item to backend:', err);
+    }
+  },
+
+  async deleteLeftover(id) {
+    if (!this.cache) await this.init();
+    if (this.cache.leftovers) {
+      this.cache.leftovers = this.cache.leftovers.filter(l => l.id !== id);
+    }
+
+    window.dispatchEvent(new Event('babkeLeftoversChanged'));
+    babkeChannel.postMessage({ type: 'leftovers_changed' });
+
+    try {
+      const res = await fetch(`/api/leftovers/${id}`, {
+        method: 'DELETE'
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error deleting leftover log from backend:', err);
+    }
   }
 };
 
@@ -464,6 +508,8 @@ babkeChannel.onmessage = async (event) => {
         window.dispatchEvent(new Event('babkeOrdersChanged'));
       } else if (event.data.type === 'reservations_changed') {
         window.dispatchEvent(new Event('babkeReservationsChanged'));
+      } else if (event.data.type === 'leftovers_changed') {
+        window.dispatchEvent(new Event('babkeLeftoversChanged'));
       }
     } catch (err) {
       console.error("Failed to sync cache following cross-tab notification:", err);

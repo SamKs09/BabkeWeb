@@ -430,7 +430,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnWhatsappCheckout) {
       btnWhatsappCheckout.addEventListener('click', () => {
         if (cart.length === 0) {
-          alert(getLang() === 'fr' ? "Veuillez ajouter des articles avant de commander !" : (getLang() === 'tn' ? "أقعد اختار واطلب بنتك قبل ماتبعث!" : "Please add items to your order before checking out!"));
+          const msg = getLang() === 'fr' ? "Veuillez ajouter des articles avant de commander !" : (getLang() === 'tn' ? "أقعد اختار واطلب بنتك قبل ماتبعث!" : "Please add items to your order before checking out!");
+          if (typeof window.showToast === 'function') window.showToast("⚠️ " + msg);
+          else alert(msg);
           return;
         }
 
@@ -439,19 +441,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const address = cartAddressInput.value.trim();
 
         if (!name) {
-          alert(getLang() === 'fr' ? "Veuillez spécifier votre nom complet !" : (getLang() === 'tn' ? "عايش خويا أكتب اسمك أولاً!" : "Please specify your full name!"));
+          const msg = getLang() === 'fr' ? "Veuillez spécifier votre nom complet !" : (getLang() === 'tn' ? "عايش خويا أكتب اسمك أولاً!" : "Please specify your full name!");
+          if (typeof window.showToast === 'function') window.showToast("⚠️ " + msg);
+          else alert(msg);
           cartCustNameInput.focus();
           return;
         }
 
         if (!phone) {
-          alert(getLang() === 'fr' ? "Veuillez spécifier votre numéro de téléphone !" : (getLang() === 'tn' ? "عايش خويا أكتب رقم تليفونك أولاً!" : "Please specify your phone number!"));
+          const msg = getLang() === 'fr' ? "Veuillez spécifier votre numéro de téléphone !" : (getLang() === 'tn' ? "عايش خويا أكتب رقم تليفونك أولاً!" : "Please specify your phone number!");
+          if (typeof window.showToast === 'function') window.showToast("⚠️ " + msg);
+          else alert(msg);
           cartCustPhoneInput.focus();
           return;
         }
 
         if (!address) {
-          alert(getLang() === 'fr' ? "Veuillez spécifier une adresse de livraison !" : (getLang() === 'tn' ? "عايش خويا أكتب عنوان التوصيل أولاً!" : "Please specify a Delivery Address or write 'Dine-In' / 'Pickup'!"));
+          const msg = getLang() === 'fr' ? "Veuillez spécifier une adresse de livraison !" : (getLang() === 'tn' ? "عايش خويا أكتب عنوان التوصيل أولاً!" : "Please specify a Delivery Address or write 'Dine-In' / 'Pickup'!");
+          if (typeof window.showToast === 'function') window.showToast("⚠️ " + msg);
+          else alert(msg);
           cartAddressInput.focus();
           return;
         }

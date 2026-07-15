@@ -398,12 +398,12 @@ const DEFAULT_DATA = {
     }
   ],
   gallery: [
-    { id: "gal-0", image: "assets/insta_1.jpg", alt: "Babke Charcoal Kebabs skewers on fire", likes: "1.2k" },
-    { id: "gal-1", image: "assets/insta_2.jpg", alt: "Toasted Chicken Shawarma Wraps dripping garlic whip", likes: "954" },
-    { id: "gal-2", image: "assets/insta_3.jpg", alt: "Beautiful Middle Eastern Mezze Platters with fresh hummus and pita", likes: "821" },
-    { id: "gal-3", image: "assets/insta_4.jpg", alt: "Mouthwatering street food visual", likes: "1.5k" },
-    { id: "gal-4", image: "assets/insta_5.jpg", alt: "Grilling skewers under flames", likes: "1.1k" },
-    { id: "gal-5", image: "assets/insta_6.jpg", alt: "Delicious chicken platter close-up", likes: "998" }
+    { id: "gal-0", image: "assets/insta_1.jpg", alt: "Babke Charcoal Kebabs skewers on fire", likes: "1.2k", link: "https://www.instagram.com/p/C-kebab1/" },
+    { id: "gal-1", image: "assets/insta_2.jpg", alt: "Toasted Chicken Shawarma Wraps dripping garlic whip", likes: "954", link: "https://www.instagram.com/p/C-shawarma2/" },
+    { id: "gal-2", image: "assets/insta_3.jpg", alt: "Beautiful Middle Eastern Mezze Platters with fresh hummus and pita", likes: "821", link: "https://www.instagram.com/p/C-mezze3/" },
+    { id: "gal-3", image: "assets/insta_4.jpg", alt: "Mouthwatering street food visual", likes: "1.5k", link: "https://www.instagram.com/p/C-street4/" },
+    { id: "gal-4", image: "assets/insta_5.jpg", alt: "Grilling skewers under flames", likes: "1.1k", link: "https://www.instagram.com/p/C-grill5/" },
+    { id: "gal-5", image: "assets/insta_6.jpg", alt: "Delicious chicken platter close-up", likes: "998", link: "https://www.instagram.com/p/C-chicken6/" }
   ],
   events: [
     {
@@ -415,7 +415,7 @@ const DEFAULT_DATA = {
         fr: "Festival Street Food The Village",
         tn: "مهرجان الأكلات الشعبية بالقرية"
       },
-      date: "2026-06-28",
+      date: "2026-07-28",
       duration: {
         en: "3 Days (6 PM - Midnight)",
         fr: "3 Jours (18h - Minuit)",
@@ -442,7 +442,7 @@ const DEFAULT_DATA = {
         fr: "Championnat de Padel Kantaoui",
         tn: "بطولة البادل بالقنطاوي"
       },
-      date: "2026-07-04",
+      date: "2026-08-04",
       duration: {
         en: "2 Days (4 PM - 10 PM)",
         fr: "2 Jours (16h - 22h)",
