@@ -67,6 +67,14 @@ document.addEventListener('DOMContentLoaded', () => {
       windowContainer.classList.remove('open');
     });
 
+    // Close on Escape key press (UX & Accessibility Upgrade)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && chatState.isOpen) {
+        chatState.isOpen = false;
+        windowContainer.classList.remove('open');
+      }
+    });
+
     inputForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const val = textInput.value.trim();
@@ -396,7 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const scrollToBottom = () => {
     const messagesBody = document.getElementById('chatbot-messages-body');
     if (messagesBody) {
-      messagesBody.scrollTop = messagesBody.scrollHeight;
+      messagesBody.scrollTo({ top: messagesBody.scrollHeight, behavior: 'smooth' });
     }
   };
 

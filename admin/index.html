@@ -55,8 +55,11 @@
 
     <!-- 2. MAIN DASHBOARD SHELL STATE (Hidden initially) -->
     <div class="admin-shell" id="admin-shell" style="display: none;">
+      <!-- Sidebar Overlay backdrop -->
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+      
       <!-- Sidebar -->
-      <aside class="admin-sidebar">
+      <aside class="admin-sidebar" id="admin-sidebar">
         <div class="sidebar-header">
           <img src="../assets/logo.png" alt="Babke Logo" class="sidebar-logo" onerror="this.src='../assets/BabkeLogo.png'">
           <div class="sidebar-brand">
@@ -112,8 +115,13 @@
       <main class="admin-main-container">
         <!-- Top Bar Header -->
         <header class="admin-top-bar">
-          <div class="panel-title">
-            <h2 id="admin-panel-title">Dashboard Overview</h2>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="menu-toggle-btn" id="menu-toggle-btn" aria-label="Toggle Navigation">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <div class="panel-title">
+              <h2 id="admin-panel-title">Dashboard Overview</h2>
+            </div>
           </div>
           
           <div class="top-bar-actions">

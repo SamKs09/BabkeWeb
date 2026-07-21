@@ -267,6 +267,28 @@ document.addEventListener('DOMContentLoaded', () => {
       cartDrawer.classList.remove('open');
       cartDrawerOverlay.classList.remove('open');
       document.body.style.overflow = '';
+      resetCheckoutStep();
+    };
+
+    const resetCheckoutStep = () => {
+      const p1 = document.getElementById('checkout-panel-step-1');
+      const p2 = document.getElementById('checkout-panel-step-2');
+      const p3 = document.getElementById('checkout-panel-step-3');
+      if (p1) p1.style.display = 'flex';
+      if (p2) p2.style.display = 'none';
+      if (p3) p3.style.display = 'none';
+
+      const step1 = document.getElementById('step-dot-1');
+      const step2 = document.getElementById('step-dot-2');
+      const step3 = document.getElementById('step-dot-3');
+      const line1 = document.getElementById('step-line-1');
+      const line2 = document.getElementById('step-line-2');
+
+      if (step1) step1.className = 'progress-step active';
+      if (step2) step2.className = 'progress-step';
+      if (step3) step3.className = 'progress-step';
+      if (line1) line1.className = 'progress-step-line';
+      if (line2) line2.className = 'progress-step-line';
     };
 
     if (btnCartToggle) btnCartToggle.addEventListener('click', openCartDrawer);
@@ -284,6 +306,91 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (btnCloseDrawer) btnCloseDrawer.addEventListener('click', closeCartDrawer);
     if (cartDrawerOverlay) cartDrawerOverlay.addEventListener('click', closeCartDrawer);
+
+    // Wizard navigation controls (UX Upgrade)
+    const btnGotoStep2 = document.getElementById('btn-goto-step-2');
+    const btnBackToStep1 = document.getElementById('btn-back-to-step-1');
+    const btnGotoStep3 = document.getElementById('btn-goto-step-3');
+    const btnBackToStep2 = document.getElementById('btn-back-to-step-2');
+
+    if (btnGotoStep2) {
+      btnGotoStep2.addEventListener('click', () => {
+        if (cart.length === 0) return;
+        
+        document.getElementById('checkout-panel-step-1').style.display = 'none';
+        document.getElementById('checkout-panel-step-2').style.display = 'flex';
+        
+        document.getElementById('step-dot-1').className = 'progress-step completed';
+        document.getElementById('step-line-1').className = 'progress-step-line completed';
+        document.getElementById('step-dot-2').className = 'progress-step active';
+      });
+    }
+
+    if (btnBackToStep1) {
+      btnBackToStep1.addEventListener('click', () => {
+        document.getElementById('checkout-panel-step-2').style.display = 'none';
+        document.getElementById('checkout-panel-step-1').style.display = 'flex';
+        
+        document.getElementById('step-dot-1').className = 'progress-step active';
+        document.getElementById('step-line-1').className = 'progress-step-line';
+        document.getElementById('step-dot-2').className = 'progress-step';
+      });
+    }
+
+    if (btnGotoStep3) {
+      btnGotoStep3.addEventListener('click', () => {
+        const name = cartCustNameInput.value.trim();
+        const phone = cartCustPhoneInput.value.trim();
+        const address = cartAddressInput.value.trim();
+
+        if (!name) {
+          const msg = getLang() === 'fr' ? "Veuillez spécifier votre nom complet !" : (getLang() === 'tn' ? "عايش خويا أكتب اسمك أولاً!" : "Please specify your full name!");
+          if (typeof window.showToast === 'function') window.showToast("⚠️ " + msg);
+          else alert(msg);
+          cartCustNameInput.focus();
+          return;
+        }
+
+        if (!phone) {
+          const msg = getLang() === 'fr' ? "Veuillez spécifier votre numéro de téléphone !" : (getLang() === 'tn' ? "عايش خويا أكتب رقم تليفونك أولاً!" : "Please specify your phone number!");
+          if (typeof window.showToast === 'function') window.showToast("⚠️ " + msg);
+          else alert(msg);
+          cartCustPhoneInput.focus();
+          return;
+        }
+
+        if (!address) {
+          const msg = getLang() === 'fr' ? "Veuillez spécifier une adresse de livraison !" : (getLang() === 'tn' ? "عايش خويا أكتب عنوان التوصيل أولاً!" : "Please specify a Delivery Address or write 'Dine-In' / 'Pickup'!");
+          if (typeof window.showToast === 'function') window.showToast("⚠️ " + msg);
+          else alert(msg);
+          cartAddressInput.focus();
+          return;
+        }
+
+        // Fill Confirmation Summary fields
+        document.getElementById('summary-cust-name').textContent = name;
+        document.getElementById('summary-cust-phone').textContent = phone;
+        document.getElementById('summary-cust-address').textContent = address;
+
+        document.getElementById('checkout-panel-step-2').style.display = 'none';
+        document.getElementById('checkout-panel-step-3').style.display = 'flex';
+        
+        document.getElementById('step-dot-2').className = 'progress-step completed';
+        document.getElementById('step-line-2').className = 'progress-step-line completed';
+        document.getElementById('step-dot-3').className = 'progress-step active';
+      });
+    }
+
+    if (btnBackToStep2) {
+      btnBackToStep2.addEventListener('click', () => {
+        document.getElementById('checkout-panel-step-3').style.display = 'none';
+        document.getElementById('checkout-panel-step-2').style.display = 'flex';
+        
+        document.getElementById('step-dot-2').className = 'progress-step active';
+        document.getElementById('step-line-2').className = 'progress-step-line';
+        document.getElementById('step-dot-3').className = 'progress-step';
+      });
+    }
 
     const openCustomizationModal = (itemDetails) => {
       currentCustomizingItem = itemDetails;
@@ -414,6 +521,17 @@ document.addEventListener('DOMContentLoaded', () => {
         closeCustomizationModal();
         triggerCartNotification();
         openCartDrawer();
+
+        // Show toast confirmation (UX Upgrade)
+        const currentLang = getLang();
+        const addedMsg = {
+          en: `Added ${cartItem.qty}x ${cartItem.name} (${cartItem.spice}) to your order!`,
+          fr: `Ajouté ${cartItem.qty}x ${cartItem.name} (${cartItem.spice}) à votre panier !`,
+          tn: `زدنا ${cartItem.qty}x ${cartItem.name} (${cartItem.spice}) للطلبية البنينة!`
+        };
+        if (typeof window.showToast === 'function') {
+          window.showToast("🔥 " + (addedMsg[currentLang] || addedMsg.en));
+        }
       });
     }
 
@@ -557,7 +675,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const lang = getLang();
     const txt = cartTranslations[lang];
     const cartDrawerItems = document.getElementById('cart-drawer-items');
-    const cartSubtotalVal = document.getElementById('cart-subtotal-val');
+    const cartSubtotalVal1 = document.getElementById('cart-subtotal-val-1');
+    const cartSubtotalVal3 = document.getElementById('cart-subtotal-val-3');
+    const orderSummaryList = document.getElementById('order-summary-items-list');
     if (!cartDrawerItems) return;
 
     const countBadges = document.querySelectorAll('.cart-count');
@@ -578,10 +698,31 @@ document.addEventListener('DOMContentLoaded', () => {
           <span>${txt.empty_desc}</span>
         </div>
       `;
-      cartSubtotalVal.textContent = "0.0 TND";
+      if (cartSubtotalVal1) cartSubtotalVal1.textContent = "0.0 TND";
+      if (cartSubtotalVal3) cartSubtotalVal3.textContent = "0.0 TND";
+      
+      // UX Wizard: Reset to step 1 automatically when cart is emptied
+      const p1 = document.getElementById('checkout-panel-step-1');
+      const p2 = document.getElementById('checkout-panel-step-2');
+      const p3 = document.getElementById('checkout-panel-step-3');
+      if (p1) p1.style.display = 'flex';
+      if (p2) p2.style.display = 'none';
+      if (p3) p3.style.display = 'none';
+      
+      const step1 = document.getElementById('step-dot-1');
+      const step2 = document.getElementById('step-dot-2');
+      const step3 = document.getElementById('step-dot-3');
+      const line1 = document.getElementById('step-line-1');
+      const line2 = document.getElementById('step-line-2');
+      if (step1) step1.className = 'progress-step active';
+      if (step2) step2.className = 'progress-step';
+      if (step3) step3.className = 'progress-step';
+      if (line1) line1.className = 'progress-step-line';
+      if (line2) line2.className = 'progress-step-line';
     } else {
       let html = '';
       let subtotal = 0;
+      let summaryHtml = '';
 
       cart.forEach((item, index) => {
         const itemTotal = item.itemPrice * item.qty;
@@ -617,10 +758,20 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
         `;
+
+        const addonsSummary = item.addons.length > 0 ? ` (+ ${item.addons.join(', ')})` : '';
+        summaryHtml += `
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.8rem; border-bottom:1px solid rgba(255,255,255,0.02); padding-bottom:4px;">
+            <span>${item.qty}x <strong>${item.name}</strong> <span style="font-size:0.75rem; color:var(--text-muted);">(${item.spice}${addonsSummary})</span></span>
+            <strong>${itemTotal.toFixed(1)} TND</strong>
+          </div>
+        `;
       });
 
       cartDrawerItems.innerHTML = html;
-      cartSubtotalVal.textContent = `${subtotal.toFixed(1)} TND`;
+      if (cartSubtotalVal1) cartSubtotalVal1.textContent = `${subtotal.toFixed(1)} TND`;
+      if (cartSubtotalVal3) cartSubtotalVal3.textContent = `${subtotal.toFixed(1)} TND`;
+      if (orderSummaryList) orderSummaryList.innerHTML = summaryHtml;
 
       const decButtons = document.querySelectorAll('.btn-qty-dec-cart');
       const incButtons = document.querySelectorAll('.btn-qty-inc-cart');
@@ -700,6 +851,17 @@ document.addEventListener('DOMContentLoaded', () => {
         cartDrawer.classList.add('open');
         cartDrawerOverlay.classList.add('open');
         document.body.style.overflow = 'hidden';
+      }
+
+      // Show toast confirmation (UX Upgrade)
+      const currentLang = getLang();
+      const addedMsg = {
+        en: `Added ${name} to your order!`,
+        fr: `Ajouté ${name} à votre panier !`,
+        tn: `زدنا ${name} للطلبية البنينة!`
+      };
+      if (typeof window.showToast === 'function') {
+        window.showToast("🔥 " + (addedMsg[currentLang] || addedMsg.en));
       }
     }
   };

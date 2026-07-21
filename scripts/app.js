@@ -656,6 +656,91 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Real-time Store Status calculations (UX upgrade)
+  const updateStoreStatusBanner = () => {
+    const banner = document.getElementById('store-status-banner');
+    if (!banner) return;
+
+    const lang = localStorage.getItem('babke_lang') || 'en';
+    const now = new Date();
+    const day = now.getDay();
+    const hour = now.getHours();
+    const min = now.getMinutes();
+    const currentMins = hour * 60 + min;
+
+    const openTime = 11 * 60 + 30; // 11:30 AM
+    let closeTime = 24 * 60; // 12:00 AM
+    const isWeekend = (day === 0 || day === 5 || day === 6);
+    if (isWeekend) {
+      closeTime = 25 * 60; // 1:00 AM
+    }
+
+    const yesterdayDay = (day === 0) ? 6 : day - 1;
+    const yesterdayWasWeekend = (yesterdayDay === 0 || yesterdayDay === 5 || yesterdayDay === 6);
+
+    let isOpen = false;
+    let minsRemaining = 0;
+    let minsUntilOpen = 0;
+
+    if (hour === 0) {
+      // Late night check (12:00 AM - 1:00 AM)
+      if (yesterdayWasWeekend) {
+        isOpen = true;
+        minsRemaining = 60 - min;
+      } else {
+        isOpen = false;
+        minsUntilOpen = openTime - currentMins;
+      }
+    } else if (hour > 0 && currentMins < openTime) {
+      // Before opening
+      isOpen = false;
+      minsUntilOpen = openTime - currentMins;
+    } else {
+      // During daytime / evening
+      if (currentMins >= openTime && currentMins < closeTime) {
+        isOpen = true;
+        minsRemaining = closeTime - currentMins;
+      } else {
+        // After closing
+        isOpen = false;
+        minsUntilOpen = (1440 - currentMins) + openTime;
+      }
+    }
+
+    const formatMins = (totalMins) => {
+      const h = Math.floor(totalMins / 60);
+      const m = totalMins % 60;
+      if (h > 0) {
+        return lang === 'tn' ? `${h} ساعة و ${m} دق` : lang === 'fr' ? `${h}h ${m}m` : `${h}h ${m}m`;
+      }
+      return lang === 'tn' ? `${m} دق` : lang === 'fr' ? `${m} min` : `${m} mins`;
+    };
+
+    const statusStrings = {
+      en: {
+        open: `Open Now • Closes in ${formatMins(minsRemaining)}`,
+        closed: `Closed Now • Opens in ${formatMins(minsUntilOpen)}`
+      },
+      fr: {
+        open: `Ouvert • Ferme dans ${formatMins(minsRemaining)}`,
+        closed: `Fermé • Ouvre dans ${formatMins(minsUntilOpen)}`
+      },
+      tn: {
+        open: `محلول توا • يسكر بعد ${formatMins(minsRemaining)}`,
+        closed: `مسكر توا • يحل بعد ${formatMins(minsUntilOpen)}`
+      }
+    };
+
+    const text = statusStrings[lang] || statusStrings.en;
+    const content = isOpen ? text.open : text.closed;
+
+    banner.className = `store-status-banner ${isOpen ? 'open' : 'closed'}`;
+    banner.innerHTML = `
+      <span class="status-indicator-dot"></span>
+      <span class="status-banner-text">${content}</span>
+    `;
+  };
+
   // 5. GLOBAL LISTENERS & INITIALIZATION
   const initAll = async () => {
     try {
@@ -668,6 +753,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderGallery();
     renderEvents();
     injectReservationForm();
+    updateStoreStatusBanner();
+    setInterval(updateStoreStatusBanner, 30000); // Live update check every 30s
   };
 
   // Listen to DB triggers to re-render in real-time
@@ -680,6 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderReviews();
     renderEvents();
     injectReservationForm();
+    updateStoreStatusBanner();
   });
 
   // Fire up page dynamic render

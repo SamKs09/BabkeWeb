@@ -188,6 +188,24 @@
       return;
     }
 
+    // Validate past dates & times (UX Safeguard)
+    const selectedDate = new Date(`${date}T${time}:00`);
+    const now = new Date();
+    if (selectedDate < now) {
+      const pastMsg = {
+        en: "You cannot reserve a table in the past!",
+        fr: "Vous ne pouvez pas réserver une table dans le passé !",
+        tn: "ما تنجمش تحجز طاولة في وقت تعدّى!"
+      };
+      const msg = pastMsg[lang] || pastMsg.en;
+      if (typeof window.showToast === 'function') {
+        window.showToast("⚠️ " + msg);
+      } else {
+        alert(msg);
+      }
+      return;
+    }
+
     const reservation = {
       id: "RES-" + Date.now(),
       name: name,

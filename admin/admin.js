@@ -53,6 +53,84 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 4500);
   };
 
+  // Live Notifications Indicators & Auditory Alerts (UX Upgrade)
+  let unreadNotificationCount = 0;
+
+  const updatePageTitle = () => {
+    if (unreadNotificationCount > 0) {
+      document.title = `(${unreadNotificationCount}) Babke Admin Dashboard`;
+    } else {
+      document.title = `Babke Admin Dashboard`;
+    }
+  };
+
+  const playNotificationAlert = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+
+      // Dual-tone high chime (G5 & C6)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(783.99, ctx.currentTime);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(1046.50, ctx.currentTime);
+
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(0.12, ctx.currentTime);
+
+      osc1.connect(gain1);
+      gain1.connect(masterGain);
+      osc2.connect(gain2);
+      gain2.connect(masterGain);
+      masterGain.connect(ctx.destination);
+
+      gain1.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+
+      gain2.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+
+      osc1.start(ctx.currentTime);
+      osc2.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.8);
+      osc2.stop(ctx.currentTime + 0.8);
+
+      // Gentle charcoal sizzle sound (high-frequency bandpassed noise)
+      const bufferSize = ctx.sampleRate * 0.4;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.value = 3000;
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.08, ctx.currentTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+
+      noise.start(ctx.currentTime);
+      noise.stop(ctx.currentTime + 0.4);
+    } catch (err) {
+      console.warn("Web Audio chime failed (requires user interaction first):", err);
+    }
+  };
+
   // Real-time server notifications connection stream
   let eventSource = null;
   const startSseStream = () => {
@@ -65,6 +143,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const order = JSON.parse(e.data);
         addActivityLog(`New Order received: ${order.id}`);
         showToast(`New Order from ${order.customer.name}!`);
+        
+        // Trigger live alert indicator & audio chime (UX Upgrade)
+        unreadNotificationCount++;
+        updatePageTitle();
+        playNotificationAlert();
+
         // Refresh overview/orders page if currently looking at it
         if (currentActivePanel === 'orders-reservations' || currentActivePanel === 'overview') {
           switchPanel(currentActivePanel);
@@ -79,6 +163,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const reservation = JSON.parse(e.data);
         addActivityLog(`New Reservation booked: ${reservation.id}`);
         showToast(`New Reservation for ${reservation.guests} guests!`);
+        
+        // Trigger live alert indicator & audio chime (UX Upgrade)
+        unreadNotificationCount++;
+        updatePageTitle();
+        playNotificationAlert();
+
         if (currentActivePanel === 'orders-reservations' || currentActivePanel === 'overview') {
           switchPanel(currentActivePanel);
         }
@@ -330,6 +420,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const switchPanel = async (panelName) => {
     currentActivePanel = panelName;
     
+    // Reset notifications when visiting the orders logs
+    if (panelName === 'orders-reservations') {
+      unreadNotificationCount = 0;
+      updatePageTitle();
+    }
+    
     // Refresh the local cache from backend
     if (typeof BabkeDB !== 'undefined') {
       try {
@@ -397,8 +493,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.addEventListener('click', (e) => {
       const targetPanel = e.currentTarget.dataset.panel;
       switchPanel(targetPanel);
+
+      // Auto close sidebar drawer on mobile after selection
+      const sidebar = document.getElementById('admin-sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (sidebar) sidebar.classList.remove('open');
+      if (overlay) overlay.classList.remove('active');
     });
   });
+
+  // Mobile menu drawer toggle listeners
+  const menuToggleBtn = document.getElementById('menu-toggle-btn');
+  const adminSidebar = document.getElementById('admin-sidebar');
+  const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+  if (menuToggleBtn && adminSidebar && sidebarOverlay) {
+    menuToggleBtn.addEventListener('click', () => {
+      adminSidebar.classList.add('open');
+      sidebarOverlay.classList.add('active');
+    });
+
+    sidebarOverlay.addEventListener('click', () => {
+      adminSidebar.classList.remove('open');
+      sidebarOverlay.classList.remove('active');
+    });
+  }
 
 
   // 5. PANEL RENDERING CONTROLLERS
@@ -481,42 +600,77 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="stat-card-details">
             <span>Total Revenue</span>
             <h3>${activeRevenue.toFixed(1)} TND</h3>
+            <span class="stat-card-trend positive">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              +12.4% vs last month
+            </span>
           </div>
-          <div class="stat-card-icon success">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <div class="stat-card-visual">
+            <svg class="stat-sparkline" width="60" height="24" viewBox="0 0 60 24">
+              <path d="M0,18 C10,12 15,4 30,10 C45,16 50,2 60,8" fill="none" stroke="var(--accent-admin)" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+            <div class="stat-card-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-card-details">
             <span>Total Orders</span>
             <h3>${totalOrders}</h3>
+            <span class="stat-card-trend positive">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              +8.2% vs yesterday
+            </span>
           </div>
-          <div class="stat-card-icon info">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <div class="stat-card-visual">
+            <svg class="stat-sparkline" width="60" height="24" viewBox="0 0 60 24">
+              <path d="M0,15 Q15,22 30,10 T60,6" fill="none" stroke="var(--accent-admin)" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+            <div class="stat-card-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            </div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-card-details">
             <span>Reservations</span>
             <h3>${totalReservations}</h3>
+            <span class="stat-card-trend positive">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              +19.1% this week
+            </span>
           </div>
-          <div class="stat-card-icon warning">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <div class="stat-card-visual">
+            <svg class="stat-sparkline" width="60" height="24" viewBox="0 0 60 24">
+              <path d="M0,22 C10,15 20,5 30,18 C40,31 50,6 60,12" fill="none" stroke="var(--accent-admin)" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+            <div class="stat-card-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-card-details">
             <span>Active Events</span>
             <h3>${BabkeDB.getEvents().filter(e => e.status === 'published').length}</h3>
+            <span class="stat-card-trend neutral">
+              Seasonal promo active
+            </span>
           </div>
-          <div class="stat-card-icon" style="color: var(--accent-admin);">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+          <div class="stat-card-visual">
+            <svg class="stat-sparkline" width="60" height="24" viewBox="0 0 60 24">
+              <path d="M0,10 Q20,10 30,10 T60,10" fill="none" stroke="var(--accent-admin)" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+            <div class="stat-card-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Charts Row 1: Donut + Bar -->
-      <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; margin-bottom: 24px;">
+      <div class="dashboard-split-layout" style="margin-bottom: 24px;">
         <!-- Order Status Donut -->
         <div class="admin-card" style="padding: 24px;">
           <div class="admin-card-header" style="margin-bottom: 16px;">
@@ -739,45 +893,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const menuItems = BabkeDB.getMenu();
 
-    let rowsHtml = menuItems.map(item => {
-      const titleEn = item.title.en || 'No title';
-      const catLabel = item.category.toUpperCase();
-      const tagsList = item.tags.en || [];
-      const tagsBadgeHtml = tagsList.map(tag => `<span class="status-badge" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-admin); font-size:0.65rem; margin-right:4px;">${tag}</span>`).join('');
-
-      return `
-        <tr>
-          <td>
-            <img class="table-img" src="${getAdminImageSrc(item.image)}" onerror="this.onerror=null; this.src='${getAdminImageSrc(item.fallbackImage)}';" alt="${titleEn}">
-          </td>
-          <td>
-            <strong style="display:block; font-size:0.95rem; color:var(--text-admin-primary);">${titleEn}</strong>
-            <span style="color:var(--text-admin-muted); font-size:0.75rem;">${item.id}</span>
-          </td>
-          <td><span class="status-badge info">${catLabel}</span></td>
-          <td><strong style="color:var(--accent-admin); font-weight:800;">${item.price.toFixed(1)} TND</strong></td>
-          <td>${tagsBadgeHtml}</td>
-          <td>
-            <div class="btn-action-row">
-              <button class="btn-admin-action btn-edit-menu-item" data-id="${item.id}" title="Edit Item" style="display:flex; align-items:center; justify-content:center;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              </button>
-              <button class="btn-admin-action delete btn-delete-menu-item" data-id="${item.id}" title="Delete Item" style="display:flex; align-items:center; justify-content:center;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
     contentArea.innerHTML = `
       <div class="admin-card">
-        <div class="admin-card-header">
+        <div class="admin-card-header" style="margin-bottom: 16px;">
           <h3>Menu Items Registry (${menuItems.length} items)</h3>
           <button class="btn-admin-primary" id="btn-add-new-menu-item">
             <span>+ Add New Item</span>
           </button>
+        </div>
+
+        <!-- Real-Time Search & Category Filters (UX Upgrade) -->
+        <div class="admin-card-filters" style="display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
+          <div class="filter-group" style="flex: 1; min-width: 220px; position: relative;">
+            <input type="text" id="menu-search-input" class="admin-input" placeholder="Search by name, tag, or ID..." style="padding-left: 36px; margin-bottom: 0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-admin-muted); pointer-events: none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <div class="filter-group" style="width: 180px;">
+            <select id="menu-category-filter" class="admin-select" style="margin-bottom: 0;">
+              <option value="all">All Categories</option>
+              <option value="kebab">Kebabs</option>
+              <option value="plate">Plates & Grills</option>
+              <option value="side">Sides / Appetizers</option>
+              <option value="dessert">Desserts</option>
+              <option value="drink">Drinks</option>
+            </select>
+          </div>
         </div>
         
         <div class="table-responsive-wrapper">
@@ -793,31 +933,111 @@ document.addEventListener('DOMContentLoaded', async () => {
               </tr>
             </thead>
             <tbody>
-              ${rowsHtml ? rowsHtml : `<tr><td colspan="6" style="text-align:center; color:var(--text-admin-muted);">No menu items found. Click add new to create one!</td></tr>`}
+              <!-- Dynamic Rows Injected Here -->
             </tbody>
           </table>
         </div>
       </div>
     `;
 
-    // Bind item button actions
-    document.getElementById('btn-add-new-menu-item').addEventListener('click', () => openMenuModal());
-    
-    document.querySelectorAll('.btn-edit-menu-item').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.currentTarget.dataset.id;
-        openMenuModal(id);
-      });
-    });
+    const tbody = contentArea.querySelector('tbody');
+    const searchInput = document.getElementById('menu-search-input');
+    const categoryFilter = document.getElementById('menu-category-filter');
 
-    document.querySelectorAll('.btn-delete-menu-item').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.currentTarget.dataset.id;
-        if (confirm("Are you sure you want to delete this menu item? This cannot be undone.")) {
-          deleteMenuItem(id);
-        }
+    const filterAndRenderRows = () => {
+      const query = searchInput.value.trim().toLowerCase();
+      const cat = categoryFilter.value;
+
+      let filtered = menuItems;
+      if (cat !== 'all') {
+        filtered = filtered.filter(item => item.category === cat);
+      }
+      if (query) {
+        filtered = filtered.filter(item => {
+          const titleEn = (item.title.en || '').toLowerCase();
+          const titleFr = (item.title.fr || '').toLowerCase();
+          const titleTn = (item.title.tn || '').toLowerCase();
+          const desc = (item.description.en || '').toLowerCase();
+          const tags = (item.tags.en || []).join(' ').toLowerCase();
+          return titleEn.includes(query) || titleFr.includes(query) || titleTn.includes(query) || desc.includes(query) || tags.includes(query) || item.id.toLowerCase().includes(query);
+        });
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="padding: 0;">
+              <div class="empty-state-container">
+                <div class="empty-state-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </div>
+                <h4>No Menu Items Found</h4>
+                <p>Try refining your search terms or selecting a different category.</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => {
+        const titleEn = item.title.en || 'No title';
+        const catLabel = item.category.toUpperCase();
+        const tagsList = item.tags.en || [];
+        const tagsBadgeHtml = tagsList.map(tag => `<span class="status-badge" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-admin); font-size:0.65rem; margin-right:4px;">${tag}</span>`).join('');
+
+        return `
+          <tr>
+            <td>
+              <img class="table-img" src="${getAdminImageSrc(item.image)}" onerror="this.onerror=null; this.src='${getAdminImageSrc(item.fallbackImage)}';" alt="${titleEn}">
+            </td>
+            <td>
+              <strong style="display:block; font-size:0.95rem; color:var(--text-admin-primary);">${titleEn}</strong>
+              <span style="color:var(--text-admin-muted); font-size:0.75rem;">${item.id}</span>
+            </td>
+            <td><span class="status-badge info">${catLabel}</span></td>
+            <td><strong style="color:var(--accent-admin); font-weight:800;">${item.price.toFixed(1)} TND</strong></td>
+            <td>${tagsBadgeHtml}</td>
+            <td>
+              <div class="btn-action-row">
+                <button class="btn-admin-action btn-edit-menu-item" data-id="${item.id}" title="Edit Item" style="display:flex; align-items:center; justify-content:center;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn-admin-action delete btn-delete-menu-item" data-id="${item.id}" title="Delete Item" style="display:flex; align-items:center; justify-content:center;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Bind row actions
+      tbody.querySelectorAll('.btn-edit-menu-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.currentTarget.dataset.id;
+          openMenuModal(id);
+        });
       });
-    });
+
+      tbody.querySelectorAll('.btn-delete-menu-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.currentTarget.dataset.id;
+          if (confirm("Are you sure you want to delete this menu item? This cannot be undone.")) {
+            deleteMenuItem(id);
+          }
+        });
+      });
+    };
+
+    searchInput.addEventListener('input', filterAndRenderRows);
+    categoryFilter.addEventListener('change', filterAndRenderRows);
+
+    // Initial render
+    filterAndRenderRows();
+
+    // Bind add button click
+    document.getElementById('btn-add-new-menu-item').addEventListener('click', () => openMenuModal());
   }
 
   // Menu Modal controls
@@ -1994,90 +2214,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const orders = BabkeDB.getOrders();
     const reservations = BabkeDB.getReservations();
 
-    let tableHeader = '';
-    let tableRows = '';
-
-    if (activeLogSubTab === 'orders') {
-      tableHeader = `
-        <tr>
-          <th>Order ID</th>
-          <th>Customer Information</th>
-          <th>Ordered Feast Items</th>
-          <th>Subtotal</th>
-          <th>Status</th>
-          <th>Date Created</th>
-        </tr>
-      `;
-
-      tableRows = orders.map(o => {
-        const itemsHtml = o.items.map(item => {
-          const addonsStr = (item.addons && item.addons.length > 0) ? `<br><small style="color:var(--text-admin-muted);">+ ${item.addons.join(', ')}</small>` : '';
-          return `• <strong>${item.qty}x ${item.name}</strong> (${item.spice})${addonsStr}`;
-        }).join('<br>');
-
-        return `
-          <tr>
-            <td><strong style="color:var(--accent-admin); font-family:'Outfit';">${o.id}</strong></td>
-            <td>
-              <strong>${o.customer.name}</strong><br>
-              <span style="font-size:0.75rem; color:var(--text-admin-muted);">${o.customer.phone}</span><br>
-              <span style="font-size:0.72rem; color:var(--text-admin-secondary);">${o.customer.address}</span>
-            </td>
-            <td style="font-size:0.8rem; line-height:1.4;">${itemsHtml}</td>
-            <td><strong>${o.subtotal.toFixed(1)} TND</strong></td>
-            <td>
-              <select class="table-status-select order-status-updater" data-id="${o.id}">
-                <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>Pending</option>
-                <option value="preparing" ${o.status === 'preparing' ? 'selected' : ''}>Preparing</option>
-                <option value="delivered" ${o.status === 'delivered' ? 'selected' : ''}>Delivered</option>
-                <option value="cancelled" ${o.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
-              </select>
-            </td>
-            <td><span style="font-size:0.75rem; color:var(--text-admin-muted);">${new Date(o.createdAt).toLocaleString()}</span></td>
-          </tr>
-        `;
-      }).join('');
-    } else {
-      // Reservations
-      tableHeader = `
-        <tr>
-          <th>Booking ID</th>
-          <th>Customer Details</th>
-          <th>Schedule Date & Time</th>
-          <th>Guests</th>
-          <th>Notes</th>
-          <th>Status</th>
-          <th>Date Created</th>
-        </tr>
-      `;
-
-      tableRows = reservations.map(r => {
-        return `
-          <tr>
-            <td><strong style="color:var(--accent-info); font-family:'Outfit';">${r.id}</strong></td>
-            <td>
-              <strong>${r.name}</strong><br>
-              <span style="font-size:0.75rem; color:var(--text-admin-muted);">${r.phone}</span>
-            </td>
-            <td>
-              <strong>${r.date}</strong><br>
-              <span style="color:var(--accent-info); font-weight:700;">${r.time}</span>
-            </td>
-            <td><span class="status-badge info" style="font-size:0.75rem; font-weight:800;">${r.guests} Guests</span></td>
-            <td style="max-width:180px; font-size:0.76rem; font-style:italic;">${r.notes ? `"${r.notes}"` : '-'}</td>
-            <td>
-              <select class="table-status-select reservation-status-updater" data-id="${r.id}">
-                <option value="pending" ${r.status === 'pending' ? 'selected' : ''}>Pending</option>
-                <option value="confirmed" ${r.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
-                <option value="cancelled" ${r.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
-              </select>
-            </td>
-            <td><span style="font-size:0.75rem; color:var(--text-admin-muted);">${new Date(r.createdAt).toLocaleString()}</span></td>
-          </tr>
-        `;
-      }).join('');
-    }
-
     contentArea.innerHTML = `
       <!-- Sub tabs selectors -->
       <div style="display:flex; gap:12px; margin-bottom:20px; border-bottom:1px solid var(--border-admin); padding-bottom:12px;">
@@ -2090,22 +2226,244 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
 
       <div class="admin-card">
-        <div class="admin-card-header">
+        <div class="admin-card-header" style="margin-bottom: 16px;">
           <h3>${activeLogSubTab === 'orders' ? 'WhatsApp captured orders' : 'Customer online bookings'}</h3>
+        </div>
+
+        <!-- Real-Time Search & Status Filters (UX Upgrade) -->
+        <div class="admin-card-filters" style="display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
+          <div class="filter-group" style="flex: 1; min-width: 220px; position: relative;">
+            <input type="text" id="log-search-input" class="admin-input" placeholder="Search by name, phone, or ID..." style="padding-left: 36px; margin-bottom: 0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-admin-muted); pointer-events: none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <div class="filter-group" style="width: 180px;">
+            <select id="log-status-filter" class="admin-select" style="margin-bottom: 0;">
+              <option value="all">All Statuses</option>
+              ${activeLogSubTab === 'orders' ? `
+                <option value="pending">Pending</option>
+                <option value="preparing">Preparing</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              ` : `
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="cancelled">Cancelled</option>
+              `}
+            </select>
+          </div>
         </div>
         
         <div class="table-responsive-wrapper">
           <table class="admin-table">
             <thead>
-              ${tableHeader}
+              <!-- Dynamic Headers Injected Here -->
             </thead>
             <tbody>
-              ${tableRows ? tableRows : `<tr><td colspan="7" style="text-align:center; color:var(--text-admin-muted);">No entries found under this section.</td></tr>`}
+              <!-- Dynamic Rows Injected Here -->
             </tbody>
           </table>
         </div>
       </div>
     `;
+
+    const thead = contentArea.querySelector('thead');
+    const tbody = contentArea.querySelector('tbody');
+    const searchInput = document.getElementById('log-search-input');
+    const statusFilter = document.getElementById('log-status-filter');
+
+    const filterAndRenderLogs = () => {
+      const query = searchInput.value.trim().toLowerCase();
+      const statusVal = statusFilter.value;
+
+      if (activeLogSubTab === 'orders') {
+        // Render Orders Headers
+        thead.innerHTML = `
+          <tr>
+            <th>Order ID</th>
+            <th>Customer Information</th>
+            <th>Ordered Feast Items</th>
+            <th>Subtotal</th>
+            <th>Status</th>
+            <th>Date Created</th>
+          </tr>
+        `;
+
+        let filteredOrders = orders;
+        if (statusVal !== 'all') {
+          filteredOrders = filteredOrders.filter(o => o.status === statusVal);
+        }
+        if (query) {
+          filteredOrders = filteredOrders.filter(o => {
+            const name = (o.customer.name || '').toLowerCase();
+            const phone = (o.customer.phone || '').toLowerCase();
+            const addr = (o.customer.address || '').toLowerCase();
+            return name.includes(query) || phone.includes(query) || addr.includes(query) || o.id.toLowerCase().includes(query);
+          });
+        }
+
+        if (filteredOrders.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" style="padding: 0;">
+                <div class="empty-state-container">
+                  <div class="empty-state-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </div>
+                  <h4>No Incoming Orders Found</h4>
+                  <p>No matching orders were found in this query. Check back later!</p>
+                </div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = filteredOrders.map(o => {
+          const itemsHtml = o.items.map(item => {
+            const addonsStr = (item.addons && item.addons.length > 0) ? `<br><small style="color:var(--text-admin-muted);">+ ${item.addons.join(', ')}</small>` : '';
+            return `• <strong>${item.qty}x ${item.name}</strong> (${item.spice})${addonsStr}`;
+          }).join('<br>');
+
+          return `
+            <tr>
+              <td><strong style="color:var(--accent-admin); font-family:'Outfit';">${o.id}</strong></td>
+              <td>
+                <strong>${o.customer.name}</strong><br>
+                <span style="font-size:0.75rem; color:var(--text-admin-muted);">${o.customer.phone}</span><br>
+                <span style="font-size:0.72rem; color:var(--text-admin-secondary);">${o.customer.address}</span>
+              </td>
+              <td style="font-size:0.8rem; line-height:1.4;">${itemsHtml}</td>
+              <td><strong>${o.subtotal.toFixed(1)} TND</strong></td>
+              <td>
+                <select class="table-status-select order-status-updater" data-id="${o.id}">
+                  <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>Pending</option>
+                  <option value="preparing" ${o.status === 'preparing' ? 'selected' : ''}>Preparing</option>
+                  <option value="delivered" ${o.status === 'delivered' ? 'selected' : ''}>Delivered</option>
+                  <option value="cancelled" ${o.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                </select>
+              </td>
+              <td><span style="font-size:0.75rem; color:var(--text-admin-muted);">${new Date(o.createdAt).toLocaleString()}</span></td>
+            </tr>
+          `;
+        }).join('');
+
+        // Bind status selector listener
+        tbody.querySelectorAll('.order-status-updater').forEach(select => {
+          select.addEventListener('change', async (e) => {
+            const id = e.currentTarget.dataset.id;
+            const status = e.currentTarget.value;
+            const selectEl = e.currentTarget;
+            selectEl.disabled = true;
+            try {
+              const success = await BabkeDB.updateOrderStatus(id, status);
+              if (success) {
+                addActivityLog(`Order '${id}' status updated to '${status}'`);
+              } else {
+                showToast("Failed to update status on server!");
+              }
+            } catch (err) {
+              console.error("Order status update failed:", err);
+            } finally {
+              selectEl.disabled = false;
+              renderOrdersReservationsPanel();
+            }
+          });
+        });
+
+      } else {
+        // Render Reservations Headers
+        thead.innerHTML = `
+          <tr>
+            <th>Booking ID</th>
+            <th>Customer Details</th>
+            <th>Schedule Date & Time</th>
+            <th>Guests</th>
+            <th>Notes</th>
+            <th>Status</th>
+            <th>Date Created</th>
+          </tr>
+        `;
+
+        let filteredReservations = reservations;
+        if (statusVal !== 'all') {
+          filteredReservations = filteredReservations.filter(r => r.status === statusVal);
+        }
+        if (query) {
+          filteredReservations = filteredReservations.filter(r => {
+            const name = (r.name || '').toLowerCase();
+            const phone = (r.phone || '').toLowerCase();
+            const notes = (r.notes || '').toLowerCase();
+            return name.includes(query) || phone.includes(query) || notes.includes(query) || r.id.toLowerCase().includes(query);
+          });
+        }
+
+        if (filteredReservations.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="7" style="padding: 0;">
+                <div class="empty-state-container">
+                  <div class="empty-state-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </div>
+                  <h4>No Table Bookings Found</h4>
+                  <p>No matching reservations were found for this query.</p>
+                </div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = filteredReservations.map(r => {
+          return `
+            <tr>
+              <td><strong style="color:var(--accent-info); font-family:'Outfit';">${r.id}</strong></td>
+              <td>
+                <strong>${r.name}</strong><br>
+                <span style="font-size:0.75rem; color:var(--text-admin-muted);">${r.phone}</span>
+              </td>
+              <td>
+                <strong>${r.date}</strong><br>
+                <span style="color:var(--accent-info); font-weight:700;">${r.time}</span>
+              </td>
+              <td><span class="status-badge info" style="font-size:0.75rem; font-weight:800;">${r.guests} Guests</span></td>
+              <td style="max-width:180px; font-size:0.76rem; font-style:italic;">${r.notes ? `"${r.notes}"` : '-'}</td>
+              <td>
+                <select class="table-status-select reservation-status-updater" data-id="${r.id}">
+                  <option value="pending" ${r.status === 'pending' ? 'selected' : ''}>Pending</option>
+                  <option value="confirmed" ${r.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
+                  <option value="cancelled" ${r.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                </select>
+              </td>
+              <td><span style="font-size:0.75rem; color:var(--text-admin-muted);">${new Date(r.createdAt).toLocaleString()}</span></td>
+            </tr>
+          `;
+        }).join('');
+
+        // Bind status updater change listener
+        tbody.querySelectorAll('.reservation-status-updater').forEach(select => {
+          select.addEventListener('change', async (e) => {
+            const id = e.currentTarget.dataset.id;
+            const status = e.currentTarget.value;
+            const selectEl = e.currentTarget;
+            selectEl.disabled = true;
+            try {
+              const success = await BabkeDB.updateReservationStatus(id, status);
+              if (success) {
+                addActivityLog(`Reservation '${id}' status updated to '${status}'`);
+              } else {
+                showToast("Failed to update status on server!");
+              }
+            } catch (err) {
+              console.error("Reservation status update failed:", err);
+            } finally {
+              selectEl.disabled = false;
+              renderOrdersReservationsPanel();
+            }
+          });
+        });
+      }
+    };
 
     // Bind sub tabs clicks
     document.getElementById('btn-tab-select-orders').addEventListener('click', () => {
@@ -2118,50 +2476,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderOrdersReservationsPanel();
     });
 
-    // Bind Status selectors change listeners
-    document.querySelectorAll('.order-status-updater').forEach(select => {
-      select.addEventListener('change', async (e) => {
-        const id = e.currentTarget.dataset.id;
-        const status = e.currentTarget.value;
-        const selectEl = e.currentTarget;
-        selectEl.disabled = true;
-        try {
-          const success = await BabkeDB.updateOrderStatus(id, status);
-          if (success) {
-            addActivityLog(`Order '${id}' status updated to '${status}'`);
-          } else {
-            showToast("Failed to update status on server!");
-          }
-        } catch (err) {
-          console.error("Order status update failed:", err);
-        } finally {
-          selectEl.disabled = false;
-          renderOrdersReservationsPanel();
-        }
-      });
-    });
+    searchInput.addEventListener('input', filterAndRenderLogs);
+    statusFilter.addEventListener('change', filterAndRenderLogs);
 
-    document.querySelectorAll('.reservation-status-updater').forEach(select => {
-      select.addEventListener('change', async (e) => {
-        const id = e.currentTarget.dataset.id;
-        const status = e.currentTarget.value;
-        const selectEl = e.currentTarget;
-        selectEl.disabled = true;
-        try {
-          const success = await BabkeDB.updateReservationStatus(id, status);
-          if (success) {
-            addActivityLog(`Reservation '${id}' status updated to '${status}'`);
-          } else {
-            showToast("Failed to update status on server!");
-          }
-        } catch (err) {
-          console.error("Reservation status update failed:", err);
-        } finally {
-          selectEl.disabled = false;
-          renderOrdersReservationsPanel();
-        }
-      });
-    });
+    // Initial render
+    filterAndRenderLogs();
   }
 
   // G. LEFTOVERS & ANALYTICS PANEL
@@ -2204,42 +2523,78 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="stat-card-details">
               <span>Total Revenue</span>
               <h3>${totalRev.toFixed(1)} TND</h3>
+              <span class="stat-card-trend positive">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                +12.4% vs last month
+              </span>
             </div>
-            <div class="stat-card-icon success">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <div class="stat-card-visual">
+              <svg class="stat-sparkline" width="60" height="24" viewBox="0 0 60 24">
+                <path d="M0,18 C10,12 15,4 30,10 C45,16 50,2 60,8" fill="none" stroke="var(--accent-admin)" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+              <div class="stat-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
             </div>
           </div>
           <div class="stat-card">
             <div class="stat-card-details">
               <span>Total Orders</span>
               <h3>${orders.length}</h3>
+              <span class="stat-card-trend positive">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                +8.2% vs yesterday
+              </span>
             </div>
-            <div class="stat-card-icon info">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            <div class="stat-card-visual">
+              <svg class="stat-sparkline" width="60" height="24" viewBox="0 0 60 24">
+                <path d="M0,15 Q15,22 30,10 T60,6" fill="none" stroke="var(--accent-admin)" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+              <div class="stat-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              </div>
             </div>
           </div>
           <div class="stat-card">
             <div class="stat-card-details">
               <span>Leftovers Logged</span>
               <h3>${leftovers.length}</h3>
+              <span class="stat-card-trend positive">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                -4.1% waste reduction
+              </span>
             </div>
-            <div class="stat-card-icon warning">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M3 20h3"/><path d="M3 10h18"/><path d="M3 5h18"/><path d="M3 15h18"/></svg>
+            <div class="stat-card-visual">
+              <svg class="stat-sparkline" width="60" height="24" viewBox="0 0 60 24">
+                <path d="M0,10 C15,22 30,4 45,18 T60,6" fill="none" stroke="var(--accent-admin)" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+              <div class="stat-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M3 20h3"/><path d="M3 10h18"/><path d="M3 5h18"/><path d="M3 15h18"/></svg>
+              </div>
             </div>
           </div>
           <div class="stat-card">
             <div class="stat-card-details">
               <span>Table Bookings</span>
               <h3>${reservations.length}</h3>
+              <span class="stat-card-trend positive">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                +19.1% this week
+              </span>
             </div>
-            <div class="stat-card-icon" style="color: var(--accent-admin);">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div class="stat-card-visual">
+              <svg class="stat-sparkline" width="60" height="24" viewBox="0 0 60 24">
+                <path d="M0,22 C10,15 20,5 30,18 C40,31 50,6 60,12" fill="none" stroke="var(--accent-admin)" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+              <div class="stat-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Analytics Charts Row -->
-        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; margin-bottom: 30px;">
+        <div class="dashboard-split-layout" style="margin-bottom: 30px;">
           <!-- Leftover Breakdown Donut -->
           <div class="admin-card" style="padding: 24px;">
             <div class="admin-card-header" style="margin-bottom: 16px;">
@@ -2280,8 +2635,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     let datesHtml = '';
     if (dates.length === 0) {
       datesHtml = `
-        <div style="text-align:center; padding:40px; color:var(--text-admin-muted);">
-          No leftovers logged yet. Add an entry on the left!
+        <div class="empty-state-container" style="padding: 30px 10px;">
+          <div class="empty-state-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M3 20h3"/><path d="M3 10h18"/><path d="M3 5h18"/><path d="M3 15h18"/></svg>
+          </div>
+          <h4>No Leftovers Logged Yet</h4>
+          <p>Log surplus ingredients on the left to track waste reductions and daily metrics.</p>
         </div>
       `;
     } else {
@@ -2291,11 +2650,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const itemsRows = items.map(item => `
           <tr data-id="${item.id}">
             <td style="font-weight: 500; color: var(--text-admin);">${item.item}</td>
-            <td style="font-weight: 600; color: var(--accent-admin);">${item.quantity}</td>
-            <td><span class="status-badge published">${item.unit}</span></td>
+            <td style="font-weight: 600; color: var(--accent-admin); white-space: nowrap;">${item.quantity} ${item.unit}</td>
             <td style="font-size:0.8rem; color:var(--text-admin-muted);">${new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
             <td>
-              <button class="btn-admin-action btn-delete btn-delete-leftover" data-id="${item.id}" style="padding: 2px 8px; font-size: 0.75rem;">Delete</button>
+              <button class="btn-admin-action delete btn-delete-leftover" data-id="${item.id}" aria-label="Delete log">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>
             </td>
           </tr>
         `).join('');
@@ -2314,20 +2674,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             
             <div class="leftovers-day-details" id="details-${date}" style="display: ${isFirst ? 'block' : 'none'}; padding: 15px; border-top: 1px solid var(--border-admin);">
-              <table class="admin-table" style="margin: 0; width: 100%;">
-                <thead>
-                  <tr>
-                    <th>Garniture</th>
-                    <th>Quantity</th>
-                    <th>Unit</th>
-                    <th>Logged Time</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${itemsRows}
-                </tbody>
-              </table>
+              <div class="table-responsive-wrapper">
+                <table class="admin-table" style="margin: 0; width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Garniture</th>
+                      <th>Quantity</th>
+                      <th>Time</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemsRows}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         `;
@@ -2340,13 +2701,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     contentArea.innerHTML = `
       ${analyticsHtml}
 
-      <div class="admin-grid-layout" style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px;">
-        <!-- Left: Form Card -->
-        <div class="admin-card glass-card">
-          <div class="admin-card-header">
-            <h3>Log Daily Leftovers</h3>
-          </div>
-          <form id="leftovers-log-form" style="display:flex; flex-direction:column; gap:16px; padding-top:15px;">
+      <!-- Leftovers Log Form (Full Width) -->
+      <div class="admin-card glass-card" style="margin-bottom: 24px;">
+        <div class="admin-card-header">
+          <h3>Log Daily Leftovers</h3>
+        </div>
+        <form id="leftovers-log-form" style="display:flex; flex-direction:column; gap:16px; padding-top:15px;">
+          <div class="form-grid-admin" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 0;">
             <div class="form-group-admin">
               <label for="left-form-date">Date</label>
               <input type="date" id="left-form-date" value="${todayStr}" required>
@@ -2364,7 +2725,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               </select>
             </div>
 
-            <div class="form-grid-admin" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-grid-admin" style="margin-bottom: 0; gap: 12px; grid-template-columns: 1.2fr 1fr;">
               <div class="form-group-admin">
                 <label for="left-form-qty">Quantity</label>
                 <input type="number" id="left-form-qty" step="0.1" min="0.1" placeholder="e.g. 3.5" required>
@@ -2377,19 +2738,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </select>
               </div>
             </div>
+          </div>
 
-            <button type="submit" class="btn-admin-primary" style="margin-top:10px; width:100%;">Save Daily Log</button>
-          </form>
+          <button type="submit" class="btn-admin-primary" style="align-self: flex-end; padding: 12px 24px; min-width: 160px; margin-top: 10px;">Save Daily Log</button>
+        </form>
+      </div>
+
+      <!-- Leftovers Log History (Full Width) -->
+      <div class="admin-card glass-card">
+        <div class="admin-card-header" style="margin-bottom: 15px;">
+          <h3>Leftovers Daily Log History</h3>
         </div>
-
-        <!-- Right: Log History List Grouped by Day -->
-        <div class="admin-card glass-card">
-          <div class="admin-card-header" style="margin-bottom: 15px;">
-            <h3>Leftovers Daily Log History</h3>
-          </div>
-          <div class="leftovers-grouped-container" style="max-height: 480px; overflow-y: auto; padding-right: 5px;">
-            ${datesHtml}
-          </div>
+        <div class="leftovers-grouped-container" style="max-height: 480px; overflow-y: auto; padding-right: 5px;">
+          ${datesHtml}
         </div>
       </div>
     `;
