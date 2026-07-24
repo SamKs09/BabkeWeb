@@ -482,6 +482,50 @@ const BabkeDB = {
     } catch (err) {
       console.error('Error deleting leftover log from backend:', err);
     }
+  },
+
+  // EXPENSES
+  getExpenses() {
+    return this.cache ? (this.cache.expenses || []) : [];
+  },
+
+  async addExpense(expense) {
+    if (!this.cache) await this.init();
+    if (!this.cache.expenses) this.cache.expenses = [];
+    this.cache.expenses.unshift(expense);
+
+    window.dispatchEvent(new Event('babkeExpensesChanged'));
+    babkeChannel.postMessage({ type: 'expenses_changed' });
+
+    try {
+      const res = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expense)
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error logging expense item to backend:', err);
+    }
+  },
+
+  async deleteExpense(id) {
+    if (!this.cache) await this.init();
+    if (this.cache.expenses) {
+      this.cache.expenses = this.cache.expenses.filter(e => e.id !== id);
+    }
+
+    window.dispatchEvent(new Event('babkeExpensesChanged'));
+    babkeChannel.postMessage({ type: 'expenses_changed' });
+
+    try {
+      const res = await fetch(`/api/expenses/${id}`, {
+        method: 'DELETE'
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error deleting expense log from backend:', err);
+    }
   }
 };
 
@@ -510,6 +554,8 @@ babkeChannel.onmessage = async (event) => {
         window.dispatchEvent(new Event('babkeReservationsChanged'));
       } else if (event.data.type === 'leftovers_changed') {
         window.dispatchEvent(new Event('babkeLeftoversChanged'));
+      } else if (event.data.type === 'expenses_changed') {
+        window.dispatchEvent(new Event('babkeExpensesChanged'));
       }
     } catch (err) {
       console.error("Failed to sync cache following cross-tab notification:", err);

@@ -460,6 +460,48 @@ const DEFAULT_DATA = {
       },
       status: "published"
     }
+  ],
+  expenses: [
+    {
+      id: "exp-1721500000000",
+      date: "2026-07-21",
+      category: "worker_extra",
+      description: "Ahmed extra hours 3h (Late night weekend shift)",
+      amount: 45.0,
+      paymentMethod: "cash",
+      recordedBy: "cashier",
+      createdAt: "2026-07-21T21:30:00.000Z"
+    },
+    {
+      id: "exp-1721510000000",
+      date: "2026-07-22",
+      category: "fournisseur",
+      description: "Viande d'agneau et poulet fresh meat delivery (Fournisseur Sousse)",
+      amount: 180.0,
+      paymentMethod: "cash",
+      recordedBy: "cashier",
+      createdAt: "2026-07-22T10:15:00.000Z"
+    },
+    {
+      id: "exp-1721520000000",
+      date: "2026-07-22",
+      category: "ingredients",
+      description: "Marché central vegetables, fresh parsley, garlic & lemon Toum prep",
+      amount: 35.5,
+      paymentMethod: "cash",
+      recordedBy: "cashier",
+      createdAt: "2026-07-22T08:45:00.000Z"
+    },
+    {
+      id: "exp-1721530000000",
+      date: "2026-07-23",
+      category: "maintenance",
+      description: "Grill charcoal recharge (3x bags oak charcoal) & Gaz refill",
+      amount: 60.0,
+      paymentMethod: "cash",
+      recordedBy: "cashier",
+      createdAt: "2026-07-23T09:10:00.000Z"
+    }
   ]
 };
 

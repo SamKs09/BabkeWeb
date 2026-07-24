@@ -163,6 +163,17 @@ const Leftover = mongoose.model('Leftover', new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 }));
 
+const Expense = mongoose.model('Expense', new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  date: { type: String, required: true }, // YYYY-MM-DD
+  category: { type: String, required: true }, // "worker_extra", "fournisseur", "ingredients", "maintenance", "other"
+  description: { type: String, required: true },
+  amount: { type: Number, required: true },
+  paymentMethod: { type: String, default: 'cash' }, // 'cash', 'card', 'bank_transfer'
+  recordedBy: { type: String, default: 'cashier' }, // 'admin', 'cashier'
+  createdAt: { type: Date, default: Date.now }
+}));
+
 
 // ----------------------------------------------------
 // DATABASE SEEDING
@@ -315,6 +326,16 @@ async function seedDatabase() {
       console.log('Seeded Leftovers collection successfully.');
     }
 
+    // Seed Expenses
+    const expenseCount = await Expense.countDocuments();
+    if (expenseCount === 0) {
+      const seedExpenses = defaultData.expenses || [];
+      if (seedExpenses.length > 0) {
+        await Expense.insertMany(seedExpenses);
+        console.log('Seeded Expenses collection successfully.');
+      }
+    }
+
   } catch (err) {
     console.error('Error seeding database:', err);
   }
@@ -337,16 +358,17 @@ app.get('/api/all-data', async (req, res) => {
     let orders = [];
     let reservations = [];
     let leftovers = [];
+    let expenses = [];
     const token = req.cookies.admin_token;
     if (token) {
       try {
         const verified = jwt.verify(token, process.env.SESSION_SECRET || 'babkesupersecretkey2026');
         leftovers = await Leftover.find().sort({ date: -1, createdAt: -1 }).lean();
         
-        // Only return orders & bookings for admin/owner roles
-        if (verified.role === 'admin') {
+        if (verified.role === 'admin' || verified.role === 'cashier') {
           orders = await Order.find().sort({ createdAt: -1 }).lean();
           reservations = await Reservation.find().sort({ createdAt: -1 }).lean();
+          expenses = await Expense.find().sort({ date: -1, createdAt: -1 }).lean();
         }
       } catch (e) {
         // Invalid token
@@ -361,7 +383,8 @@ app.get('/api/all-data', async (req, res) => {
       orders,
       reservations,
       events,
-      leftovers
+      leftovers,
+      expenses
     });
   } catch (err) {
     console.error('Error fetching all data:', err);
@@ -374,13 +397,18 @@ app.post('/api/admin/login', loginLimiter, (req, res) => {
   const { username, password } = req.body;
   const adminUser = process.env.ADMIN_USERNAME || 'admin';
   const adminPass = process.env.ADMIN_PASSWORD || 'babke2026';
+
+  const cashierUser = process.env.CASHIER_USERNAME || 'cashier';
+  const cashierPass = process.env.CASHIER_PASSWORD || 'babkecashier2026';
   
-  const workerUser = 'worker';
+  const workerUser = process.env.WORKER_USERNAME || 'worker';
   const workerPass = process.env.WORKER_PASSWORD || 'babkeworker2026';
 
   let role = null;
   if (username === adminUser && password === adminPass) {
     role = 'admin';
+  } else if (username === cashierUser && password === cashierPass) {
+    role = 'cashier';
   } else if (username === workerUser && password === workerPass) {
     role = 'worker';
   }
@@ -441,6 +469,42 @@ app.delete('/api/leftovers/:id', authMiddleware, async (req, res) => {
     if (!deleted) return res.status(404).json({ error: 'Leftover log not found' });
     sendSseNotification('deleteLeftover', { id: req.params.id });
     res.json({ success: true, message: 'Leftover log deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Expenses Endpoints
+app.get('/api/expenses', authMiddleware, async (req, res) => {
+  try {
+    const expenses = await Expense.find().sort({ date: -1, createdAt: -1 });
+    res.json(expenses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/expenses', authMiddleware, async (req, res) => {
+  try {
+    const expenseData = {
+      ...req.body,
+      recordedBy: req.admin ? req.admin.role : 'cashier'
+    };
+    const expense = new Expense(expenseData);
+    await expense.save();
+    sendSseNotification('newExpense', expense);
+    res.status(201).json(expense);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/expenses/:id', authMiddleware, async (req, res) => {
+  try {
+    const deleted = await Expense.findOneAndDelete({ id: req.params.id });
+    if (!deleted) return res.status(404).json({ error: 'Expense log not found' });
+    sendSseNotification('deleteExpense', { id: req.params.id });
+    res.json({ success: true, message: 'Expense log deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

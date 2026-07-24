@@ -200,6 +200,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
+    eventSource.addEventListener('newExpense', (e) => {
+      try {
+        const expense = JSON.parse(e.data);
+        addActivityLog(`New Expense logged: ${expense.category} - ${expense.amount} TND`);
+        showToast(`💰 New Expense logged by ${expense.recordedBy || 'Cashier'}: ${expense.amount} TND!`);
+        unreadNotificationCount++;
+        updatePageTitle();
+        playNotificationAlert();
+
+        if (currentActivePanel === 'expenses' || currentActivePanel === 'overview') {
+          switchPanel(currentActivePanel);
+        }
+      } catch (err) {
+        console.error("Error processing newExpense SSE event:", err);
+      }
+    });
+
+    eventSource.addEventListener('deleteExpense', (e) => {
+      try {
+        if (currentActivePanel === 'expenses' || currentActivePanel === 'overview') {
+          switchPanel(currentActivePanel);
+        }
+      } catch (err) {
+        console.error("Error processing deleteExpense SSE event:", err);
+      }
+    });
+
     eventSource.onerror = (err) => {
       console.warn("SSE connection error. Closing stream...", err);
       eventSource.close();
@@ -317,6 +344,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         const data = await res.json();
         userRole = data.role || 'admin';
 
+        // Update role badge in header
+        const roleBadge = document.getElementById('user-role-badge');
+        if (roleBadge) {
+          roleBadge.textContent = userRole.toUpperCase();
+          if (userRole === 'admin') {
+            roleBadge.style.background = 'rgba(255, 90, 31, 0.15)';
+            roleBadge.style.borderColor = 'rgba(255, 90, 31, 0.3)';
+            roleBadge.style.color = 'var(--accent-primary)';
+          } else if (userRole === 'cashier') {
+            roleBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+            roleBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            roleBadge.style.color = '#10b981';
+          } else if (userRole === 'worker') {
+            roleBadge.style.background = 'rgba(59, 130, 246, 0.15)';
+            roleBadge.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+            roleBadge.style.color = '#3b82f6';
+          }
+        }
+
         if (loginWrapper) loginWrapper.style.display = 'none';
         if (adminShell) adminShell.style.display = 'flex';
 
@@ -332,8 +378,16 @@ document.addEventListener('DOMContentLoaded', async () => {
               if (span) span.textContent = 'Leftovers Entry';
             }
           });
-          // Workers must land on leftovers panel
           currentActivePanel = 'leftovers';
+        } else if (userRole === 'cashier') {
+          navButtons.forEach(btn => {
+            if (btn.dataset.panel === 'expenses' || btn.dataset.panel === 'orders-reservations' || btn.dataset.panel === 'leftovers') {
+              btn.style.display = 'flex';
+            } else {
+              btn.style.display = 'none';
+            }
+          });
+          currentActivePanel = 'expenses';
         } else {
           navButtons.forEach(btn => {
             btn.style.display = 'flex';
@@ -420,8 +474,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const switchPanel = async (panelName) => {
     currentActivePanel = panelName;
     
-    // Reset notifications when visiting the orders logs
-    if (panelName === 'orders-reservations') {
+    // Reset notifications when visiting the orders logs or expenses logs
+    if (panelName === 'orders-reservations' || panelName === 'expenses') {
       unreadNotificationCount = 0;
       updatePageTitle();
     }
@@ -454,7 +508,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         'gallery': 'Gallery Management',
         'reviews': 'Customer Reviews Management',
         'events': 'Events Management',
-        'orders-reservations': 'Orders & Reservations Logs'
+        'orders-reservations': 'Orders & Reservations Logs',
+        'leftovers': 'Leftovers & Analytics',
+        'expenses': 'Cashier Register Expenses Log'
       };
       titleHeader.textContent = titles[panelName] || 'Dashboard';
     }
@@ -484,6 +540,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         break;
       case 'leftovers':
         renderLeftoversPanel();
+        break;
+      case 'expenses':
+        renderExpensesPanel();
         break;
     }
   };
@@ -2937,6 +2996,337 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // 6. EXPENSES MANAGEMENT PANEL
+  let currentExpenseCategoryFilter = 'all';
+  let currentExpenseSearchQuery = '';
+
+  function renderExpensesPanel() {
+    const container = document.getElementById('admin-body-content');
+    if (!container) return;
+
+    const expenses = BabkeDB.getExpenses();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const currentMonthStr = todayStr.substring(0, 7); // YYYY-MM
+
+    // 1. Calculate KPI Metrics
+    const todayExpenses = expenses
+      .filter(e => e.date === todayStr)
+      .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+
+    const monthExpenses = expenses
+      .filter(e => e.date && e.date.startsWith(currentMonthStr))
+      .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+
+    // Primary Spending Category
+    const categoryTotals = {};
+    expenses.forEach(e => {
+      categoryTotals[e.category] = (categoryTotals[e.category] || 0) + (parseFloat(e.amount) || 0);
+    });
+    let topCategory = 'None';
+    let topCategoryAmt = 0;
+    Object.keys(categoryTotals).forEach(cat => {
+      if (categoryTotals[cat] > topCategoryAmt) {
+        topCategoryAmt = categoryTotals[cat];
+        topCategory = cat;
+      }
+    });
+
+    const categoryLabels = {
+      'worker_extra': 'Worker Extra',
+      'fournisseur': 'Supplier / Fournisseur',
+      'ingredients': 'Market & Ingredients',
+      'maintenance': 'Maintenance & Utilities',
+      'other': 'Other / Misc'
+    };
+
+    // Filter list by category and search query
+    let filtered = expenses.filter(e => {
+      const matchCat = currentExpenseCategoryFilter === 'all' || e.category === currentExpenseCategoryFilter;
+      const q = currentExpenseSearchQuery.toLowerCase().trim();
+      const matchSearch = !q || (e.description && e.description.toLowerCase().includes(q)) || (e.id && e.id.toLowerCase().includes(q));
+      return matchCat && matchSearch;
+    });
+
+    let tableRowsHtml = '';
+    if (filtered.length === 0) {
+      tableRowsHtml = `
+        <tr>
+          <td colspan="7" style="padding:0;">
+            <div class="empty-state-container">
+              <div class="empty-state-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M6 15h2"/><path d="M12 15h6"/></svg>
+              </div>
+              <h4>No Expenses Found</h4>
+              <p>No cashier expense entries match your selected criteria. Log an expense using the form above.</p>
+            </div>
+          </td>
+        </tr>
+      `;
+    } else {
+      filtered.forEach(item => {
+        const catName = categoryLabels[item.category] || item.category;
+        const catClass = item.category || 'other';
+        const methodLabel = item.paymentMethod === 'cash' ? 'Cashier Caisse (Cash)' : (item.paymentMethod === 'card' ? 'Bank Card' : 'Bank Transfer');
+        const roleClass = item.recordedBy || 'cashier';
+
+        tableRowsHtml += `
+          <tr>
+            <td><strong style="color: var(--text-admin-primary); font-size: 0.9rem;">${item.date || 'N/A'}</strong></td>
+            <td><span class="expense-badge ${catClass}">${catName}</span></td>
+            <td style="max-width:320px; word-break:break-word;">
+              <span style="font-weight:600; color:var(--text-admin-primary); line-height: 1.4;">${item.description}</span>
+            </td>
+            <td><span class="expense-amount-tag">${(parseFloat(item.amount) || 0).toFixed(1)} TND</span></td>
+            <td>
+              <span style="display: inline-flex; align-items: center; gap: 6px; font-size:0.82rem; color:var(--text-admin-secondary); background: rgba(255, 255, 255, 0.03); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255, 90, 31, 0.1);">
+                ${methodLabel}
+              </span>
+            </td>
+            <td><span class="role-badge-tag ${roleClass}">${item.recordedBy || 'Cashier'}</span></td>
+            <td style="text-align:right;">
+              <button class="btn-action-delete btn-delete-expense" data-id="${item.id}" title="Delete Expense Entry">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span>Delete</span>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    container.innerHTML = `
+      <!-- KPI Stats Section -->
+      <div class="dashboard-grid-stats" style="margin-bottom: 24px;">
+        <div class="stat-card">
+          <div class="stat-card-details">
+            <span>Today's Expenses</span>
+            <h3>${todayExpenses.toFixed(1)} TND</h3>
+            <span class="stat-card-trend neutral">Log Today</span>
+          </div>
+          <div class="stat-card-visual">
+            <div class="stat-card-icon" style="background: rgba(255, 184, 48, 0.15); color: #ffb830; border-color: rgba(255, 184, 48, 0.3);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-details">
+            <span>This Month's Expenses</span>
+            <h3>${monthExpenses.toFixed(1)} TND</h3>
+            <span class="stat-card-trend negative">MTD Total</span>
+          </div>
+          <div class="stat-card-visual">
+            <div class="stat-card-icon" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border-color: rgba(239, 68, 68, 0.3);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-details">
+            <span>Top Expense Type</span>
+            <h3 style="font-size: 1.2rem;">${categoryLabels[topCategory] || 'None'}</h3>
+            <span class="stat-card-trend positive">Highest Spend</span>
+          </div>
+          <div class="stat-card-visual">
+            <div class="stat-card-icon" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: rgba(59, 130, 246, 0.3);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-details">
+            <span>Total Expense Entries</span>
+            <h3>${expenses.length}</h3>
+            <span class="stat-card-trend positive">Audit Records</span>
+          </div>
+          <div class="stat-card-visual">
+            <div class="stat-card-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expense Entry Form Card -->
+      <div class="admin-card" style="margin-bottom: 24px;">
+        <div class="admin-card-header" style="border-bottom: 1px dashed var(--border-admin); padding-bottom: 12px; margin-bottom: 16px;">
+          <h3>💳 Log New Cashier Register Expense</h3>
+          <span style="font-size: 0.8rem; color: var(--text-admin-muted);">Record out-of-pocket register payments (Worker Extras, Supplier/Fournisseur, Market & Maintenance)</span>
+        </div>
+        <form id="expense-log-form">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+            <div class="form-group-admin" style="margin-bottom: 0;">
+              <label for="expense-form-date">Expense Date</label>
+              <input type="date" id="expense-form-date" value="${todayStr}" required>
+            </div>
+
+            <div class="form-group-admin" style="margin-bottom: 0;">
+              <label for="expense-form-category">Category</label>
+              <select id="expense-form-category" required>
+                <option value="worker_extra">👷 Worker Extra (Extra Ouvrier)</option>
+                <option value="fournisseur">🚚 Supplier Payment (Paiement Fournisseur)</option>
+                <option value="ingredients">🛒 Market & Ingredients (Achats Marché)</option>
+                <option value="maintenance">🔧 Maintenance & Utilities (Entretien)</option>
+                <option value="other">📝 Other / Miscellaneous (Autres)</option>
+              </select>
+            </div>
+
+            <div class="form-group-admin" style="margin-bottom: 0;">
+              <label for="expense-form-amount">Amount (TND)</label>
+              <input type="number" id="expense-form-amount" step="0.5" min="0.5" placeholder="e.g. 45.0" required>
+            </div>
+
+            <div class="form-group-admin" style="margin-bottom: 0;">
+              <label for="expense-form-method">Payment Source</label>
+              <select id="expense-form-method">
+                <option value="cash">💵 Cash Register (Caisse)</option>
+                <option value="card">💳 Credit/Debit Card</option>
+                <option value="bank_transfer">🏛️ Bank Transfer</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group-admin" style="margin-bottom: 16px;">
+            <label for="expense-form-desc">Expense Description / Notes</label>
+            <input type="text" id="expense-form-desc" placeholder="e.g. Paid Ahmed 40 TND extra shift for weekend surge" required>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end;">
+            <button type="submit" class="btn-admin-primary" style="padding: 11px 24px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Submit Expense Entry</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Expense History Table Card -->
+      <div class="admin-card">
+        <div class="admin-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; border-bottom: 1px dashed var(--border-admin); padding-bottom: 16px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <h3>📋 Cashier Register Expenses History</h3>
+            <span style="font-size: 0.75rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; background: rgba(255, 90, 31, 0.15); color: var(--accent-admin); border: 1px solid rgba(255, 90, 31, 0.25);">${filtered.length} Entries</span>
+          </div>
+
+          <!-- Controls: Filter & Search -->
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div style="position: relative; min-width: 220px;">
+              <input type="text" id="expenses-search-input" value="${currentExpenseSearchQuery}" placeholder="Search expenses..." style="padding-left: 36px; height: 40px; font-size: 0.88rem; margin-bottom: 0;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 12px; top: 13px; color: var(--text-admin-muted);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+
+            <select id="expenses-category-filter" style="height: 40px; font-size: 0.88rem; margin-bottom: 0; min-width: 180px;">
+              <option value="all" ${currentExpenseCategoryFilter === 'all' ? 'selected' : ''}>All Categories</option>
+              <option value="worker_extra" ${currentExpenseCategoryFilter === 'worker_extra' ? 'selected' : ''}>👷 Worker Extra</option>
+              <option value="fournisseur" ${currentExpenseCategoryFilter === 'fournisseur' ? 'selected' : ''}>🚚 Supplier Payment</option>
+              <option value="ingredients" ${currentExpenseCategoryFilter === 'ingredients' ? 'selected' : ''}>🛒 Market & Ingredients</option>
+              <option value="maintenance" ${currentExpenseCategoryFilter === 'maintenance' ? 'selected' : ''}>🔧 Maintenance</option>
+              <option value="other" ${currentExpenseCategoryFilter === 'other' ? 'selected' : ''}>📝 Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive-wrapper">
+          <table class="admin-data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Payment Source</th>
+                <th>Logged By</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    // Event Bindings
+    const form = document.getElementById('expense-log-form');
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const date = document.getElementById('expense-form-date').value;
+        const category = document.getElementById('expense-form-category').value;
+        const amount = parseFloat(document.getElementById('expense-form-amount').value);
+        const paymentMethod = document.getElementById('expense-form-method').value;
+        const description = document.getElementById('expense-form-desc').value.trim();
+
+        if (!date || isNaN(amount) || amount <= 0 || !description) {
+          showToast("⚠️ Please enter a valid date, amount, and description!");
+          return;
+        }
+
+        const newExpense = {
+          id: `exp-${Date.now()}`,
+          date,
+          category,
+          amount,
+          paymentMethod,
+          description,
+          recordedBy: userRole || 'cashier',
+          createdAt: new Date().toISOString()
+        };
+
+        try {
+          await BabkeDB.addExpense(newExpense);
+          showToast("✅ Cashier expense logged successfully!");
+          renderExpensesPanel();
+        } catch (err) {
+          console.error("Failed to add expense:", err);
+          showToast("❌ Error saving expense entry.");
+        }
+      });
+    }
+
+    // Delete Bindings
+    container.querySelectorAll('.btn-delete-expense').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget.dataset.id;
+        if (confirm("Are you sure you want to delete this expense log entry?")) {
+          try {
+            await BabkeDB.deleteExpense(id);
+            showToast("🗑️ Expense log deleted.");
+            renderExpensesPanel();
+          } catch (err) {
+            console.error("Failed to delete expense:", err);
+            showToast("❌ Error deleting expense log.");
+          }
+        }
+      });
+    });
+
+    // Search and Filter Listeners
+    const searchInput = document.getElementById('expenses-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        currentExpenseSearchQuery = e.target.value;
+        renderExpensesPanel();
+        const inputNow = document.getElementById('expenses-search-input');
+        if (inputNow) {
+          inputNow.focus();
+          inputNow.setSelectionRange(inputNow.value.length, inputNow.value.length);
+        }
+      });
+    }
+
+    const categoryFilter = document.getElementById('expenses-category-filter');
+    if (categoryFilter) {
+      categoryFilter.addEventListener('change', (e) => {
+        currentExpenseCategoryFilter = e.target.value;
+        renderExpensesPanel();
+      });
+    }
+  }
 
   // Helper time relative formatter
   function formatRelativeTime(date) {
@@ -2981,6 +3371,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  window.addEventListener('babkeExpensesChanged', () => {
+    addActivityLog("Expenses log synced in real-time");
+    if (currentActivePanel === 'expenses' || currentActivePanel === 'overview') {
+      renderExpensesPanel();
+    }
+  });
+
   // Background polling every 30 seconds
   setInterval(async () => {
     if (typeof BabkeDB !== 'undefined') {
@@ -2994,6 +3391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.dispatchEvent(new Event('babkeOrdersChanged'));
         window.dispatchEvent(new Event('babkeReservationsChanged'));
         window.dispatchEvent(new Event('babkeLeftoversChanged'));
+        window.dispatchEvent(new Event('babkeExpensesChanged'));
       } catch (err) {
         console.error("Polling sync failed:", err);
       }
