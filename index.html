@@ -92,16 +92,12 @@
             <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
           </svg>
         </button>
-
-        <a href="#contact" class="btn-delivery-pulse">
-          <span data-translate="nav_order_now">Order Now</span>
-        </a>
         
         <!-- Mobile Toggle -->
-        <button class="burger-menu" id="burger-menu" aria-label="Toggle Navigation Menu">
-          <span class="burger-bar"></span>
-          <span class="burger-bar"></span>
-          <span class="burger-bar"></span>
+        <button class="menu-toggle" id="mobile-toggle" aria-label="Toggle Menu">
+          <span></span>
+          <span></span>
+          <span></span>
         </button>
       </div>
     </div>
@@ -111,29 +107,24 @@
   <section class="hero-section" id="home">
     <div class="hero-container">
       <div class="hero-content">
-        <div class="award-hero-badge">
+        <div class="hero-badge">
           <span data-translate="hero_award">MEILLEUR CHAWARMA 2025 BY TORCHI.TN</span>
         </div>
-        <div class="hero-status-row" style="display:inline-flex; gap:12px; flex-wrap:wrap; margin-bottom:24px;">
-          <div class="hero-badge" style="margin-bottom:0;">
-            <span class="pulse-dot"></span>
-            <span data-translate="hero_badge">Sousse's Favorite Kebab Spot</span>
-          </div>
-          <div id="store-status-banner" class="store-status-banner closed">
-            <span class="status-indicator-dot"></span>
-            <span class="status-banner-text">Loading status...</span>
-          </div>
+        <div class="hero-sub-badge">
+          <span data-translate="hero_badge">Sousse's Favorite Kebab Spot</span>
         </div>
+
         <h1 class="hero-title" data-translate="hero_title">
           THE STREETS OF <span class="highlight">SOUSSE</span> JUST GOT FLAVOR.
         </h1>
-        <p class="hero-description" data-translate="hero_desc">
+        
+        <p class="hero-desc" data-translate="hero_desc">
           Charcoal-grilled Turkish Adana, toasted Lebanese-style chicken shawarma, and loaded crispy fries dripping with our signature garlic whip and spices. Hand-carved daily, served fresh.
         </p>
-        
+
         <div class="hero-actions">
           <a href="#menu" class="btn-primary-food" data-translate="hero_explore_menu">Explore the Menu</a>
-          <a href="#contact" class="btn-secondary-dark" data-translate="hero_order_delivery">Order Delivery</a>
+          <a href="#menu" class="btn-secondary-dark" id="btn-hero-order-delivery" data-translate="hero_order_delivery">Order Delivery</a>
         </div>
 
         <div class="hero-stats">
@@ -392,7 +383,7 @@
             </div>
             <div>
               <h3 data-translate="contact_phone">Call the Grill</h3>
-              <p><a href="tel:+21673821999" class="phone-link" data-translate="contact_phone_desc">+216 73 821 999</a></p>
+              <p><a href="tel:+21620985204" class="phone-link" data-translate="contact_phone_desc">+216 20 985 204</a></p>
             </div>
           </div>
  
@@ -525,6 +516,91 @@
       </div>
     </div>
   </footer>
+
+  <!-- Floating Suivre Commande Action Bubble (Next to Chatbot) -->
+  <button class="tracker-trigger-bubble" id="btn-open-tracker-modal" aria-label="Suivre ma commande en direct" title="Suivre ma commande en direct">
+    <div class="trigger-icon-container">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <polyline points="12 8 12 12 15 15"/>
+      </svg>
+    </div>
+    <span class="trigger-tooltip-txt">Suivre ma commande</span>
+  </button>
+
+  <!-- LIVE ORDER TRACKER MODAL ("Suivre ma Commande") -->
+  <div class="tracker-overlay" id="order-tracker-modal" role="dialog" aria-modal="true">
+    <div class="tracker-modal-container">
+      <button class="tracker-close-btn" id="btn-close-tracker-modal" aria-label="Fermer le suivi de commande">✕</button>
+      
+      <div class="tracker-header">
+        <div class="tracker-icon-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="12 8 12 12 15 15"/></svg>
+        </div>
+        <h3 data-translate="tracker_title">Suivre ma Commande en Direct</h3>
+        <p data-translate="tracker_subtitle">Entrez votre N° de commande pour voir l'état de préparation et de livraison en temps réel.</p>
+      </div>
+
+      <div class="tracker-search-box">
+        <input type="text" id="tracker-order-id-input" placeholder="ex : ORD-1719000000" autocomplete="off">
+        <button type="button" id="btn-submit-order-track" class="btn-track-submit">
+          <span data-translate="tracker_btn_search">Rechercher</span>
+        </button>
+      </div>
+
+      <!-- Live Order Status Content Container -->
+      <div id="tracker-result-container" style="display: none;">
+        <div class="tracker-order-meta" style="display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: 800; font-size: 0.9rem;">
+          <div class="order-id-display">N° <span id="track-order-id-val" style="color: var(--accent-primary);">ORD-1719000000</span></div>
+          <div class="order-date-display" id="track-order-date-val" style="color: var(--text-muted);">Maintenant</div>
+        </div>
+
+        <!-- 4-Step Visual Timeline Progress Bar -->
+        <div class="tracker-timeline">
+          <div class="timeline-step" id="step-pending">
+            <div class="step-circle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div class="step-label" data-translate="step_pending">Reçue</div>
+          </div>
+          <div class="timeline-line" id="line-1"></div>
+          <div class="timeline-step" id="step-preparing">
+            <div class="step-circle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            </div>
+            <div class="step-label" data-translate="step_preparing">Préparation</div>
+          </div>
+          <div class="timeline-line" id="line-2"></div>
+          <div class="timeline-step" id="step-delivering">
+            <div class="step-circle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            </div>
+            <div class="step-label" data-translate="step_delivering">Livraison</div>
+          </div>
+          <div class="timeline-line" id="line-3"></div>
+          <div class="timeline-step" id="step-delivered">
+            <div class="step-circle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="step-label" data-translate="step_delivered">Livrée</div>
+          </div>
+        </div>
+
+        <!-- Order Items Summary Box -->
+        <div class="tracker-items-summary" id="tracker-items-list"></div>
+
+        <div class="tracker-customer-info">
+          <div id="track-customer-name">Client : <strong>-</strong></div>
+          <div id="track-customer-address">Adresse/Table : <strong>-</strong></div>
+          <div id="track-order-subtotal">Total : <strong style="color: var(--accent-primary);">0.00 TND</strong></div>
+        </div>
+      </div>
+      
+      <div id="tracker-empty-state" class="tracker-not-found" style="display: none; text-align: center; color: var(--accent-primary); padding: 16px; font-weight: 700; font-size: 0.9rem;">
+        <p>Aucune commande trouvée avec cet identifiant. Vérifiez votre numéro de commande.</p>
+      </div>
+    </div>
+  </div>
 
   <!-- Script File -->
   <script src="scripts/app.js"></script>

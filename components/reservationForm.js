@@ -29,7 +29,7 @@
     confirm_hours_label: "Operating Hours",
     confirm_hours_week: "Mon - Thu: 11:30 AM - Midnight",
     confirm_hours_weekend: "Fri - Sun: 11:30 AM - 1:00 AM",
-    confirm_phone: "+216 73 821 999",
+    confirm_phone: "+216 20 985 204",
     confirm_btn_call: "Call Restaurant Now",
     confirm_btn_close: "Got it, Thank You"
   },
@@ -55,7 +55,7 @@
     confirm_hours_label: "Heures d'ouverture",
     confirm_hours_week: "Lun - Jeu : 11:30 - Minuit",
     confirm_hours_weekend: "Ven - Dim : 11:30 - 01:00",
-    confirm_phone: "+216 73 821 999",
+    confirm_phone: "+216 20 985 204",
     confirm_btn_call: "Appeler le Restaurant",
     confirm_btn_close: "D'accord, Merci"
   },
@@ -81,7 +81,7 @@
     confirm_hours_label: "أوقات العمل",
     confirm_hours_week: "الاثنين - الخميس: 11:30 صباحًا - منتصف الليل",
     confirm_hours_weekend: "الجمعة - الأحد: 11:30 صباحًا - 1:00 صباحًا",
-    confirm_phone: "+216 73 821 999",
+    confirm_phone: "+216 20 985 204",
     confirm_btn_call: "طلب الهاتف الآن",
     confirm_btn_close: "واضح، يعيشك"
   }

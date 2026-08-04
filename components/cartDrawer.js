@@ -118,7 +118,12 @@
   `;
 };
 
-  bc.getCustomizationModalHTML = function(txt) {
+  bc.getCustomizationModalHTML = function(txt, prices) {
+    prices = prices || {};
+    const cheddarPrice = prices.cheddarPrice !== undefined ? Number(prices.cheddarPrice) : 2.0;
+    const mozzarellaPrice = prices.mozzarellaPrice !== undefined ? Number(prices.mozzarellaPrice) : 5.0;
+    const friesPrice = prices.friesPrice !== undefined ? Number(prices.friesPrice) : 2.0;
+
   return `
     <div class="customization-modal-overlay" id="customization-modal-overlay">
       <div class="customization-modal glass-card">
@@ -132,9 +137,13 @@
         <p class="modal-product-desc" id="modal-item-desc"></p>
         
         <form id="customization-form" onsubmit="event.preventDefault();">
-          <!-- Spice Modifier Selection -->
+
+          <!-- SECTION 1: Spice Level -->
           <div class="modifier-group">
-            <h4 id="modal-spice-header">${txt.modal_spice_title}</h4>
+            <h4 class="modifier-group-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+              ${txt.modal_spice_title}
+            </h4>
             <div class="spice-selector-grid">
               <label class="spice-option">
                 <input type="radio" name="spice-level" value="Mild" checked>
@@ -154,47 +163,98 @@
               </label>
             </div>
           </div>
-          
-          <!-- Extra Additions -->
+
+          <!-- SECTION 2: Garniture — Sauces -->
           <div class="modifier-group">
-            <h4 id="modal-add-header">${txt.modal_add_title}</h4>
+            <h4 class="modifier-group-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 12 2.1 8.6"/><path d="m12 12 6.4-8.6"/><path d="M12 12v10"/></svg>
+              ${txt.modal_sauces_title}
+            </h4>
+            <div class="garniture-chip-grid">
+              <label class="garniture-chip">
+                <input type="checkbox" name="sauce" value="${txt.garni_toum_val}">
+                <span>${txt.garni_toum}</span>
+              </label>
+              <label class="garniture-chip">
+                <input type="checkbox" name="sauce" value="${txt.garni_houmous_val}">
+                <span>${txt.garni_houmous}</span>
+              </label>
+              <label class="garniture-chip">
+                <input type="checkbox" name="sauce" value="${txt.garni_harissa_val}">
+                <span>${txt.garni_harissa}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- SECTION 3: Garniture — Légumes -->
+          <div class="modifier-group">
+            <h4 class="modifier-group-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></svg>
+              ${txt.modal_veggies_title}
+            </h4>
+            <div class="garniture-chip-grid">
+              <label class="garniture-chip">
+                <input type="checkbox" name="veggie" value="${txt.garni_tomato_val}">
+                <span>${txt.garni_tomato}</span>
+              </label>
+              <label class="garniture-chip">
+                <input type="checkbox" name="veggie" value="${txt.garni_onion_val}">
+                <span>${txt.garni_onion}</span>
+              </label>
+              <label class="garniture-chip">
+                <input type="checkbox" name="veggie" value="${txt.garni_cornichon_val}">
+                <span>${txt.garni_cornichon}</span>
+              </label>
+              <label class="garniture-chip">
+                <input type="checkbox" name="veggie" value="${txt.garni_laitue_val}">
+                <span>${txt.garni_laitue}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- SECTION 4: Garniture — Fromage (radio: one or none) -->
+          <div class="modifier-group">
+            <h4 class="modifier-group-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13c0-1.1.9-2 2-2h12l2 8H2z"/><path d="M20 11 4.12 4.23"/><path d="M4 13V7.37"/></svg>
+              ${txt.modal_cheese_title}
+            </h4>
+            <div class="garniture-chip-grid cheese-choice">
+              <label class="garniture-chip cheese-chip">
+                <input type="radio" name="cheese" value="none" data-price="0" checked>
+                <span>${txt.garni_no_cheese}</span>
+              </label>
+              <label class="garniture-chip cheese-chip">
+                <input type="radio" name="cheese" value="${txt.garni_cheddar_val}" data-price="${cheddarPrice}">
+                <span>${txt.garni_cheddar} ${cheddarPrice > 0 ? `(+${cheddarPrice.toFixed(1)} TND)` : ''}</span>
+              </label>
+              <label class="garniture-chip cheese-chip">
+                <input type="radio" name="cheese" value="${txt.garni_mozza_val}" data-price="${mozzarellaPrice}">
+                <span>${txt.garni_mozza} ${mozzarellaPrice > 0 ? `(+${mozzarellaPrice.toFixed(1)} TND)` : ''}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- SECTION 5: Extra Additions (paid) -->
+          <div class="modifier-group">
+            <h4 class="modifier-group-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+              ${txt.modal_add_title}
+            </h4>
             <div class="additions-list">
               <label class="checkbox-option">
-                <input type="checkbox" name="addition" value="Extra Cheddar" data-price="1.5">
-                <span class="option-name-label">${txt.add_cheddar}</span>
-                <span class="option-price-label">+1.5 TND</span>
-              </label>
-              <label class="checkbox-option">
-                <input type="checkbox" name="addition" value="Extra Toum" data-price="1.0">
-                <span class="option-name-label">${txt.add_toum}</span>
-                <span class="option-price-label">+1.0 TND</span>
-              </label>
-              <label class="checkbox-option">
-                <input type="checkbox" name="addition" value="Extra Fries" data-price="2.0">
+                <input type="checkbox" name="addition" value="Extra Fries" data-price="${friesPrice}">
                 <span class="option-name-label">${txt.add_fries}</span>
-                <span class="option-price-label">+2.0 TND</span>
+                <span class="option-price-label">+${friesPrice.toFixed(1)} TND</span>
               </label>
             </div>
           </div>
 
-          <!-- Exclusions -->
+          <!-- SECTION 6: Special Notes -->
           <div class="modifier-group">
-            <h4 id="modal-excl-header">${txt.modal_excl_title}</h4>
-            <div class="exclusions-list">
-              <label class="checkbox-option">
-                <input type="checkbox" name="exclusion" value="No Onions">
-                <span class="option-name-label">${txt.excl_onions}</span>
-              </label>
-              <label class="checkbox-option">
-                <input type="checkbox" name="exclusion" value="No Pickles">
-                <span class="option-name-label">${txt.excl_pickles}</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Extra Notes -->
-          <div class="modifier-group">
-            <h4 id="modal-notes-header">${txt.modal_notes_title}</h4>
+            <h4 class="modifier-group-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              ${txt.modal_notes_title}
+            </h4>
             <textarea id="modal-special-notes" rows="2" placeholder="${txt.modal_notes_placeholder}"></textarea>
           </div>
 

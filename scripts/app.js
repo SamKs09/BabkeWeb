@@ -274,8 +274,35 @@ document.addEventListener('DOMContentLoaded', () => {
           tagsHtml += `<span class="card-tag ${tagClass}" ${style}>${tag}</span>`;
         });
 
+        const isAvailable = item.available !== false;
+        const bannerText = lang === 'fr' ? 'ARTICLE INDISPONIBLE' : (lang === 'tn' ? 'غير متوفر حالياً' : 'ARTICLE UNAVAILABLE');
+        const soldOutBtnText = lang === 'fr' ? 'Indisponible' : (lang === 'tn' ? 'غير متوفر' : 'Unavailable');
+
+        if (!isAvailable) {
+          card.className = 'menu-item-card is-indisponible';
+        }
+
+        const ribbonBannerHtml = isAvailable ? '' : `
+          <div class="indisponible-banner-ribbon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>${bannerText}</span>
+          </div>
+        `;
+
+        const actionBtnHtml = isAvailable ? `
+          <button class="btn-card-add" data-id="${item.id}" data-name="${title}" data-price="${item.price}" data-desc="${desc}">
+            <span>${btnText}</span>
+            <span class="btn-plus-icon">+</span>
+          </button>
+        ` : `
+          <button class="btn-card-add sold-out-disabled" disabled style="background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.5); color: #ef4444; cursor: not-allowed; opacity: 0.9; width: 100%; justify-content: center; font-weight: 800; pointer-events: none;">
+            <span>🚫 ${soldOutBtnText}</span>
+          </button>
+        `;
+
         card.innerHTML = `
-          <div class="menu-item-img-wrapper">
+          <div class="menu-item-img-wrapper" style="position:relative;">
+            ${ribbonBannerHtml}
             <img src="${imageSrc}" onerror="this.onerror=null; this.src='${fallbackSrc}';" alt="${title}" class="menu-item-img" loading="lazy">
             <div class="menu-item-tags">
               ${tagsHtml}
@@ -289,10 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <p class="menu-item-text">${desc}</p>
           </div>
           <div class="menu-card-actions-row">
-            <button class="btn-card-add" data-id="${item.id}" data-name="${title}" data-price="${item.price}" data-desc="${desc}">
-              <span>${btnText}</span>
-              <span class="btn-plus-icon">+</span>
-            </button>
+            ${actionBtnHtml}
           </div>
         `;
         track.appendChild(card);
@@ -454,8 +478,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const events = BabkeDB.getEvents();
     const lang = getLang();
 
-    // Filter events to only show published and cancelled ones
-    const activeEvents = events.filter(e => e.status === 'published' || e.status === 'cancelled');
+    const getLoc = (field) => {
+      if (!field) return '';
+      if (typeof field === 'string') return field;
+      if (typeof field === 'object' && field !== null) {
+        return field[lang] || field['fr'] || field['en'] || field['tn'] || Object.values(field)[0] || '';
+      }
+      return String(field);
+    };
+
+    // Filter events to show active/published and cancelled ones
+    const activeEvents = events.filter(e => {
+      const st = (e.status || 'published').toLowerCase().trim();
+      return st === 'published' || st === 'publié' || st === 'cancelled' || st === 'annulé' || st === 'active';
+    });
 
     if (activeEvents.length === 0) {
       section.style.display = 'none';
@@ -471,11 +507,14 @@ document.addEventListener('DOMContentLoaded', () => {
       card.className = 'event-card';
       card.id = evt.id;
 
-      const title = evt.title[lang] || evt.title['en'];
-      const desc = evt.description[lang] || evt.description['en'];
-      const duration = evt.duration[lang] || evt.duration['en'];
-      const location = evt.location[lang] || evt.location['en'];
-      const statusLabel = evt.status === 'cancelled' 
+      const title = getLoc(evt.title) || 'Événement Babke';
+      const desc = getLoc(evt.description);
+      const duration = getLoc(evt.duration);
+      const location = getLoc(evt.location);
+      const statusVal = (evt.status || 'published').toLowerCase().trim();
+      const isCancelledStatus = statusVal === 'cancelled' || statusVal === 'annulé';
+
+      const statusLabel = isCancelledStatus 
         ? (lang === 'fr' ? 'ANNULÉ' : (lang === 'tn' ? 'ملغي' : 'CANCELLED'))
         : (lang === 'fr' ? 'À VENIR' : (lang === 'tn' ? 'قريبًا' : 'UPCOMING'));
 
@@ -492,21 +531,24 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error(err);
       }
 
+      const imgSrc = evt.image || evt.fallbackImage || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80';
+      const fallbackSrc = evt.fallbackImage || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80';
+
       card.innerHTML = `
         <div class="event-image-wrapper">
-          <img src="${evt.image}" loading="lazy" alt="${title}" onerror="this.onerror=null; this.src='${evt.fallbackImage}';" class="event-img">
+          <img src="${imgSrc}" loading="lazy" alt="${title}" onerror="this.onerror=null; this.src='${fallbackSrc}';" class="event-img">
           <div class="event-calendar-badge">
             <span class="cal-month">${monthDisplay}</span>
             <span class="cal-day">${dayDisplay}</span>
           </div>
-          <div class="event-status-tag ${evt.status === 'cancelled' ? 'cancelled' : 'upcoming'}">
+          <div class="event-status-tag ${isCancelledStatus ? 'cancelled' : 'upcoming'}">
             <span class="status-dot"></span>
             <span>${statusLabel}</span>
           </div>
         </div>
         <div class="event-card-body">
           <div>
-            <div class="event-badge-label">${evt.status === 'cancelled' ? (lang === 'fr' ? 'SÉANCE ARCHIVÉE' : (lang === 'tn' ? 'حدث سابق' : 'PAST EVENT')) : (lang === 'fr' ? 'BOUTIQUE ÉPHÉMÈRE' : (lang === 'tn' ? 'حدث خاص' : 'SPECIAL POP-UP'))}</div>
+            <div class="event-badge-label">${isCancelledStatus ? (lang === 'fr' ? 'SÉANCE ARCHIVÉE' : (lang === 'tn' ? 'حدث سابق' : 'PAST EVENT')) : (lang === 'fr' ? 'BOUTIQUE ÉPHÉMÈRE' : (lang === 'tn' ? 'حدث خاص' : 'SPECIAL POP-UP'))}</div>
             <h4 class="event-card-title">${title}</h4>
             
             <div class="event-meta-grid">
@@ -770,16 +812,158 @@ document.addEventListener('DOMContentLoaded', () => {
     updateStoreStatusBanner();
   });
 
+  // Live SSE Real-Time Sync with Express Backend for Storefront Visitors
+  if (typeof EventSource !== 'undefined') {
+    try {
+      const publicSse = new EventSource('/api/sse');
+      
+      publicSse.addEventListener('menuChanged', async () => {
+        if (typeof BabkeDB !== 'undefined') {
+          await BabkeDB.init(true);
+          renderMenu();
+        }
+      });
+
+      publicSse.addEventListener('eventsChanged', async () => {
+        if (typeof BabkeDB !== 'undefined') {
+          await BabkeDB.init(true);
+          renderEvents();
+        }
+      });
+
+      publicSse.addEventListener('ordersChanged', async () => {
+        if (typeof BabkeDB !== 'undefined') {
+          await BabkeDB.init(true);
+          const trackerModal = document.getElementById('order-tracker-modal');
+          const trackerInput = document.getElementById('tracker-order-id-input');
+          if (trackerModal && trackerModal.classList.contains('open') && trackerInput && trackerInput.value) {
+            if (typeof performOrderSearch === 'function') performOrderSearch(trackerInput.value);
+          }
+        }
+      });
+
+      publicSse.onerror = () => {
+        // Suppress SSE disconnect log, browser handles automatic re-connection
+      };
+    } catch (e) {
+      console.warn("Public SSE setup warning:", e);
+    }
+  }
+
   // Fire up page dynamic render
   initAll();
 
-  // Expose triggers for Customizer communication (fired by dynamic cards click, handled in cart.js)
-  window.addEventListener('babkeOpenCustomizer', (e) => {
-    // Re-dispatch click to let cart handle opening the item customization modal
-    const cartCardAdd = document.querySelector(`.btn-card-add[data-id="${e.detail.id}"]`);
-    if (cartCardAdd) {
-      // Direct click trigger which cart.js is listening for
-      // To bypass duplication, if cart.js is already listening to '.btn-card-add', it works
+  // 6. LIVE ORDER TRACKER ("Suivre ma Commande")
+  const trackerModal = document.getElementById('order-tracker-modal');
+  const openTrackerBtn = document.getElementById('btn-open-tracker-modal');
+  const closeTrackerBtn = document.getElementById('btn-close-tracker-modal');
+  const submitTrackerBtn = document.getElementById('btn-submit-order-track');
+  const trackerInput = document.getElementById('tracker-order-id-input');
+
+  const resultContainer = document.getElementById('tracker-result-container');
+  const emptyState = document.getElementById('tracker-empty-state');
+
+  const openTrackerModal = (orderId = null) => {
+    if (!trackerModal) return;
+    trackerModal.classList.add('open');
+    const targetId = orderId || localStorage.getItem('babke_last_order_id') || '';
+    if (targetId && trackerInput) {
+      trackerInput.value = targetId;
+      performOrderSearch(targetId);
+    }
+  };
+
+  const closeTrackerModal = () => {
+    if (!trackerModal) return;
+    trackerModal.classList.remove('open');
+  };
+
+  if (openTrackerBtn) openTrackerBtn.addEventListener('click', () => openTrackerModal());
+  if (closeTrackerBtn) closeTrackerBtn.addEventListener('click', closeTrackerModal);
+  if (trackerModal) {
+    trackerModal.addEventListener('click', (e) => {
+      if (e.target === trackerModal) closeTrackerModal();
+    });
+  }
+
+  const performOrderSearch = async (searchId = null) => {
+    const targetId = (searchId || trackerInput?.value || '').trim();
+    if (!targetId) return;
+
+    try {
+      await BabkeDB.init(true); // Fetch latest live state from server
+      const orders = BabkeDB.getOrders();
+      const order = orders.find(o => o.id === targetId || o.id.toLowerCase() === targetId.toLowerCase());
+
+      if (!order) {
+        if (resultContainer) resultContainer.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'block';
+        return;
+      }
+
+      if (emptyState) emptyState.style.display = 'none';
+      if (resultContainer) resultContainer.style.display = 'block';
+
+      // Update Order Meta
+      document.getElementById('track-order-id-val').textContent = order.id;
+      document.getElementById('track-order-date-val').textContent = new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('track-customer-name').innerHTML = `Client : <strong>${order.customer?.name || 'Client'}</strong>`;
+      document.getElementById('track-customer-address').innerHTML = `Adresse/Table : <strong>${order.customer?.address || 'Emporter / Dine-in'}</strong>`;
+      document.getElementById('track-order-subtotal').innerHTML = `Total : <strong style="color: var(--accent-primary);">${(order.subtotal || 0).toFixed(2)} TND</strong>`;
+
+      // Render Items Summary
+      const itemsHtml = (order.items || []).map(i => `
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem;">
+          <span>${i.qty}x <strong>${i.name}</strong> (${i.spice || 'Normal'}) ${i.addons && i.addons.length ? '+ ' + i.addons.join(', ') : ''}</span>
+          <span style="font-weight:700;">${((i.price || 0) * i.qty).toFixed(2)} TND</span>
+        </div>
+      `).join('');
+      document.getElementById('tracker-items-list').innerHTML = itemsHtml;
+
+      // Update 4-Step Timeline Status
+      // Statuses: 'pending' (Reçue), 'preparing' (En préparation), 'delivering' (En livraison), 'delivered' (Livrée)
+      const currentStatus = order.status || 'pending';
+      const steps = ['pending', 'preparing', 'delivering', 'delivered'];
+      const activeIndex = steps.indexOf(currentStatus) >= 0 ? steps.indexOf(currentStatus) : 0;
+
+      steps.forEach((st, idx) => {
+        const stepElem = document.getElementById(`step-${st}`);
+        if (stepElem) {
+          if (idx <= activeIndex) stepElem.classList.add('active');
+          else stepElem.classList.remove('active');
+        }
+      });
+
+      // Update connecting lines
+      for (let l = 1; l <= 3; l++) {
+        const lineElem = document.getElementById(`line-${l}`);
+        if (lineElem) {
+          if (l <= activeIndex) lineElem.classList.add('active');
+          else lineElem.classList.remove('active');
+        }
+      }
+
+    } catch (err) {
+      console.error("Error searching order:", err);
+    }
+  };
+
+  if (submitTrackerBtn) {
+    submitTrackerBtn.addEventListener('click', () => performOrderSearch());
+  }
+  if (trackerInput) {
+    trackerInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') performOrderSearch();
+    });
+  }
+
+  // Live Auto-Update Tracker if modal is open and backend pushes status change
+  window.addEventListener('babkeOrdersChanged', () => {
+    if (trackerModal && trackerModal.classList.contains('open') && trackerInput && trackerInput.value) {
+      performOrderSearch(trackerInput.value);
     }
   });
+
+  // Expose global tracker trigger for cart drawer
+  window.babkeTrackOrder = openTrackerModal;
 });

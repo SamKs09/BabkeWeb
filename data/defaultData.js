@@ -18,7 +18,7 @@ const DEFAULT_DATA = {
       description: {
         en: "Slow-roasted vertical spit chicken shawarma, homemade Lebanese garlic paste (toum), tangy cucumber pickles, French fries wrapped in thin flatbread and toasted to crispy gold.",
         fr: "Chawarma de poulet rôti lentement à la broche, crème d'ail libanaise maison (toum), cornichons croquants, frites enroulées dans un pain plat et grillées.",
-        tn: "شاورما دجاج محضرة عالسيخ المشوي، ثومية لبنانية بنينة محضرينها في المحل، خيار مخلل، وبطاطا مقلية ملفوفة في خبز رقيق ومحمرة للبنة الكاملة."
+        tn: "شاورما دجاج محضرة عالسيخ المشوي، ثومية شرقية بنينة محضرينها في المحل، خيار مخلل، وبطاطا مقلية ملفوفة في خبز رقيق ومحمرة للبنة الكاملة."
       },
       tags: {
         en: ["Meilleur Chawarma 2025", "Spicy Option", "Best Seller"],
@@ -211,7 +211,7 @@ const DEFAULT_DATA = {
       title: {
         en: "Vibrant Lebanese Tabbouleh",
         fr: "Taboulé Libanais Frais",
-        tn: "تبولة لبنانية"
+        tn: "تبولة شرقية"
       },
       description: {
         en: "Super finely hand-chopped flat-leaf parsley, fresh mint, red ripe tomatoes, green onions, and fine bulgur wheat, tossed in a zesty freshly squeezed lemon juice and cold olive oil dressing.",
@@ -270,6 +270,11 @@ const DEFAULT_DATA = {
     }
   ],
   content: {
+    customizationPrices: {
+      cheddarPrice: 2.0,
+      mozzarellaPrice: 5.0,
+      friesPrice: 2.0
+    },
     hero: {
       award: {
         en: "MEILLEUR CHAWARMA 2025 BY TORCHI.TN",
@@ -289,7 +294,7 @@ const DEFAULT_DATA = {
       desc: {
         en: "Charcoal-grilled Turkish Adana, toasted Lebanese-style chicken shawarma, and loaded crispy fries dripping with our signature garlic whip and spices. Hand-carved daily, served fresh.",
         fr: "Adana turc grillé au charbon de bois, chawarma de poulet libanais grillé, et frites croustillantes loaded nappées de notre crème d'ail signature et d'épices du Levant. Préparé frais tous les jours.",
-        tn: "أدنّا تركي مشوي على الجمر، شاورما دجاج لبنانية محمصة، وبطاطا مقلية مقرمشة غارقة بالتشيدر والثومية الخاصة. مقصوصة فريشك كل يوم."
+        tn: "أدنّا تركي مشوي على الجمر، شاورما دجاج شرقية محمصة، وبطاطا مقلية مقرمشة غارقة بالتشيدر والثومية الخاصة. مقصوصة فريشك كل يوم."
       }
     },
     story: {
@@ -325,7 +330,7 @@ const DEFAULT_DATA = {
         fr: "Avenue des Orangers, Hammam Sousse, Tunisie",
         tn: "شارع البرتقال، حمام سوسة، تونس"
       },
-      phone: "+216 73 821 999",
+      phone: "+216 20 985 204",
       hours: {
         weekday: {
           en: "Mon - Thu: 11:30 AM - Midnight",
@@ -415,7 +420,7 @@ const DEFAULT_DATA = {
         fr: "Festival Street Food The Village",
         tn: "مهرجان الأكلات الشعبية بالقرية"
       },
-      date: "2026-07-28",
+      date: "2026-08-15",
       duration: {
         en: "3 Days (6 PM - Midnight)",
         fr: "3 Jours (18h - Minuit)",
@@ -501,6 +506,112 @@ const DEFAULT_DATA = {
       paymentMethod: "cash",
       recordedBy: "cashier",
       createdAt: "2026-07-23T09:10:00.000Z"
+    }
+  ],
+  productTypes: [
+    { id: "pt-1", name: "Falafel", category: "garniture", defaultUnit: "kg", minStockAlert: 10 },
+    { id: "pt-2", name: "Samboussek Fromage", category: "garniture", defaultUnit: "pièces", minStockAlert: 20 },
+    { id: "pt-3", name: "Samboussek Viande", category: "garniture", defaultUnit: "pièces", minStockAlert: 20 },
+    { id: "pt-4", name: "Samboussek Épinard", category: "garniture", defaultUnit: "pièces", minStockAlert: 20 },
+    { id: "pt-5", name: "Kibbeh / Keba", category: "garniture", defaultUnit: "pièces", minStockAlert: 15 },
+    { id: "pt-6", name: "Msakhan", category: "viande", defaultUnit: "pièces", minStockAlert: 10 },
+    { id: "pt-7", name: "Poulet Crispy", category: "viande", defaultUnit: "kg", minStockAlert: 10 },
+    { id: "pt-8", name: "Riz", category: "garniture", defaultUnit: "kg", minStockAlert: 10 },
+    { id: "pt-9", name: "Huile Végétale", category: "ingrédient", defaultUnit: "litres", minStockAlert: 10 },
+    { id: "pt-10", name: "Kebab Halabi", category: "viande", defaultUnit: "brochettes", minStockAlert: 15 },
+    { id: "pt-11", name: "Kebab Poulet", category: "viande", defaultUnit: "brochettes", minStockAlert: 15 },
+    { id: "pt-12", name: "Kebab Royal", category: "viande", defaultUnit: "brochettes", minStockAlert: 15 },
+    { id: "pt-13", name: "Kebab Azmarli", category: "viande", defaultUnit: "brochettes", minStockAlert: 15 },
+    { id: "pt-14", name: "Kebab Adana", category: "viande", defaultUnit: "brochettes", minStockAlert: 15 },
+    { id: "pt-15", name: "Cuisse Désossée", category: "viande", defaultUnit: "kg", minStockAlert: 10 },
+    { id: "pt-16", name: "Cuisse Mandi", category: "viande", defaultUnit: "pièces", minStockAlert: 10 },
+    { id: "pt-17", name: "Chich Taouk", category: "viande", defaultUnit: "brochettes", minStockAlert: 15 },
+    { id: "pt-18", name: "Poulet Grillé", category: "viande", defaultUnit: "pièces", minStockAlert: 8 },
+    { id: "pt-19", name: "Pistache", category: "garniture", defaultUnit: "kg", minStockAlert: 2 },
+    { id: "pt-20", name: "Fruits Secs", category: "garniture", defaultUnit: "kg", minStockAlert: 2 },
+    { id: "pt-21", name: "Sauce Houmous", category: "sauce", defaultUnit: "litres", minStockAlert: 5 },
+    { id: "pt-22", name: "Sauce à l'Ail (Toum)", category: "sauce", defaultUnit: "litres", minStockAlert: 5 },
+    { id: "pt-23", name: "Sauce Chef", category: "sauce", defaultUnit: "litres", minStockAlert: 5 },
+    { id: "pt-24", name: "Sauce Spicy", category: "sauce", defaultUnit: "litres", minStockAlert: 5 },
+    { id: "pt-25", name: "Harissa", category: "sauce", defaultUnit: "litres", minStockAlert: 5 },
+    { id: "pt-26", name: "Baba Ghanouj", category: "sauce", defaultUnit: "litres", minStockAlert: 5 },
+    { id: "pt-27", name: "Fromage Slice (Cheddar)", category: "garniture", defaultUnit: "paquets", minStockAlert: 5 },
+    { id: "pt-28", name: "Mozzarella", category: "garniture", defaultUnit: "kg", minStockAlert: 5 },
+    { id: "pt-29", name: "Soda / Boissons", category: "boisson", defaultUnit: "canettes", minStockAlert: 24 },
+    { id: "pt-30", name: "Eau 0.5L", category: "boisson", defaultUnit: "bouteilles", minStockAlert: 24 },
+    { id: "pt-31", name: "Frites", category: "garniture", defaultUnit: "kg", minStockAlert: 15 },
+    { id: "pt-32", name: "Emballage Bol 750ml", category: "emballage", defaultUnit: "pièces", minStockAlert: 50 },
+    { id: "pt-33", name: "Emballage Bol 1200ml", category: "emballage", defaultUnit: "pièces", minStockAlert: 50 },
+    { id: "pt-34", name: "Sauce / Épice A1", category: "sauce", defaultUnit: "bouteilles", minStockAlert: 3 }
+  ],
+  ruinedProducts: [
+    {
+      id: "ruin-1",
+      date: "2026-07-28",
+      item: "Chawarma Poulet",
+      quantity: 1.5,
+      unit: "kg",
+      reason: "Cramé",
+      recordedBy: "worker",
+      createdAt: "2026-07-28T21:40:00.000Z"
+    },
+    {
+      id: "ruin-2",
+      date: "2026-07-29",
+      item: "Pain Libanais Plat",
+      quantity: 2,
+      unit: "paquets",
+      reason: "Périmé",
+      recordedBy: "worker",
+      createdAt: "2026-07-29T08:30:00.000Z"
+    }
+  ],
+  stockMovements: [
+    {
+      id: "stock-1",
+      date: "2026-07-25",
+      productName: "Chawarma Poulet",
+      type: "IN",
+      quantity: 50,
+      unit: "kg",
+      unitPrice: 12.0,
+      totalPrice: 600.0,
+      supplier: "Volailles Sousse",
+      reason: "Achat hebdomadaire",
+      recordedBy: "comptable",
+      createdAt: "2026-07-25T09:00:00.000Z"
+    },
+    {
+      id: "stock-2",
+      date: "2026-07-26",
+      productName: "Chawarma Poulet",
+      type: "OUT",
+      quantity: 15,
+      unit: "kg",
+      unitPrice: 0,
+      totalPrice: 0,
+      supplier: "",
+      reason: "Recharge Cuisine / Broche",
+      recordedBy: "comptable",
+      createdAt: "2026-07-26T11:00:00.000Z"
+    }
+  ],
+  auditLogs: [
+    {
+      id: "log-seed-1",
+      timestamp: "29/07/2026 à 09:00:00",
+      userRole: "ADMIN",
+      username: "admin",
+      actionType: "LOGIN",
+      details: "Connexion réussie du Propriétaire"
+    },
+    {
+      id: "log-seed-2",
+      timestamp: "29/07/2026 à 09:30:15",
+      userRole: "COMPTABLE",
+      username: "comptable",
+      actionType: "STOCK_MOVEMENT",
+      details: "Achat Stock: Chawarma Poulet (50 kg) - Coût/Fournisseur: 600 TND / Volailles Sousse"
     }
   ]
 };

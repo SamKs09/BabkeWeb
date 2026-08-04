@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Babke Kebab & Plates — Restaurant Management Dashboard</title>
+  <title>Babke Kebab & Plates — Dashboard de Gestion du Restaurant</title>
   
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
   <!-- Admin scripts (deferred) -->
   <script defer src="admin.js"></script>
 </head>
-<body>
+<body class="light-theme">
 
   <!-- ROOT CONTAINER FOR DYNAMIC RENDERING -->
   <div id="admin-app-root">
@@ -32,23 +32,23 @@
     <!-- 1. LOGIN SCREEN STATE (Default rendered until auth check) -->
     <div class="login-screen-wrapper" id="login-screen-wrapper">
       <div class="login-card glass-card">
-        <img src="../assets/logo.png" alt="Babke Logo" class="login-logo" onerror="this.src='../assets/BabkeLogo.png'">
-        <h2>Admin Portal</h2>
-        <p>Enter credentials to access the Babke Restaurant Dashboard.</p>
+        <img src="../assets/logo.png" alt="Logo Babke" class="login-logo" onerror="this.src='../assets/BabkeLogo.png'">
+        <h2>Portail d'Administration</h2>
+        <p>Entrez vos identifiants pour accéder au tableau de bord Babke.</p>
         
         <form class="login-form" id="admin-login-form">
           <div class="login-input-group">
-            <label for="login-username">Username</label>
-            <input type="text" id="login-username" required autocomplete="username">
+            <label for="login-username">Nom d'utilisateur / Identifiant</label>
+            <input type="text" id="login-username" placeholder="ex : admin, comptable, media, cashier, worker" required autocomplete="username">
           </div>
           <div class="login-input-group">
-            <label for="login-password">Password</label>
-            <input type="password" id="login-password" required autocomplete="current-password">
+            <label for="login-password">Mot de passe</label>
+            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
           </div>
           
-          <div class="login-error-msg" id="login-error-msg">Invalid Username or Password!</div>
+          <div class="login-error-msg" id="login-error-msg">Identifiant ou mot de passe incorrect !</div>
           
-          <button type="submit" class="btn-login-submit">Login to Dashboard</button>
+          <button type="submit" class="btn-login-submit">Connexion au Dashboard</button>
         </form>
       </div>
     </div>
@@ -61,56 +61,84 @@
       <!-- Sidebar -->
       <aside class="admin-sidebar" id="admin-sidebar">
         <div class="sidebar-header">
-          <img src="../assets/logo.png" alt="Babke Logo" class="sidebar-logo" onerror="this.src='../assets/BabkeLogo.png'">
+          <img src="../assets/logo.png" alt="Logo Babke" class="sidebar-logo" onerror="this.src='../assets/BabkeLogo.png'">
           <div class="sidebar-brand">
             <h4>Babke Kebab</h4>
-            <span>Management</span>
+            <span>Gestion Restaurant</span>
           </div>
         </div>
         
         <nav class="sidebar-nav">
           <button class="nav-item-btn active" data-panel="overview">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            <span>Overview</span>
+            <span>Tableau de Bord & Audits</span>
           </button>
-          <button class="nav-item-btn" data-panel="menu">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            <span>Menu Items</span>
+
+          <button class="nav-item-btn" data-panel="stock">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            <span>Gestion des Stocks</span>
           </button>
-          <button class="nav-item-btn" data-panel="content">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-            <span>Web Content</span>
-          </button>
-          <button class="nav-item-btn" data-panel="gallery">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            <span>Social Gallery</span>
-          </button>
-          <button class="nav-item-btn" data-panel="reviews">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            <span>Reviews</span>
-          </button>
-          <button class="nav-item-btn" data-panel="events">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="2"/></svg>
-            <span>Events Management</span>
-          </button>
-          <button class="nav-item-btn" data-panel="orders-reservations">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span>Orders & Bookings</span>
-          </button>
+
           <button class="nav-item-btn" data-panel="leftovers">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M3 20h3"/><path d="M3 10h18"/><path d="M3 5h18"/><path d="M3 15h18"/></svg>
-            <span>Leftovers & Analytics</span>
+            <span>Restes de Fin de Journée</span>
           </button>
+
+          <button class="nav-item-btn" data-panel="ruined">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            <span>Produits Gâtés & Pertes</span>
+          </button>
+
           <button class="nav-item-btn" data-panel="expenses">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M6 15h2"/><path d="M12 15h6"/></svg>
-            <span>Expenses Log</span>
+            <span>Dépenses de Caisse</span>
+          </button>
+
+          <button class="nav-item-btn" data-panel="comptabilite">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span>Comptabilité & Export Excel</span>
+          </button>
+
+          <button class="nav-item-btn" data-panel="product-types">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            <span>Types de Produits</span>
+          </button>
+
+          <button class="nav-item-btn" data-panel="menu">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span>Catalogue du Menu</span>
+          </button>
+          
+          <button class="nav-item-btn" data-panel="content">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span>Contenu du Site Web</span>
+          </button>
+          
+          <button class="nav-item-btn" data-panel="gallery">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>Galerie Instagram</span>
+          </button>
+
+          <button class="nav-item-btn" data-panel="events">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="2"/></svg>
+            <span>Événements & Popups</span>
+          </button>
+
+          <button class="nav-item-btn" data-panel="reviews">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>Avis Clients</span>
+          </button>
+
+          <button class="nav-item-btn" data-panel="orders-reservations">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Commandes & Réservations</span>
           </button>
         </nav>
         
         <div class="sidebar-footer">
           <button class="nav-item-btn logout-btn" id="btn-admin-logout">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            <span>Logout</span>
+            <span>Déconnexion</span>
           </button>
         </div>
       </aside>
@@ -120,19 +148,49 @@
         <!-- Top Bar Header -->
         <header class="admin-top-bar">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <button class="menu-toggle-btn" id="menu-toggle-btn" aria-label="Toggle Navigation">
+            <button class="menu-toggle-btn" id="menu-toggle-btn" aria-label="Menu de navigation">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
             <div class="panel-title">
-              <h2 id="admin-panel-title">Dashboard Overview</h2>
+              <h2 id="admin-panel-title">Vue d'ensemble du Dashboard</h2>
             </div>
           </div>
           
-          <div class="top-bar-actions" style="display: flex; align-items: center; gap: 10px;">
-            <span id="user-role-badge" class="user-role-badge" style="padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(255, 90, 31, 0.15); border: 1px solid rgba(255, 90, 31, 0.3); color: var(--accent-primary);">Admin</span>
-            <a href="../index.html" target="_blank" class="btn-admin-secondary">
-              <span>View Site</span>
-            </a>
+          <div class="top-bar-actions">
+            <!-- Order Audio Alert Chime Toggle -->
+            <button type="button" class="btn-sound-toggle" id="btn-sound-toggle" title="Activer / Désactiver les alertes sonores de nouvelles commandes" style="background: rgba(255, 90, 31, 0.12); border: 1px solid rgba(255, 90, 31, 0.3); color: var(--text-admin-primary); padding: 7px 14px; border-radius: 20px; font-weight: 700; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
+              <span id="sound-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              </span>
+              <span id="sound-label">Alertes : ON</span>
+            </button>
+            <!-- Sleek User Profile Dropdown Menu -->
+            <div class="user-profile-menu-container" id="user-profile-menu-container">
+              <button type="button" class="user-profile-trigger" id="user-profile-trigger" aria-expanded="false" title="Menu profil et session">
+                <div class="user-avatar-badge">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <span class="user-role-name" id="user-role-text">Propriétaire</span>
+                <svg class="dropdown-chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+
+              <!-- Floating Glassmorphic Dropdown Menu -->
+              <div class="user-profile-dropdown" id="user-profile-dropdown">
+                <div class="dropdown-header-info">
+                  <span class="user-session-status">● Session Active</span>
+                  <strong id="dropdown-user-role">Propriétaire Restaurant</strong>
+                </div>
+                <div class="dropdown-divider"></div>
+                <a href="../index.html" target="_blank" class="dropdown-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  <span>Voir le Site Public</span>
+                </a>
+                <button type="button" class="dropdown-item logout-item" id="btn-admin-logout-top">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  <span>Déconnexion</span>
+                </button>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -147,11 +205,250 @@
 
   <!-- 3. DIALOG MODALS -->
   
-  <!-- A. Menu Item Editor Dialog Modal -->
+  <!-- A. Stock In (Purchase) Modal -->
+  <div class="admin-modal-overlay" id="stock-in-modal">
+    <div class="admin-modal-card" style="max-width: 520px;">
+      <div class="admin-modal-header">
+        <h3>Enregistrer un Achat de Stock (Entrée)</h3>
+        <button class="btn-close-modal-admin" id="btn-close-stock-in-modal">&times;</button>
+      </div>
+      <form id="stock-in-form">
+        <div class="admin-modal-body">
+          <div class="form-grid-admin">
+            <div class="form-group-admin">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label for="stock-in-product">Produit</label>
+                <button type="button" class="btn-inline-add-pt" data-target="stock-in-product" style="background: none; border: none; color: var(--accent-admin); font-size: 0.76rem; font-weight: 700; cursor: pointer; text-decoration: underline;">+ Nouveau Produit</button>
+              </div>
+              <select id="stock-in-product" required></select>
+            </div>
+            <div class="form-group-admin">
+              <label for="stock-in-date">Date d'Achat</label>
+              <input type="date" id="stock-in-date" required>
+            </div>
+          </div>
+
+          <div class="form-grid-admin" style="margin-top: 14px;">
+            <div class="form-group-admin">
+              <label for="stock-in-qty">Quantité / Poids</label>
+              <input type="number" step="0.1" min="0.1" id="stock-in-qty" placeholder="ex : 25" required>
+            </div>
+            <div class="form-group-admin">
+              <label for="stock-in-unit">Unité</label>
+              <select id="stock-in-unit" required>
+                <option value="kg">Kilogrammes (kg)</option>
+                <option value="paquets">Paquets</option>
+                <option value="brochettes">Brochettes</option>
+                <option value="litres">Litres</option>
+                <option value="sacs">Sacs</option>
+                <option value="pièces">Pièces</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-admin" style="margin-top: 14px;">
+            <div class="form-group-admin">
+              <label for="stock-in-unit-price">Prix Unitaire (TND)</label>
+              <input type="number" step="0.1" min="0" id="stock-in-unit-price" placeholder="ex : 12.5">
+            </div>
+            <div class="form-group-admin">
+              <label for="stock-in-total-price">Prix Total Coût (TND)</label>
+              <input type="number" step="0.1" min="0" id="stock-in-total-price" placeholder="ex : 312.5" required>
+            </div>
+          </div>
+
+          <div class="form-group-admin" style="margin-top: 14px;">
+            <label for="stock-in-supplier">Fournisseur</label>
+            <input type="text" id="stock-in-supplier" placeholder="ex : Volailles Sousse, Marché Central...">
+          </div>
+
+          <div class="form-group-admin" style="margin-top: 14px;">
+            <label for="stock-in-reason">Note / Facture</label>
+            <input type="text" id="stock-in-reason" placeholder="ex : Réception Facture #1042">
+          </div>
+        </div>
+        <div class="admin-modal-footer">
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-stock-in">Annuler</button>
+          <button type="submit" class="btn-admin-primary">Enregistrer l'Achat</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- B. Stock Out (Withdrawal) Modal -->
+  <div class="admin-modal-overlay" id="stock-out-modal">
+    <div class="admin-modal-card" style="max-width: 500px;">
+      <div class="admin-modal-header">
+        <h3>Saisie Retrait de Stock (Sortie Cuisine)</h3>
+        <button class="btn-close-modal-admin" id="btn-close-stock-out-modal">&times;</button>
+      </div>
+      <form id="stock-out-form">
+        <div class="admin-modal-body">
+          <div class="form-grid-admin">
+            <div class="form-group-admin">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label for="stock-out-product">Produit à Retirer</label>
+                <button type="button" class="btn-inline-add-pt" data-target="stock-out-product" style="background: none; border: none; color: var(--accent-admin); font-size: 0.76rem; font-weight: 700; cursor: pointer; text-decoration: underline;">+ Nouveau Produit</button>
+              </div>
+              <select id="stock-out-product" required></select>
+              <div id="stock-out-balance-badge" style="font-size: 0.78rem; font-weight: 700; margin-top: 6px; padding: 4px 8px; border-radius: 6px; background: rgba(255, 90, 31, 0.1); border: 1px solid rgba(255, 90, 31, 0.2); color: var(--accent-admin);">Stock disponible: --</div>
+            </div>
+            <div class="form-group-admin">
+              <label for="stock-out-date">Date du Retrait</label>
+              <input type="date" id="stock-out-date" required>
+            </div>
+          </div>
+
+          <div class="form-grid-admin" style="margin-top: 14px;">
+            <div class="form-group-admin">
+              <label for="stock-out-qty">Quantité Retirée</label>
+              <input type="number" step="0.1" min="0.1" id="stock-out-qty" placeholder="ex : 5.5" required>
+            </div>
+            <div class="form-group-admin">
+              <label for="stock-out-unit">Unité</label>
+              <select id="stock-out-unit" required>
+                <option value="kg">Kilogrammes (kg)</option>
+                <option value="paquets">Paquets</option>
+                <option value="brochettes">Brochettes</option>
+                <option value="litres">Litres</option>
+                <option value="sacs">Sacs</option>
+                <option value="pièces">Pièces</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group-admin" style="margin-top: 14px;">
+            <label for="stock-out-reason">Destination / Motif du Retrait</label>
+            <input type="text" id="stock-out-reason" placeholder="ex : Préparation Broche Chawarma Cuisine" required>
+          </div>
+        </div>
+        <div class="admin-modal-footer">
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-stock-out">Annuler</button>
+          <button type="submit" class="btn-admin-primary">Valider le Retrait</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- C. Ruined Product Modal -->
+  <div class="admin-modal-overlay" id="ruined-modal">
+    <div class="admin-modal-card" style="max-width: 500px;">
+      <div class="admin-modal-header">
+        <h3>Saisie Produit Gâté / Perte</h3>
+        <button class="btn-close-modal-admin" id="btn-close-ruined-modal">&times;</button>
+      </div>
+      <form id="ruined-item-form">
+        <div class="admin-modal-body">
+          <div class="form-grid-admin">
+            <div class="form-group-admin">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label for="ruined-form-product">Produit Concerné</label>
+                <button type="button" class="btn-inline-add-pt" data-target="ruined-form-product" style="background: none; border: none; color: var(--accent-admin); font-size: 0.76rem; font-weight: 700; cursor: pointer; text-decoration: underline;">+ Nouveau Produit</button>
+              </div>
+              <select id="ruined-form-product" required></select>
+              <div id="ruined-form-balance-badge" style="font-size: 0.78rem; font-weight: 700; margin-top: 6px; padding: 4px 8px; border-radius: 6px; background: rgba(255, 90, 31, 0.1); border: 1px solid rgba(255, 90, 31, 0.2); color: var(--accent-admin);">Stock disponible: --</div>
+            </div>
+            <div class="form-group-admin">
+              <label for="ruined-form-date">Date</label>
+              <input type="date" id="ruined-form-date" required>
+            </div>
+          </div>
+
+          <div class="form-grid-admin" style="margin-top: 14px;">
+            <div class="form-group-admin">
+              <label for="ruined-form-qty">Quantité / Poids Gâté</label>
+              <input type="number" step="0.1" min="0.1" id="ruined-form-qty" placeholder="ex : 1.5" required>
+            </div>
+            <div class="form-group-admin">
+              <label for="ruined-form-unit">Unité</label>
+              <select id="ruined-form-unit" required>
+                <option value="kg">Kilogrammes (kg)</option>
+                <option value="paquets">Paquets</option>
+                <option value="brochettes">Brochettes</option>
+                <option value="litres">Litres</option>
+                <option value="sacs">Sacs</option>
+                <option value="pièces">Pièces</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group-admin" style="margin-top: 14px;">
+            <label for="ruined-form-reason">Motif / Cause du Gâchis</label>
+            <select id="ruined-form-reason" required>
+              <option value="Cramé sur Grill">Cramé sur Grill</option>
+              <option value="Périmé / Stockage">Périmé / Stockage</option>
+              <option value="Erreur de Préparation">Erreur de Préparation</option>
+              <option value="Panne Frigo / Refroidissement">Panne Frigo / Refroidissement</option>
+              <option value="Chute / Renversé">Chute / Renversé</option>
+              <option value="Autre Motif">Autre Motif</option>
+            </select>
+          </div>
+        </div>
+        <div class="admin-modal-footer">
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-ruined">Annuler</button>
+          <button type="submit" class="btn-admin-primary">Enregistrer la Perte</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- D. Product Type Modal (Managed by Comptable & Admin) -->
+  <div class="admin-modal-overlay" id="product-type-modal">
+    <div class="admin-modal-card" style="max-width: 480px;">
+      <div class="admin-modal-header">
+        <h3>Ajouter un Nouveau Type de Produit</h3>
+        <button class="btn-close-modal-admin" id="btn-close-pt-modal">&times;</button>
+      </div>
+      <form id="product-type-form">
+        <div class="admin-modal-body">
+          <div class="form-group-admin">
+            <label for="pt-form-name">Nom du Produit</label>
+            <input type="text" id="pt-form-name" placeholder="ex : Chawarma Poulet, Cheddar, Pain..." required>
+          </div>
+
+          <div class="form-grid-admin" style="margin-top: 14px;">
+            <div class="form-group-admin">
+              <label for="pt-form-category">Catégorie</label>
+              <select id="pt-form-category" required>
+                <option value="viande">Viande / Volaille</option>
+                <option value="garniture">Garniture / Légumes</option>
+                <option value="pain">Pain / Galette</option>
+                <option value="sauce">Sauce / Emulsion</option>
+                <option value="boisson">Boisson</option>
+                <option value="maintenance">Fourniture / Charbon</option>
+              </select>
+            </div>
+            <div class="form-group-admin">
+              <label for="pt-form-unit">Unité par Défaut</label>
+              <select id="pt-form-unit" required>
+                <option value="kg">Kilogrammes (kg)</option>
+                <option value="paquets">Paquets</option>
+                <option value="brochettes">Brochettes</option>
+                <option value="litres">Litres</option>
+                <option value="sacs">Sacs</option>
+                <option value="pièces">Pièces</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group-admin" style="margin-top: 14px;">
+            <label for="pt-form-alert">Seuil d'Alerte de Stock Minimum</label>
+            <input type="number" step="1" min="1" id="pt-form-alert" value="5" required>
+          </div>
+        </div>
+        <div class="admin-modal-footer">
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-pt">Annuler</button>
+          <button type="submit" class="btn-admin-primary">Créer le Type de Produit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- E. Menu Item Editor Dialog Modal -->
   <div class="admin-modal-overlay" id="menu-editor-modal">
     <div class="admin-modal-card">
       <div class="admin-modal-header">
-        <h3 id="menu-modal-title">Add Menu Item</h3>
+        <h3 id="menu-modal-title">Ajouter un Plat au Menu</h3>
         <button class="btn-close-modal-admin" id="btn-close-menu-modal">&times;</button>
       </div>
       <form id="menu-item-form">
@@ -160,23 +457,23 @@
           
           <div class="form-grid-admin">
             <div class="form-group-admin">
-              <label for="menu-form-category">Category</label>
+              <label for="menu-form-category">Catégorie</label>
               <select id="menu-form-category" required>
-                <option value="wraps">Wraps & Sandwiches</option>
-                <option value="plates">Feast Platters</option>
-                <option value="mezze">Mezze & Dips</option>
-                <option value="specialties">Specialties</option>
+                <option value="wraps">Wraps & Sandwichs</option>
+                <option value="plates">Plats Grillades</option>
+                <option value="mezze">Mezzés & Entrées</option>
+                <option value="specialties">Spécialités</option>
               </select>
             </div>
             <div class="form-group-admin">
-              <label for="menu-form-price">Price (TND)</label>
-              <input type="number" id="menu-form-price" step="0.5" min="0" placeholder="e.g. 12.5" required>
+              <label for="menu-form-price">Prix (TND)</label>
+              <input type="number" id="menu-form-price" step="0.5" min="0" placeholder="ex : 12.5" required>
             </div>
           </div>
 
           <!-- Image Uploader Row -->
           <div class="form-group-admin full-width" style="margin-bottom: 20px;">
-            <label>Item Image</label>
+            <label>Image du Plat</label>
             <div class="image-uploader-row">
               <div class="image-preview-box" id="menu-form-image-preview">
                 <span class="placeholder-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
@@ -184,13 +481,28 @@
               <div style="flex: 1;">
                 <input type="file" id="menu-form-file-input" accept="image/*" class="image-upload-input">
                 <input type="hidden" id="menu-form-image-base64">
-                <p style="font-size: 0.72rem; color: var(--text-admin-muted); margin-top: 4px;">Convert image to base64 immediately for client storage.</p>
+                <p style="font-size: 0.72rem; color: var(--text-admin-muted); margin-top: 4px;">Image convertie en base64 pour affichage instantané.</p>
               </div>
             </div>
           </div>
 
           <!-- Tabs for Localized Content editing (EN, FR, TN) -->
-          <!-- English -->
+          <div class="lang-edit-section">
+            <div class="lang-section-header">Détails en Français (FR)</div>
+            <div class="form-group-admin" style="margin-bottom: 12px;">
+              <label for="menu-form-title-fr">Titre (FR)</label>
+              <input type="text" id="menu-form-title-fr" placeholder="ex : Chawarma Poulet Classique" required>
+            </div>
+            <div class="form-group-admin" style="margin-bottom: 12px;">
+              <label for="menu-form-desc-fr">Description (FR)</label>
+              <textarea id="menu-form-desc-fr" rows="2" placeholder="Description en Français..." required></textarea>
+            </div>
+            <div class="form-group-admin">
+              <label for="menu-form-tags-fr">Tags (FR, séparés par virgules)</label>
+              <input type="text" id="menu-form-tags-fr" placeholder="ex : Best-Seller, Option Épicé">
+            </div>
+          </div>
+
           <div class="lang-edit-section">
             <div class="lang-section-header">English (EN) Details</div>
             <div class="form-group-admin" style="margin-bottom: 12px;">
@@ -207,54 +519,36 @@
             </div>
           </div>
 
-          <!-- French -->
-          <div class="lang-edit-section">
-            <div class="lang-section-header">Français (FR) Details</div>
-            <div class="form-group-admin" style="margin-bottom: 12px;">
-              <label for="menu-form-title-fr">Titre (FR)</label>
-              <input type="text" id="menu-form-title-fr" placeholder="ex : Chawarma Poulet Classique" required>
-            </div>
-            <div class="form-group-admin" style="margin-bottom: 12px;">
-              <label for="menu-form-desc-fr">Description (FR)</label>
-              <textarea id="menu-form-desc-fr" rows="2" placeholder="Description en Français..." required></textarea>
-            </div>
-            <div class="form-group-admin">
-              <label for="menu-form-tags-fr">Tags (FR, comma separated)</label>
-              <input type="text" id="menu-form-tags-fr" placeholder="ex : Best-Seller, Option Épicé">
-            </div>
-          </div>
-
-          <!-- Tunisian -->
-          <div class="lang-edit-section">
-            <div class="lang-section-header">تـونسي (TN) Details</div>
+          <div class="lang-edit-section" style="direction: rtl;">
+            <div class="lang-section-header" style="text-align: right;">تـونسي (TN) Details</div>
             <div class="form-group-admin" style="margin-bottom: 12px; text-align: right;">
               <label for="menu-form-title-tn" style="display:block; text-align:right;">الاسم (TN)</label>
-              <input type="text" id="menu-form-title-tn" placeholder="مثال: لفة شاورما دجاج" required dir="rtl">
+              <input type="text" id="menu-form-title-tn" placeholder="مثال: لفة شاورما دجاج" required style="text-align: right;">
             </div>
             <div class="form-group-admin" style="margin-bottom: 12px; text-align: right;">
               <label for="menu-form-desc-tn" style="display:block; text-align:right;">الوصف (TN)</label>
-              <textarea id="menu-form-desc-tn" rows="2" placeholder="تفاصيل الطبق بالتونسي..." required dir="rtl"></textarea>
+              <textarea id="menu-form-desc-tn" rows="2" placeholder="تفاصيل الطبق بالتونسي..." required style="text-align: right;"></textarea>
             </div>
             <div class="form-group-admin" style="text-align: right;">
               <label for="menu-form-tags-tn" style="display:block; text-align:right;">العلامات (TN, comma separated)</label>
-              <input type="text" id="menu-form-tags-tn" placeholder="مثال: الأكثر طلبًا، محرحر" dir="rtl">
+              <input type="text" id="menu-form-tags-tn" placeholder="مثال: الأكثر طلبًا، محرحر" style="text-align: right;">
             </div>
           </div>
 
         </div>
         <div class="admin-modal-footer">
-          <button type="button" class="btn-admin-secondary" id="btn-cancel-menu-editor">Cancel</button>
-          <button type="submit" class="btn-admin-primary">Save Item</button>
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-menu-editor">Annuler</button>
+          <button type="submit" class="btn-admin-primary">Enregistrer le Plat</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- B. Review Editor Dialog Modal -->
+  <!-- F. Review Editor Dialog Modal -->
   <div class="admin-modal-overlay" id="review-editor-modal">
     <div class="admin-modal-card" style="max-width: 480px;">
       <div class="admin-modal-header">
-        <h3 id="review-modal-title">Add Review</h3>
+        <h3 id="review-modal-title">Ajouter un Avis Client</h3>
         <button class="btn-close-modal-admin" id="btn-close-review-modal">&times;</button>
       </div>
       <form id="review-item-form">
@@ -262,50 +556,50 @@
           <input type="hidden" id="review-form-id">
           
           <div class="form-group-admin" style="margin-bottom: 16px;">
-            <label for="review-form-author">Author Name</label>
-            <input type="text" id="review-form-author" placeholder="e.g. Anis Ben Amor" required>
+            <label for="review-form-author">Nom du Client</label>
+            <input type="text" id="review-form-author" placeholder="ex : Anis Ben Amor" required>
           </div>
           
           <div class="form-grid-admin" style="margin-bottom: 16px;">
             <div class="form-group-admin">
-              <label for="review-form-role">Author Role / Caption</label>
-              <input type="text" id="review-form-role" placeholder="e.g. Local Guide • Sousse" required>
+              <label for="review-form-role">Titre / Localisation</label>
+              <input type="text" id="review-form-role" placeholder="ex : Local Guide • Sousse" required>
             </div>
             <div class="form-group-admin">
-              <label for="review-form-stars">Stars</label>
+              <label for="review-form-stars">Note Étoiles</label>
               <select id="review-form-stars" required>
-                <option value="5" selected>5 Stars ★★★★★</option>
-                <option value="4">4 Stars ★★★★☆</option>
-                <option value="3">3 Stars ★★★☆☆</option>
-                <option value="2">2 Stars ★★☆☆☆</option>
-                <option value="1">1 Star ★☆☆☆☆</option>
+                <option value="5" selected>5 Étoiles ★★★★★</option>
+                <option value="4">4 Étoiles ★★★★☆</option>
+                <option value="3">3 Étoiles ★★★☆☆</option>
+                <option value="2">2 Étoiles ★★☆☆☆</option>
+                <option value="1">1 Étoile ★☆☆☆☆</option>
               </select>
             </div>
           </div>
 
           <div class="form-group-admin" style="margin-bottom: 16px;">
-            <label for="review-form-text">Review Content</label>
-            <textarea id="review-form-text" rows="3" placeholder="Write customer feedback here..." required></textarea>
+            <label for="review-form-text">Commentaire</label>
+            <textarea id="review-form-text" rows="3" placeholder="Écrivez le retour du client ici..." required></textarea>
           </div>
 
           <div class="form-group-admin">
-            <label for="review-form-date">Date / Platform Source</label>
-            <input type="text" id="review-form-date" placeholder="e.g. Google Review" value="Google Review" required>
+            <label for="review-form-date">Source / Plateforme</label>
+            <input type="text" id="review-form-date" placeholder="ex : Avis Google" value="Avis Google" required>
           </div>
         </div>
         <div class="admin-modal-footer">
-          <button type="button" class="btn-admin-secondary" id="btn-cancel-review-editor">Cancel</button>
-          <button type="submit" class="btn-admin-primary">Save Review</button>
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-review-editor">Annuler</button>
+          <button type="submit" class="btn-admin-primary">Enregistrer l'Avis</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- C. Event Editor Dialog Modal -->
+  <!-- G. Event Editor Dialog Modal -->
   <div class="admin-modal-overlay" id="event-editor-modal">
     <div class="admin-modal-card">
       <div class="admin-modal-header">
-        <h3 id="event-modal-title">Add Event</h3>
+        <h3 id="event-modal-title">Ajouter un Événement</h3>
         <button class="btn-close-modal-admin" id="btn-close-event-modal">&times;</button>
       </div>
       <form id="event-item-form">
@@ -314,22 +608,22 @@
           
           <div class="form-grid-admin">
             <div class="form-group-admin">
-              <label for="event-form-date">Event Date</label>
+              <label for="event-form-date">Date de l'Événement</label>
               <input type="date" id="event-form-date" required>
             </div>
             <div class="form-group-admin">
-              <label for="event-form-status">Status</label>
+              <label for="event-form-status">Statut</label>
               <select id="event-form-status" required>
-                <option value="draft">Draft</option>
-                <option value="published" selected>Published</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="published" selected>Publié (En ligne)</option>
+                <option value="draft">Brouillon (Masqué)</option>
+                <option value="cancelled">Annulé</option>
+                <option value="archived">Archivé</option>
               </select>
             </div>
           </div>
 
-          <!-- Image Uploader Row -->
           <div class="form-group-admin full-width" style="margin-top: 16px; margin-bottom: 20px;">
-            <label>Event Cover Image</label>
+            <label>Image d'Illustration</label>
             <div class="image-uploader-row">
               <div class="image-preview-box" id="event-form-image-preview">
                 <span class="placeholder-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
@@ -337,37 +631,13 @@
               <div style="flex: 1;">
                 <input type="file" id="event-form-file-input" accept="image/*" class="image-upload-input">
                 <input type="hidden" id="event-form-image-base64">
-                <p style="font-size: 0.72rem; color: var(--text-admin-muted); margin-top: 4px;">Convert image to base64 immediately for client storage.</p>
+                <p style="font-size: 0.72rem; color: var(--text-admin-muted); margin-top: 4px;">Convertir l'image en base64 pour affichage instantané.</p>
               </div>
             </div>
           </div>
 
-          <!-- English -->
           <div class="lang-edit-section">
-            <div class="lang-section-header">English (EN) Details</div>
-            <div class="form-group-admin" style="margin-bottom: 12px;">
-              <label for="event-form-title-en">Title (EN)</label>
-              <input type="text" id="event-form-title-en" placeholder="e.g. The Village Stand" required>
-            </div>
-            <div class="form-grid-admin" style="margin-bottom: 12px;">
-              <div class="form-group-admin">
-                <label for="event-form-duration-en">Duration (EN)</label>
-                <input type="text" id="event-form-duration-en" placeholder="e.g. 3 Days (6 PM - Midnight)" required>
-              </div>
-              <div class="form-group-admin">
-                <label for="event-form-location-en">Location (EN)</label>
-                <input type="text" id="event-form-location-en" placeholder="e.g. The Village, Hammam Sousse" required>
-              </div>
-            </div>
-            <div class="form-group-admin">
-              <label for="event-form-desc-en">Description (EN)</label>
-              <textarea id="event-form-desc-en" rows="2" placeholder="Describe our presence / stand in English..." required></textarea>
-            </div>
-          </div>
-
-          <!-- French -->
-          <div class="lang-edit-section">
-            <div class="lang-section-header">Français (FR) Details</div>
+            <div class="lang-section-header">Français (FR)</div>
             <div class="form-group-admin" style="margin-bottom: 12px;">
               <label for="event-form-title-fr">Titre (FR)</label>
               <input type="text" id="event-form-title-fr" placeholder="ex : Stand The Village">
@@ -388,42 +658,62 @@
             </div>
           </div>
 
-          <!-- Tunisian Arabic -->
-          <div class="lang-edit-section" style="direction: rtl;">
-            <div class="lang-section-header" style="text-align: right;">تـونسي (TN) Details</div>
-            <div class="form-group-admin" style="margin-bottom: 12px; text-align: right;">
-              <label for="event-form-title-tn">العنوان (TN)</label>
-              <input type="text" id="event-form-title-tn" placeholder="مثال: معرض القرية" style="text-align: right;">
+          <div class="lang-edit-section">
+            <div class="lang-section-header">English (EN) Details</div>
+            <div class="form-group-admin" style="margin-bottom: 12px;">
+              <label for="event-form-title-en">Title (EN)</label>
+              <input type="text" id="event-form-title-en" placeholder="e.g. The Village Stand">
             </div>
-            <div class="form-grid-admin" style="margin-bottom: 12px; text-align: right;">
+            <div class="form-grid-admin" style="margin-bottom: 12px;">
               <div class="form-group-admin">
-                <label for="event-form-location-tn">الموقع (TN)</label>
-                <input type="text" id="event-form-location-tn" placeholder="مثال: القرية، حمام سوسة" style="text-align: right;">
+                <label for="event-form-duration-en">Duration (EN)</label>
+                <input type="text" id="event-form-duration-en" placeholder="e.g. 3 Days (6 PM - Midnight)">
               </div>
               <div class="form-group-admin">
-                <label for="event-form-duration-tn">المدة (TN)</label>
-                <input type="text" id="event-form-duration-tn" placeholder="مثال: 3 أيام (من 6 مساءً)" style="text-align: right;">
+                <label for="event-form-location-en">Location (EN)</label>
+                <input type="text" id="event-form-location-en" placeholder="e.g. The Village, Hammam Sousse">
               </div>
             </div>
-            <div class="form-group-admin" style="text-align: right;">
-              <label for="event-form-desc-tn">الوصف (TN)</label>
-              <textarea id="event-form-desc-tn" rows="2" placeholder="أوصف حضورنا باللغة التونسية..." style="text-align: right;"></textarea>
+            <div class="form-group-admin">
+              <label for="event-form-desc-en">Description (EN)</label>
+              <textarea id="event-form-desc-en" rows="2" placeholder="Describe our presence in English..."></textarea>
             </div>
           </div>
-
+          <div class="lang-edit-section" style="margin-top: 14px;">
+            <div class="lang-section-header">تـونسي (TN) Details</div>
+            <div class="form-group-admin" style="margin-bottom: 12px;">
+              <label for="event-form-title-tn">العنوان (TN)</label>
+              <input type="text" id="event-form-title-tn" placeholder="مثال : فاستيفال الفيلادج">
+            </div>
+            <div class="form-grid-admin" style="margin-bottom: 12px;">
+              <div class="form-group-admin">
+                <label for="event-form-duration-tn">المدة (TN)</label>
+                <input type="text" id="event-form-duration-tn" placeholder="مثال : 3 أيام (من 6 م حتى لليل)">
+              </div>
+              <div class="form-group-admin">
+                <label for="event-form-location-tn">المكان (TN)</label>
+                <input type="text" id="event-form-location-tn" placeholder="مثال : حمام سوسة، الفيلادج">
+              </div>
+            </div>
+            <div class="form-group-admin">
+              <label for="event-form-desc-tn">الوصف (TN)</label>
+              <textarea id="event-form-desc-tn" rows="2" placeholder="وصف التظاهرة بالدارجة التونسية..."></textarea>
+            </div>
+          </div>
         </div>
         <div class="admin-modal-footer">
-          <button type="button" class="btn-admin-secondary" id="btn-cancel-event-editor">Cancel</button>
-          <button type="submit" class="btn-admin-primary">Save Event</button>
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-event-editor">Annuler</button>
+          <button type="submit" class="btn-admin-primary">Enregistrer l'Événement</button>
         </div>
       </form>
     </div>
   </div>
-  <!-- D. Gallery Editor Dialog Modal -->
+
+  <!-- H. Gallery Editor Dialog Modal -->
   <div class="admin-modal-overlay" id="gallery-editor-modal">
     <div class="admin-modal-card" style="max-width: 480px;">
       <div class="admin-modal-header">
-        <h3 id="gallery-modal-title">Edit Gallery Photo</h3>
+        <h3 id="gallery-modal-title">Modifier Photo Galerie</h3>
         <button class="btn-close-modal-admin" id="btn-close-gallery-modal">&times;</button>
       </div>
       <form id="gallery-item-form">
@@ -435,29 +725,25 @@
           </div>
 
           <div class="form-group-admin" style="margin-bottom: 16px;">
-            <label for="gallery-form-link">Instagram Post Link</label>
+            <label for="gallery-form-link">Lien de la Publication Instagram</label>
             <div style="display: flex; gap: 8px;">
-              <input type="url" id="gallery-form-link" placeholder="e.g. https://www.instagram.com/p/DF..." required style="flex: 1; margin-bottom: 0;">
-              <button type="button" class="btn-admin-secondary" id="btn-fetch-instagram-likes" style="padding: 0 16px; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; height: 38px;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                <span>Scrape Likes</span>
-              </button>
+              <input type="url" id="gallery-form-link" placeholder="ex : https://www.instagram.com/p/DF..." required style="flex: 1; margin-bottom: 0;">
             </div>
           </div>
 
           <div class="form-group-admin" style="margin-bottom: 16px;">
-            <label for="gallery-form-alt">Alt Text / Description</label>
-            <input type="text" id="gallery-form-alt" placeholder="e.g. Delicious Babke skewers" required>
+            <label for="gallery-form-alt">Description / Légende</label>
+            <input type="text" id="gallery-form-alt" placeholder="ex : Grillades Adana Babke" required>
           </div>
 
           <div class="form-group-admin">
-            <label for="gallery-form-likes">Likes Display Count</label>
-            <input type="text" id="gallery-form-likes" placeholder="e.g. 1.2k or 950" required>
+            <label for="gallery-form-likes">Nombre de Likes Affichés</label>
+            <input type="text" id="gallery-form-likes" placeholder="ex : 1.2k ou 950" required>
           </div>
         </div>
         <div class="admin-modal-footer">
-          <button type="button" class="btn-admin-secondary" id="btn-cancel-gallery-editor">Cancel</button>
-          <button type="submit" class="btn-admin-primary">Save Changes</button>
+          <button type="button" class="btn-admin-secondary" id="btn-cancel-gallery-editor">Annuler</button>
+          <button type="submit" class="btn-admin-primary">Enregistrer</button>
         </div>
       </form>
     </div>

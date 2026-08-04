@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error("Failed to initialize database cache:", e);
     }
   }
+  
   // 1. Language Translation Dictionary (Static UI labels + placeholders)
   const translations = {
     en: {
@@ -20,6 +21,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       nav_reviews: "Reviews",
       nav_contact: "Find Us",
       nav_order_now: "Order Now",
+
+      hero_award: "BEST SHAWARMA 2025 BY TORCHI.TN",
+      hero_badge: "Sousse's Favorite Kebab Spot",
+      hero_title: 'THE STREETS OF <span class="highlight">SOUSSE</span> JUST GOT FLAVOR.',
+      hero_desc: "Charcoal-grilled Turkish Adana, toasted Lebanese-style chicken shawarma, and loaded crispy fries dripping with our signature garlic whip and spices. Hand-carved daily, served fresh.",
+      hero_explore_menu: "Explore the Menu",
+      hero_order_delivery: "Order Delivery",
+      hero_stat_charcoal: "Charcoal Grilled",
+      hero_stat_spices: "Levantine Spices",
+      hero_stat_social: "Social Followers",
+      hero_tag_harissa: "Spicy Harissa",
+      hero_tag_toum: "Garlic Toum",
       
       ticker_text: " DINE IN & TAKEAWAY •  SPICY SHAWARMA WRAPS •  CHARCOAL GRILLED ADANA •  LOADED CHEDDAR FRIES •  FRESH CHICKPEA HUMMUS •  FAST SOUSSE DELIVERY • ",
       ticker_dine: "DINE IN & TAKEAWAY",
@@ -83,6 +96,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       nav_reviews: "Avis",
       nav_contact: "Nous Trouver",
       nav_order_now: "Commander",
+
+      hero_award: "MEILLEUR CHAWARMA 2025 PAR TORCHI.TN",
+      hero_badge: "Le Coin Kebab Préféré de Sousse",
+      hero_title: 'LES RUES DE <span class="highlight">SOUSSE</span> ONT ENFIN DU GOÛT.',
+      hero_desc: "Adana turc grillé au charbon de bois, chawarma poulet libanais croustillant, et frites chargées dégoulinantes de notre toum à l'ail et épices. Découpé chaque jour, servi chaud.",
+      hero_explore_menu: "Découvrir le Menu",
+      hero_order_delivery: "Commander en Livraison",
+      hero_stat_charcoal: "Grillé au Charbon",
+      hero_stat_spices: "Épices du Levant",
+      hero_stat_social: "Abonnés Sociaux",
+      hero_tag_harissa: "Harissa Épicée",
+      hero_tag_toum: "Toum à l'Ail",
       
       ticker_text: " SUR PLACE & À EMPORTER •  CHAWARMA ÉPICÉ •  ADANA TURC AU CHARBON •  FRITES LOADED AU CHEDDAR •  HOUMOUS MAISON FRAIS •  LIVRAISON SOUSSE RAPIDE • ",
       ticker_dine: "SUR PLACE & À EMPORTER",
@@ -146,6 +171,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       nav_reviews: "الآراء",
       nav_contact: "زورنا",
       nav_order_now: "أطلب توا",
+
+      hero_award: "أحسن شاورما 2025 حسب TORCHI.TN",
+      hero_badge: "أشهم بنّة كباب في سوسة",
+      hero_title: 'شوارع <span class="highlight">سوسة</span> زادت بنّة على بنّة.',
+      hero_desc: "أدنّا تركي مشوي عالجمر الحامي، شاورما دجاج شرقية مقرمشة، وبطاطا مقلية محملة بالتومية الحارة والجبن المذوب. محضر كل يوم فريشك.",
+      hero_explore_menu: "تصفّح المنيو",
+      hero_order_delivery: "أطلب دليفري",
+      hero_stat_charcoal: "مشوي 100% عالجمر",
+      hero_stat_spices: "توابل شامية أصلية",
+      hero_stat_social: "متابع على الميديا",
+      hero_tag_harissa: "هريسة عربي حارة",
+      hero_tag_toum: "ثومية شرقية",
       
       ticker_text: " على عين المكان وتيك أواي •  شاورما حارة •  أدنّا عالجمر •  بطاطا بالتشيدر •  حمص فريشك •  توصيل سريع في سوسة • ",
       ticker_dine: "على عين المكان وتيك أواي",
@@ -156,7 +193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ticker_delivery: "توصيل سريع في سوسة",
       
       menu_section_title: "اختار شهوتك توا",
-      menu_section_subtitle: "محضر بأصول لبنانية ومشوي على الجمر الأحمر الحامي.",
+      menu_section_subtitle: "محضر بأصول شرقية ومشوي على الجمر الأحمر الحامي.",
       tab_wraps: "سندويشات",
       tab_plates: "أطباق مشوية",
       tab_mezze: "مقبلات و غطوس",
@@ -205,37 +242,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 2. DOM TRANSLATION UPDATER FUNCTION
   const applyLanguage = (lang) => {
-    // Merge dynamic localStorage content into translations object
+    // Merge dynamic content from BabkeDB if present
     if (typeof BabkeDB !== 'undefined') {
       const content = BabkeDB.getContent();
       if (content) {
         ['en', 'fr', 'tn'].forEach(l => {
           if (translations[l]) {
-            // Hero
             if (content.hero) {
-              translations[l].hero_award = content.hero.award[l] || "";
-              translations[l].hero_badge = content.hero.badge[l] || "";
-              translations[l].hero_title = content.hero.title[l] || "";
-              translations[l].hero_desc = content.hero.desc[l] || "";
+              if (content.hero.award && content.hero.award[l]) translations[l].hero_award = content.hero.award[l];
+              if (content.hero.badge && content.hero.badge[l]) translations[l].hero_badge = content.hero.badge[l];
+              if (content.hero.title && content.hero.title[l]) translations[l].hero_title = content.hero.title[l];
+              if (content.hero.desc && content.hero.desc[l]) translations[l].hero_desc = content.hero.desc[l];
             }
-            // Story
             if (content.story) {
-              translations[l].about_heritage = content.story.heritage[l] || "";
-              translations[l].about_section_title = content.story.title[l] || "";
-              translations[l].about_p1 = content.story.p1[l] || "";
-              translations[l].about_p2 = content.story.p2[l] || "";
-              translations[l].about_p3 = content.story.p3[l] || "";
+              if (content.story.heritage && content.story.heritage[l]) translations[l].about_heritage = content.story.heritage[l];
+              if (content.story.title && content.story.title[l]) translations[l].about_section_title = content.story.title[l];
+              if (content.story.p1 && content.story.p1[l]) translations[l].about_p1 = content.story.p1[l];
+              if (content.story.p2 && content.story.p2[l]) translations[l].about_p2 = content.story.p2[l];
+              if (content.story.p3 && content.story.p3[l]) translations[l].about_p3 = content.story.p3[l];
             }
-            // Contact
             if (content.contact) {
-              translations[l].contact_location_desc = content.contact.address[l] || "";
-              translations[l].contact_hours_desc1 = content.contact.hours.weekday[l] || "";
-              translations[l].contact_hours_desc2 = content.contact.hours.weekend[l] || "";
+              if (content.contact.address && content.contact.address[l]) translations[l].contact_location_desc = content.contact.address[l];
+              if (content.contact.hours && content.contact.hours.weekday && content.contact.hours.weekday[l]) translations[l].contact_hours_desc1 = content.contact.hours.weekday[l];
+              if (content.contact.hours && content.contact.hours.weekend && content.contact.hours.weekend[l]) translations[l].contact_hours_desc2 = content.contact.hours.weekend[l];
             }
-            // Footer
             if (content.footer) {
-              translations[l].footer_desc = content.footer.desc[l] || "";
-              translations[l].footer_rights = content.footer.rights[l] || "";
+              if (content.footer.desc && content.footer.desc[l]) translations[l].footer_desc = content.footer.desc[l];
+              if (content.footer.rights && content.footer.rights[l]) translations[l].footer_rights = content.footer.rights[l];
             }
           }
         });
@@ -257,7 +290,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     elements.forEach(el => {
       const key = el.getAttribute('data-translate');
       if (translations[lang] && translations[lang][key]) {
-        // If element contains layout tags (like highlights/strong), update innerHTML, else textContent
         if (key === 'hero_title' || key === 'gallery_subtitle' || key.startsWith('about_p') || key === 'menu_section_subtitle') {
           el.innerHTML = translations[lang][key];
         } else {
@@ -300,6 +332,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       ".hero-stats .hero-stat-item:nth-child(1) .stat-txt": "hero_stat_charcoal",
       ".hero-stats .hero-stat-item:nth-child(2) .stat-txt": "hero_stat_spices",
       ".hero-stats .hero-stat-item:nth-child(3) .stat-txt": "hero_stat_social",
+      ".glow-disc-wrapper .tag-1 span": "hero_tag_harissa",
+      ".glow-disc-wrapper .tag-2 span": "hero_tag_toum",
       
       ".menu-section .section-title": "menu_section_title",
       ".menu-section .section-subtitle": "menu_section_subtitle",

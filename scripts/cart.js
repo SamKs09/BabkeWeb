@@ -21,26 +21,34 @@ document.addEventListener('DOMContentLoaded', () => {
       btn_checkout: "Send Order via WhatsApp",
       empty_title: "Your plate is empty",
       empty_desc: "Explore our loaded menu and choose your craving to start your charcoal feast.",
-      modal_spice_title: "Choose Spice Level <span class=\"required-indicator\">*</span>",
-      modal_add_title: "Customize Your Bite (Additions)",
-      modal_excl_title: "Exclusions (No Thanks)",
+      modal_spice_title: "Spice Level <span class=\"required-indicator\">*</span>",
+      modal_sauces_title: "Sauces",
+      modal_veggies_title: "Vegetables",
+      modal_cheese_title: "Cheese (Choose one)",
+      modal_add_title: "Extras",
       modal_notes_title: "Special Instructions",
       modal_notes_placeholder: "e.g. Well done wrap, extra harissa on the side...",
       modal_btn_add: "Add to Feast Order",
       btn_card_add: "Add to Order",
       remove: "Remove",
-      
+
       spice_mild: "Mild",
       spice_medium: "Medium",
       spice_spicy: "Spicy",
       spice_fiery: "Fiery Harissa",
-      
-      add_cheddar: "Extra Cheddar Cheese",
-      add_toum: "Extra Garlic Toum",
+
       add_fries: "Extra Crispy Fries",
-      
-      excl_onions: "No Onions",
-      excl_pickles: "No Pickles"
+
+      garni_toum: "Garlic Sauce", garni_toum_val: "Garlic Sauce",
+      garni_houmous: "Houmous", garni_houmous_val: "Houmous",
+      garni_harissa: "Harissa", garni_harissa_val: "Harissa",
+      garni_tomato: "Tomatoes", garni_tomato_val: "Tomatoes",
+      garni_onion: "Onions", garni_onion_val: "Onions",
+      garni_cornichon: "Pickles", garni_cornichon_val: "Pickles",
+      garni_laitue: "Lettuce", garni_laitue_val: "Lettuce",
+      garni_cheddar: "Cheddar", garni_cheddar_val: "Cheddar",
+      garni_mozza: "Mozzarella", garni_mozza_val: "Mozzarella",
+      garni_no_cheese: "No Cheese"
     },
     fr: {
       drawer_title: "VOTRE COMMANDE",
@@ -55,26 +63,34 @@ document.addEventListener('DOMContentLoaded', () => {
       btn_checkout: "Commander via WhatsApp",
       empty_title: "Votre assiette est vide",
       empty_desc: "Explorez notre menu et choisissez votre envie pour commencer votre festin au charbon.",
-      modal_spice_title: "Choisissez le niveau d'épice <span class=\"required-indicator\">*</span>",
-      modal_add_title: "Personnalisez votre bouchée (Ajouts)",
-      modal_excl_title: "Exclusions (Sans oignon/pickle)",
+      modal_spice_title: "Niveau d'épice <span class=\"required-indicator\">*</span>",
+      modal_sauces_title: "Sauces",
+      modal_veggies_title: "Légumes",
+      modal_cheese_title: "Fromage (un seul choix)",
+      modal_add_title: "Extras",
       modal_notes_title: "Instructions Spéciales",
       modal_notes_placeholder: "ex : Wrap bien cuit, harissa sur le côté...",
       modal_btn_add: "Ajouter au Festin",
       btn_card_add: "Ajouter",
       remove: "Supprimer",
-      
+
       spice_mild: "Doux",
       spice_medium: "Moyen",
       spice_spicy: "Épicé",
       spice_fiery: "Harissa Intense",
-      
-      add_cheddar: "Supplément Cheddar",
-      add_toum: "Supplément Toum d'Ail",
+
       add_fries: "Supplément Frites Croustillantes",
-      
-      excl_onions: "Sans Oignon",
-      excl_pickles: "Sans Cornichon"
+
+      garni_toum: "Sauce à l'ail", garni_toum_val: "Sauce Ail",
+      garni_houmous: "Houmous", garni_houmous_val: "Houmous",
+      garni_harissa: "Harissa", garni_harissa_val: "Harissa",
+      garni_tomato: "Tomates", garni_tomato_val: "Tomates",
+      garni_onion: "Oignons", garni_onion_val: "Oignons",
+      garni_cornichon: "Cornichons", garni_cornichon_val: "Cornichons",
+      garni_laitue: "Laitue", garni_laitue_val: "Laitue",
+      garni_cheddar: "Cheddar", garni_cheddar_val: "Cheddar",
+      garni_mozza: "Mozzarella", garni_mozza_val: "Mozzarella",
+      garni_no_cheese: "Sans Fromage"
     },
     tn: {
       drawer_title: "طلبيتك البنينة",
@@ -90,25 +106,33 @@ document.addEventListener('DOMContentLoaded', () => {
       empty_title: "صحنك مازال فارغ",
       empty_desc: "شوف المنيو المحرحر واختار شهوتك باش تبدا شواك البنين عالجمر.",
       modal_spice_title: "اختار مستوى الحرورة <span class=\"required-indicator\">*</span>",
-      modal_add_title: "زيد بنة على بنة (إضافات)",
-      modal_excl_title: "ماتحطليش (بلاش)",
+      modal_sauces_title: "الصوصات",
+      modal_veggies_title: "الخضر",
+      modal_cheese_title: "الجبن (اختار واحد)",
+      modal_add_title: "إضافات",
       modal_notes_title: "توصيات خاصة بالطلب",
       modal_notes_placeholder: "مثال: خبز محمر بالباهي، هريسة على شيرة...",
       modal_btn_add: "زيد للطلبية البنينة",
       btn_card_add: "أطلب",
       remove: "نحّي",
-      
+
       spice_mild: "مش حار",
       spice_medium: "شوية شوية",
       spice_spicy: "محرحر",
       spice_fiery: "بالهريسة العربي الحارة",
-      
-      add_cheddar: "جبن تشيدر إضافي",
-      add_toum: "ثومية إضافية بنينة",
+
       add_fries: "فريت مقرمش إضافي",
-      
-      excl_onions: "بلاش بصل",
-      excl_pickles: "بلاش خيار مخلل"
+
+      garni_toum: "صوص الثوم", garni_toum_val: "صوص الثوم",
+      garni_houmous: "حمص", garni_houmous_val: "حمص",
+      garni_harissa: "هريسة", garni_harissa_val: "هريسة",
+      garni_tomato: "طماطم", garni_tomato_val: "طماطم",
+      garni_onion: "بصل", garni_onion_val: "بصل",
+      garni_cornichon: "خيار مخلل", garni_cornichon_val: "خيار مخلل",
+      garni_laitue: "لاتو", garni_laitue_val: "لاتو",
+      garni_cheddar: "تشيدر", garni_cheddar_val: "تشيدر",
+      garni_mozza: "موزاريلا", garni_mozza_val: "موزاريلا",
+      garni_no_cheese: "بلاش جبن"
     }
   };
 
@@ -195,13 +219,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof BabkeComponents !== 'undefined' && BabkeComponents.getCartDrawerHTML && BabkeComponents.getCustomizationModalHTML) {
       const bodyContainer = document.body;
+      const customPrices = (typeof BabkeDB !== 'undefined' && typeof BabkeDB.getContent === 'function') ? (BabkeDB.getContent().customizationPrices || {}) : {};
       
       const tempDiv1 = document.createElement('div');
       tempDiv1.innerHTML = BabkeComponents.getCartDrawerHTML(txt);
       while(tempDiv1.firstChild) bodyContainer.appendChild(tempDiv1.firstChild);
 
       const tempDiv2 = document.createElement('div');
-      tempDiv2.innerHTML = BabkeComponents.getCustomizationModalHTML(txt);
+      tempDiv2.innerHTML = BabkeComponents.getCustomizationModalHTML(txt, customPrices);
       while(tempDiv2.firstChild) bodyContainer.appendChild(tempDiv2.firstChild);
     }
 
@@ -432,8 +457,13 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const checkedAdditions = customizationForm.querySelectorAll('input[name="addition"]:checked');
       checkedAdditions.forEach(checkbox => {
-        basePrice += parseFloat(checkbox.dataset.price);
+        basePrice += parseFloat(checkbox.dataset.price || 0);
       });
+
+      const checkedCheese = customizationForm.querySelector('input[name="cheese"]:checked');
+      if (checkedCheese && checkedCheese.dataset.price) {
+        basePrice += parseFloat(checkedCheese.dataset.price || 0);
+      }
 
       const total = basePrice * modalQty;
       document.getElementById('modal-total-button-price').textContent = `${total.toFixed(1)} TND`;
@@ -441,6 +471,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     customizationForm.querySelectorAll('input[name="addition"]').forEach(checkbox => {
       checkbox.addEventListener('change', updateModalTotalPrice);
+    });
+
+    customizationForm.querySelectorAll('input[name="cheese"]').forEach(radio => {
+      radio.addEventListener('change', updateModalTotalPrice);
     });
 
     if (btnModalInc) {
@@ -480,33 +514,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const spiceLevel = customizationForm.querySelector('input[name="spice-level"]:checked').value;
         
+        // Collect sauces
+        const sauces = [];
+        customizationForm.querySelectorAll('input[name="sauce"]:checked').forEach(cb => sauces.push(cb.value));
+
+        // Collect veggies
+        const veggies = [];
+        customizationForm.querySelectorAll('input[name="veggie"]:checked').forEach(cb => veggies.push(cb.value));
+
+        // Collect cheese choice (radio — skip "none")
+        const cheeseInput = customizationForm.querySelector('input[name="cheese"]:checked');
+        const cheese = (cheeseInput && cheeseInput.value !== 'none') ? cheeseInput.value : '';
+        const cheesePrice = (cheeseInput && cheeseInput.dataset.price) ? parseFloat(cheeseInput.dataset.price) || 0 : 0;
+
+        // Collect paid extras
         const additions = [];
         const checkedAdditions = customizationForm.querySelectorAll('input[name="addition"]:checked');
         let addonsCost = 0;
         checkedAdditions.forEach(checkbox => {
           additions.push(checkbox.value);
-          addonsCost += parseFloat(checkbox.dataset.price);
+          addonsCost += parseFloat(checkbox.dataset.price || 0);
         });
 
-        const exclusions = [];
-        const checkedExclusions = customizationForm.querySelectorAll('input[name="exclusion"]:checked');
-        checkedExclusions.forEach(checkbox => {
-          exclusions.push(checkbox.value);
-        });
-
+        const totalAddonsCost = addonsCost + cheesePrice;
         const notes = modalSpecialNotes.value.trim();
-        const customKey = `${currentCustomizingItem.id}-${spiceLevel}-${additions.sort().join(',')}-${exclusions.sort().join(',')}-${notes}`;
+
+        // Build garniture summary string for unique cart key
+        const garnitureKey = [...sauces, ...veggies, cheese].filter(Boolean).sort().join(',');
+        const customKey = `${currentCustomizingItem.id}-${spiceLevel}-${garnitureKey}-${additions.sort().join(',')}-${notes}`;
 
         const cartItem = {
           key: customKey,
           id: currentCustomizingItem.id,
           name: currentCustomizingItem.name,
           basePrice: currentCustomizingItem.price,
-          itemPrice: currentCustomizingItem.price + addonsCost,
+          itemPrice: currentCustomizingItem.price + totalAddonsCost,
           qty: modalQty,
           spice: spiceLevel,
+          sauces: sauces,
+          veggies: veggies,
+          cheese: cheese,
           addons: additions,
-          exclusions: exclusions,
+          exclusions: [],
           notes: notes
         };
 
@@ -587,9 +636,10 @@ document.addEventListener('DOMContentLoaded', () => {
           subtotal += item.itemPrice * item.qty;
         });
 
-        // 1. CAPTURE ORDER RECORD IN LOCAL STORAGE
+        // 1. CAPTURE ORDER RECORD IN LOCAL STORAGE & CACHE
+        const orderNum = "ORD-" + Date.now();
         const newOrder = {
-          id: "ORD-" + Date.now(),
+          id: orderNum,
           customer: {
             name: name,
             phone: phone,
@@ -608,12 +658,20 @@ document.addEventListener('DOMContentLoaded', () => {
           createdAt: new Date().toISOString()
         };
 
+        // Save last order ID locally so Suivre Commande pre-fills automatically
+        try {
+          localStorage.setItem('babke_last_order_id', orderNum);
+        } catch (e) {
+          console.error(e);
+        }
+
         if (typeof BabkeDB !== 'undefined') {
           BabkeDB.addOrder(newOrder);
         }
 
         // 2. CONSTRUCT WHATSAPP MESSAGE
         let msg = getLang() === 'fr' ? `*COMMANDE BABKE KEBAB & PLATES*\n` : (getLang() === 'tn' ? `*طلب بَبكي كباب وأطباق*\n` : `*BABKE KEBAB & PLATES ORDER*\n`);
+        msg += `*N° DE COMMANDE : ${orderNum}*\n`;
         msg += `=============================\n\n`;
         msg += getLang() === 'fr' ? `*Client :* ${name}\n` : (getLang() === 'tn' ? `*الحريف:* ${name}\n` : `*Customer:* ${name}\n`);
         msg += getLang() === 'fr' ? `*Téléphone :* ${phone}\n\n` : (getLang() === 'tn' ? `*الهاتف:* ${phone}\n\n` : `*Phone:* ${phone}\n\n`);
@@ -622,12 +680,20 @@ document.addEventListener('DOMContentLoaded', () => {
           const itemTotal = item.itemPrice * item.qty;
           msg += `*${item.qty}x ${item.name}*\n`;
           msg += `   • Spice: ${item.spice}\n`;
+
+          const saucesList = item.sauces && item.sauces.length > 0 ? item.sauces.join(', ') : null;
+          const veggiesList = item.veggies && item.veggies.length > 0 ? item.veggies.join(', ') : null;
+          const cheeseChoice = item.cheese || null;
+
+          if (saucesList) msg += `   • Sauces: ${saucesList}\n`;
+          if (veggiesList) msg += `   • Légumes: ${veggiesList}\n`;
+          if (cheeseChoice) msg += `   • Fromage: ${cheeseChoice}\n`;
           
-          if (item.addons.length > 0) {
-            msg += `   • Add: ${item.addons.join(', ')}\n`;
+          if (item.addons && item.addons.length > 0) {
+            msg += `   • Extras: ${item.addons.join(', ')}\n`;
           }
-          if (item.exclusions.length > 0) {
-            msg += `   • Exclude: ${item.exclusions.join(', ')}\n`;
+          if (item.exclusions && item.exclusions.length > 0) {
+            msg += `   • Sans: ${item.exclusions.join(', ')}\n`;
           }
           if (item.notes) {
             msg += `   • Note: "${item.notes}"\n`;
@@ -643,19 +709,42 @@ document.addEventListener('DOMContentLoaded', () => {
         const phoneNo = (typeof BABKE_CONFIG !== 'undefined' ? BABKE_CONFIG.PHONE_NUMBER : "21673821999");
         const whatsappUrl = `https://api.whatsapp.com/send?phone=${phoneNo}&text=${encodeURIComponent(msg)}`;
         
-        // Clear cart
+        // Clear cart & inputs
         cart = [];
         saveCart();
         closeCartDrawer();
         
-        // Clear input details
         cartCustNameInput.value = '';
         cartCustPhoneInput.value = '';
         cartAddressInput.value = '';
 
         window.open(whatsappUrl, '_blank');
+
+        if (typeof window.showToast === 'function') {
+          window.showToast(`🎉 N° de commande : ${orderNum} (Cliquer sur 'Suivre ma Commande' pour le suivi en direct)`);
+        }
+
+        if (window.babkeTrackOrder) {
+          setTimeout(() => window.babkeTrackOrder(orderNum), 1200);
+        }
       });
     }
+
+    // Order Now / Commander buttons listener (Navbar & Hero)
+    const navOrderNowBtn = document.getElementById('btn-nav-order-now');
+    const heroOrderDeliveryBtn = document.getElementById('btn-hero-order-delivery');
+
+    const handleOrderNowClick = (e) => {
+      e.preventDefault();
+      const menuSection = document.getElementById('menu');
+      if (menuSection) {
+        menuSection.scrollIntoView({ behavior: 'smooth' });
+      }
+      openCartDrawer();
+    };
+
+    if (navOrderNowBtn) navOrderNowBtn.addEventListener('click', handleOrderNowClick);
+    if (heroOrderDeliveryBtn) heroOrderDeliveryBtn.addEventListener('click', handleOrderNowClick);
 
     // Dynamic menu card customizer trigger listener
     window.addEventListener('babkeOpenCustomizer', (e) => {
@@ -728,8 +817,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const itemTotal = item.itemPrice * item.qty;
         subtotal += itemTotal;
 
-        const addonsString = item.addons.length > 0 ? `<span class="cart-item-detail-tag addition">+ ${item.addons.join(', ')}</span>` : '';
-        const exclString = item.exclusions.length > 0 ? `<span class="cart-item-detail-tag exclusion">- ${item.exclusions.join(', ')}</span>` : '';
+        const addonsString = item.addons && item.addons.length > 0 ? `<span class="cart-item-detail-tag addition">+ ${item.addons.join(', ')}</span>` : '';
+        const saucesString = item.sauces && item.sauces.length > 0 ? `<span class="cart-item-detail-tag sauce">${item.sauces.join(' · ')}</span>` : '';
+        const veggiesString = item.veggies && item.veggies.length > 0 ? `<span class="cart-item-detail-tag veggie">${item.veggies.join(' · ')}</span>` : '';
+        const cheeseString = item.cheese ? `<span class="cart-item-detail-tag cheese">${item.cheese}</span>` : '';
+        const exclString = item.exclusions && item.exclusions.length > 0 ? `<span class="cart-item-detail-tag exclusion">- ${item.exclusions.join(', ')}</span>` : '';
         const notesString = item.notes ? `<p class="cart-item-note">Note: "${item.notes}"</p>` : '';
 
         html += `
@@ -738,10 +830,13 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="cart-item-details">
                 <h4>${item.name}</h4>
                 <div class="cart-item-specs">
-                  <span class="cart-item-detail-tag spice">${item.spice}</span>
-                  ${addonsString}
-                  ${exclString}
-                </div>
+                   <span class="cart-item-detail-tag spice">${item.spice}</span>
+                   ${saucesString}
+                   ${veggiesString}
+                   ${cheeseString}
+                   ${addonsString}
+                   ${exclString}
+                 </div>
                 ${notesString}
               </div>
               <div class="cart-item-price-col">
@@ -759,10 +854,16 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         `;
 
-        const addonsSummary = item.addons.length > 0 ? ` (+ ${item.addons.join(', ')})` : '';
+        const garnitureSummary = [
+          ...(item.sauces || []),
+          ...(item.veggies || []),
+          item.cheese || ''
+        ].filter(Boolean);
+        const addonsSummary = item.addons && item.addons.length > 0 ? ` (+ ${item.addons.join(', ')})` : '';
+        const garniSummaryStr = garnitureSummary.length > 0 ? `, ${garnitureSummary.join(', ')}` : '';
         summaryHtml += `
           <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.8rem; border-bottom:1px solid rgba(255,255,255,0.02); padding-bottom:4px;">
-            <span>${item.qty}x <strong>${item.name}</strong> <span style="font-size:0.75rem; color:var(--text-muted);">(${item.spice}${addonsSummary})</span></span>
+            <span>${item.qty}x <strong>${item.name}</strong> <span style="font-size:0.75rem; color:var(--text-muted);">(${item.spice}${garniSummaryStr}${addonsSummary})</span></span>
             <strong>${itemTotal.toFixed(1)} TND</strong>
           </div>
         `;
@@ -867,6 +968,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.addEventListener('babkeLangChanged', () => {
+    injectCartUI();
+  });
+
+  window.addEventListener('babkeContentChanged', () => {
     injectCartUI();
   });
 

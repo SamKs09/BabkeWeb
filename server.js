@@ -88,8 +88,9 @@ const Menu = mongoose.model('Menu', new mongoose.Schema({
   fallbackImage: String,
   title: mongoose.Schema.Types.Mixed,
   description: mongoose.Schema.Types.Mixed,
-  tags: mongoose.Schema.Types.Mixed
-}));
+  tags: mongoose.Schema.Types.Mixed,
+  available: { type: Boolean, default: true }
+}, { strict: false }));
 
 const Content = mongoose.model('Content', new mongoose.Schema({
   key: { type: String, default: 'main', unique: true },
@@ -173,6 +174,74 @@ const Expense = mongoose.model('Expense', new mongoose.Schema({
   recordedBy: { type: String, default: 'cashier' }, // 'admin', 'cashier'
   createdAt: { type: Date, default: Date.now }
 }));
+
+const RuinedProduct = mongoose.model('RuinedProduct', new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  date: { type: String, required: true }, // YYYY-MM-DD
+  item: { type: String, required: true },
+  quantity: { type: Number, required: true },
+  unit: { type: String, default: 'kg' },
+  reason: { type: String, required: true }, // "Cramé", "Périmé", "Erreur Préparation", "Stockage Défectueux", "Autre"
+  recordedBy: { type: String, default: 'worker' },
+  createdAt: { type: Date, default: Date.now }
+}));
+
+const ProductType = mongoose.model('ProductType', new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  category: { type: String, default: 'general' },
+  defaultUnit: { type: String, default: 'kg' },
+  minStockAlert: { type: Number, default: 5 },
+  createdAt: { type: Date, default: Date.now }
+}));
+
+const StockMovement = mongoose.model('StockMovement', new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  date: { type: String, required: true }, // YYYY-MM-DD
+  productName: { type: String, required: true },
+  type: { type: String, required: true }, // 'IN' (purchase) or 'OUT' (withdrawal)
+  quantity: { type: Number, required: true },
+  unit: { type: String, default: 'kg' },
+  unitPrice: { type: Number, default: 0 },
+  totalPrice: { type: Number, default: 0 },
+  supplier: { type: String, default: '' },
+  reason: { type: String, default: '' },
+  recordedBy: { type: String, default: 'comptable' },
+  createdAt: { type: Date, default: Date.now }
+}));
+
+const AuditLog = mongoose.model('AuditLog', new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  timestamp: { type: String, required: true }, // ISO or formatted date-time string
+  userRole: { type: String, required: true },
+  username: { type: String, required: true },
+  actionType: { type: String, required: true },
+  details: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+}));
+
+// Helper to record timestamped audit log
+async function createAuditLog(userRole, username, actionType, details) {
+  try {
+    const logId = 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const now = new Date();
+    const timestampStr = now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR');
+    const log = new AuditLog({
+      id: logId,
+      timestamp: timestampStr,
+      userRole: userRole || 'system',
+      username: username || 'user',
+      actionType: actionType,
+      details: details
+    });
+    await log.save();
+    sendSseNotification('newAuditLog', log);
+    return log;
+  } catch (err) {
+    console.error('Error creating audit log:', err);
+  }
+}
+
 
 
 // ----------------------------------------------------
@@ -336,6 +405,42 @@ async function seedDatabase() {
       }
     }
 
+    // Seed Product Types (Physical Sheet Articles Sync)
+    const ptCount = await ProductType.countDocuments();
+    if (ptCount === 0) {
+      const seedPt = defaultData.productTypes || [];
+      if (seedPt.length > 0) {
+        await ProductType.insertMany(seedPt);
+        console.log('Seeded ProductType collection with 34 physical sheet articles successfully.');
+      }
+    } else {
+      // Re-sync product types to ensure all 34 articles match the physical sheet
+      await ProductType.deleteMany({});
+      await ProductType.insertMany(defaultData.productTypes);
+      console.log('ProductType collection synced successfully with all 34 physical sheet articles.');
+    }
+
+    // Seed Stock Movements
+    const smCount = await StockMovement.countDocuments();
+    if (smCount === 0 && defaultData.stockMovements) {
+      await StockMovement.insertMany(defaultData.stockMovements);
+      console.log('Seeded StockMovement collection successfully.');
+    }
+
+    // Seed Ruined Products
+    const rpCount = await RuinedProduct.countDocuments();
+    if (rpCount === 0 && defaultData.ruinedProducts) {
+      await RuinedProduct.insertMany(defaultData.ruinedProducts);
+      console.log('Seeded RuinedProduct collection successfully.');
+    }
+
+    // Seed Audit Logs
+    const alCount = await AuditLog.countDocuments();
+    if (alCount === 0 && defaultData.auditLogs) {
+      await AuditLog.insertMany(defaultData.auditLogs);
+      console.log('Seeded AuditLog collection successfully.');
+    }
+
   } catch (err) {
     console.error('Error seeding database:', err);
   }
@@ -353,22 +458,33 @@ app.get('/api/all-data', async (req, res) => {
     const reviews = await Review.find().lean();
     const gallery = await Gallery.find().lean();
     const events = await Event.find().lean();
+    const productTypes = await ProductType.find().sort({ createdAt: 1 }).lean();
 
-    // Check if authenticated to include order/reservation or leftovers
+    // Check if authenticated to include protected state
     let orders = [];
     let reservations = [];
     let leftovers = [];
     let expenses = [];
+    let ruinedProducts = [];
+    let stockMovements = [];
+    let auditLogs = [];
+
     const token = req.cookies.admin_token;
     if (token) {
       try {
         const verified = jwt.verify(token, process.env.SESSION_SECRET || 'babkesupersecretkey2026');
         leftovers = await Leftover.find().sort({ date: -1, createdAt: -1 }).lean();
-        
-        if (verified.role === 'admin' || verified.role === 'cashier') {
+        ruinedProducts = await RuinedProduct.find().sort({ date: -1, createdAt: -1 }).lean();
+        stockMovements = await StockMovement.find().sort({ date: -1, createdAt: -1 }).lean();
+
+        if (verified.role === 'admin' || verified.role === 'comptable' || verified.role === 'cashier') {
           orders = await Order.find().sort({ createdAt: -1 }).lean();
           reservations = await Reservation.find().sort({ createdAt: -1 }).lean();
           expenses = await Expense.find().sort({ date: -1, createdAt: -1 }).lean();
+        }
+
+        if (verified.role === 'admin' || verified.role === 'comptable') {
+          auditLogs = await AuditLog.find().sort({ createdAt: -1 }).limit(100).lean();
         }
       } catch (e) {
         // Invalid token
@@ -384,7 +500,11 @@ app.get('/api/all-data', async (req, res) => {
       reservations,
       events,
       leftovers,
-      expenses
+      expenses,
+      ruinedProducts,
+      productTypes,
+      stockMovements,
+      auditLogs
     });
   } catch (err) {
     console.error('Error fetching all data:', err);
@@ -393,10 +513,17 @@ app.get('/api/all-data', async (req, res) => {
 });
 
 // Admin login verification route
-app.post('/api/admin/login', loginLimiter, (req, res) => {
+app.post('/api/admin/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body;
+
   const adminUser = process.env.ADMIN_USERNAME || 'admin';
   const adminPass = process.env.ADMIN_PASSWORD || 'babke2026';
+
+  const comptableUser = process.env.COMPTABLE_USERNAME || 'comptable';
+  const comptablePass = process.env.COMPTABLE_PASSWORD || 'babkecomptable2026';
+
+  const mediaUser = process.env.MEDIA_USERNAME || 'media';
+  const mediaPass = process.env.MEDIA_PASSWORD || 'babkemedia2026';
 
   const cashierUser = process.env.CASHIER_USERNAME || 'cashier';
   const cashierPass = process.env.CASHIER_PASSWORD || 'babkecashier2026';
@@ -407,6 +534,10 @@ app.post('/api/admin/login', loginLimiter, (req, res) => {
   let role = null;
   if (username === adminUser && password === adminPass) {
     role = 'admin';
+  } else if (username === comptableUser && password === comptablePass) {
+    role = 'comptable';
+  } else if (username === mediaUser && password === mediaPass) {
+    role = 'sm_manager';
   } else if (username === cashierUser && password === cashierPass) {
     role = 'cashier';
   } else if (username === workerUser && password === workerPass) {
@@ -425,19 +556,25 @@ app.post('/api/admin/login', loginLimiter, (req, res) => {
       sameSite: 'strict',
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
+
+    await createAuditLog(role, username, 'LOGIN', `Connexion réussie de l'utilisateur (${role.toUpperCase()})`);
+
     res.json({ success: true, role: role });
   } else {
-    res.status(401).json({ success: false, error: 'Invalid username or password' });
+    res.status(401).json({ success: false, error: 'Identifiant ou mot de passe incorrect' });
   }
 });
 
 // Admin verification route
 app.get('/api/admin/verify', authMiddleware, (req, res) => {
-  res.json({ success: true, role: req.admin.role });
+  res.json({ success: true, role: req.admin.role, username: req.admin.username });
 });
 
 // Admin logout route
-app.post('/api/admin/logout', (req, res) => {
+app.post('/api/admin/logout', authMiddleware, async (req, res) => {
+  if (req.admin) {
+    await createAuditLog(req.admin.role, req.admin.username, 'LOGOUT', `Déconnexion de l'utilisateur (${req.admin.role.toUpperCase()})`);
+  }
   res.clearCookie('admin_token');
   res.json({ success: true });
 });
@@ -451,6 +588,144 @@ app.get('/api/leftovers', authMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.post('/api/leftovers', authMiddleware, async (req, res) => {
+  try {
+    const leftover = new Leftover(req.body);
+    await leftover.save();
+    await createAuditLog(req.admin.role, req.admin.username, 'LEFTOVER_ADD', `Saisie de Restes: ${leftover.item} (${leftover.quantity} ${leftover.unit})`);
+    sendSseNotification('newLeftover', leftover);
+    res.status(201).json(leftover);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/leftovers/:id', authMiddleware, async (req, res) => {
+  try {
+    const deleted = await Leftover.findOneAndDelete({ id: req.params.id });
+    if (!deleted) return res.status(404).json({ error: 'Leftover log not found' });
+    await createAuditLog(req.admin.role, req.admin.username, 'LEFTOVER_DELETE', `Suppression de Restes: ${deleted.item}`);
+    sendSseNotification('deleteLeftover', { id: req.params.id });
+    res.json({ success: true, message: 'Leftover log deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Ruined Products Endpoints
+app.get('/api/ruined-products', authMiddleware, async (req, res) => {
+  try {
+    const items = await RuinedProduct.find().sort({ date: -1, createdAt: -1 });
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/ruined-products', authMiddleware, async (req, res) => {
+  try {
+    const item = new RuinedProduct({ ...req.body, recordedBy: req.admin.role });
+    await item.save();
+    await createAuditLog(req.admin.role, req.admin.username, 'RUINED_ADD', `Produit Gâté / Perte: ${item.item} (${item.quantity} ${item.unit}) - Cause: ${item.reason}`);
+    sendSseNotification('newRuinedProduct', item);
+    res.status(201).json(item);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/ruined-products/:id', authMiddleware, async (req, res) => {
+  try {
+    const deleted = await RuinedProduct.findOneAndDelete({ id: req.params.id });
+    if (!deleted) return res.status(404).json({ error: 'Ruined product log not found' });
+    await createAuditLog(req.admin.role, req.admin.username, 'RUINED_DELETE', `Suppression Perte: ${deleted.item}`);
+    sendSseNotification('deleteRuinedProduct', { id: req.params.id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Product Types Endpoints (Managed by Comptable & Admin)
+app.get('/api/product-types', async (req, res) => {
+  try {
+    const types = await ProductType.find().sort({ name: 1 });
+    res.json(types);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/product-types', authMiddleware, async (req, res) => {
+  try {
+    const type = new ProductType(req.body);
+    await type.save();
+    await createAuditLog(req.admin.role, req.admin.username, 'PRODUCT_TYPE_ADD', `Nouveau Type de Produit: ${type.name} (Unité: ${type.defaultUnit})`);
+    sendSseNotification('newProductType', type);
+    res.status(201).json(type);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/product-types/:id', authMiddleware, async (req, res) => {
+  try {
+    const deleted = await ProductType.findOneAndDelete({ id: req.params.id });
+    if (!deleted) return res.status(404).json({ error: 'Product type not found' });
+    await createAuditLog(req.admin.role, req.admin.username, 'PRODUCT_TYPE_DELETE', `Suppression Type Produit: ${deleted.name}`);
+    sendSseNotification('deleteProductType', { id: req.params.id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stock Movements Endpoints (Managed by Comptable & Admin)
+app.get('/api/stock/movements', authMiddleware, async (req, res) => {
+  try {
+    const movements = await StockMovement.find().sort({ date: -1, createdAt: -1 });
+    res.json(movements);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/stock/movements', authMiddleware, async (req, res) => {
+  try {
+    const movement = new StockMovement({ ...req.body, recordedBy: req.admin.role });
+    await movement.save();
+    const actionName = movement.type === 'IN' ? 'Achat Stock' : 'Retrait Stock';
+    await createAuditLog(req.admin.role, req.admin.username, 'STOCK_MOVEMENT', `${actionName}: ${movement.productName} (${movement.quantity} ${movement.unit}) - Coût/Fournisseur: ${movement.totalPrice} TND / ${movement.supplier || 'N/A'}`);
+    sendSseNotification('newStockMovement', movement);
+    res.status(201).json(movement);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/stock/movements/:id', authMiddleware, async (req, res) => {
+  try {
+    const deleted = await StockMovement.findOneAndDelete({ id: req.params.id });
+    if (!deleted) return res.status(404).json({ error: 'Stock movement not found' });
+    await createAuditLog(req.admin.role, req.admin.username, 'STOCK_DELETE', `Suppression Mouvement Stock: ${deleted.productName}`);
+    sendSseNotification('deleteStockMovement', { id: req.params.id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Audit Logs Endpoint (For Propriétaire & Comptable)
+app.get('/api/audit-logs', authMiddleware, async (req, res) => {
+  try {
+    const logs = await AuditLog.find().sort({ createdAt: -1 }).limit(150);
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 app.post('/api/leftovers', authMiddleware, async (req, res) => {
   try {
@@ -510,8 +785,9 @@ app.delete('/api/expenses/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Keep track of active SSE connections (admin dashboard tabs)
+// Keep track of active SSE connections (admin dashboard & public storefront)
 let sseClients = [];
+let publicSseClients = [];
 
 app.get('/api/admin/events-stream', (req, res) => {
   // Check if admin is authenticated before starting stream
@@ -535,13 +811,35 @@ app.get('/api/admin/events-stream', (req, res) => {
   });
 });
 
+// Public SSE stream for real-time storefront synchronization
+app.get('/api/sse', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  publicSseClients.push(res);
+
+  req.on('close', () => {
+    publicSseClients = publicSseClients.filter(client => client !== res);
+  });
+});
+
 function sendSseNotification(event, data) {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+
   sseClients.forEach(client => {
     try {
-      client.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      client.write(payload);
     } catch (err) {
-      // Clean up client if write fails
       sseClients = sseClients.filter(c => c !== client);
+    }
+  });
+
+  publicSseClients.forEach(client => {
+    try {
+      client.write(payload);
+    } catch (err) {
+      publicSseClients = publicSseClients.filter(c => c !== client);
     }
   });
 }
@@ -568,12 +866,46 @@ app.post('/api/menu', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
 
 app.put('/api/menu/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
   try {
+    const updateData = { ...req.body };
+    delete updateData._id;
     const updated = await Menu.findOneAndUpdate(
       { id: req.params.id },
-      { $set: req.body },
+      { $set: updateData },
       { new: true }
     );
     if (!updated) return res.status(404).json({ error: 'Menu item not found' });
+    sendSseNotification('menuChanged', updated);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Toggle/update menu item availability (accessible by cashiers, workers, and admins)
+app.patch('/api/menu/:id/availability', async (req, res) => {
+  try {
+    const { available } = req.body;
+    const targetId = req.params.id;
+
+    // Case-insensitive search for menu item ID
+    let updated = await Menu.findOneAndUpdate(
+      { $or: [{ id: targetId }, { id: targetId.toLowerCase() }] },
+      { $set: { available: Boolean(available) } },
+      { new: true }
+    );
+
+    // If item doesn't exist in MongoDB yet, upsert it from defaultData
+    if (!updated && defaultData && defaultData.menu) {
+      const defaultItem = defaultData.menu.find(m => m.id === targetId || m.id.toLowerCase() === targetId.toLowerCase());
+      if (defaultItem) {
+        const newItemData = { ...defaultItem, available: Boolean(available) };
+        delete newItemData._id;
+        updated = await Menu.create(newItemData);
+      }
+    }
+
+    if (!updated) return res.status(404).json({ error: 'Menu item not found' });
+    sendSseNotification('menuChanged', updated);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -827,52 +1159,68 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-app.post('/api/events', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.post('/api/events', authMiddleware, async (req, res) => {
   try {
-    const newEvent = new Event(req.body);
+    const eventData = { ...req.body };
+    delete eventData._id;
+    const newEvent = new Event(eventData);
     await newEvent.save();
+    sendSseNotification('eventsChanged', newEvent);
     res.status(201).json(newEvent);
   } catch (err) {
+    console.error("Error creating event in MongoDB:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.put('/api/events/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.put('/api/events/:id', authMiddleware, async (req, res) => {
   try {
+    const updateData = { ...req.body };
+    delete updateData._id;
     const updated = await Event.findOneAndUpdate(
       { id: req.params.id },
-      { $set: req.body },
-      { new: true }
+      { $set: updateData },
+      { new: true, upsert: true }
     );
-    if (!updated) return res.status(404).json({ error: 'Event not found' });
+    sendSseNotification('eventsChanged', updated);
     res.json(updated);
   } catch (err) {
+    console.error("Error updating event in MongoDB:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/events/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.delete('/api/events/:id', authMiddleware, async (req, res) => {
   try {
     const deleted = await Event.findOneAndDelete({ id: req.params.id });
     if (!deleted) return res.status(404).json({ error: 'Event not found' });
+    sendSseNotification('eventsChanged', { id: req.params.id, deleted: true });
     res.json({ success: true, message: 'Event deleted' });
   } catch (err) {
+    console.error("Error deleting event from MongoDB:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.put('/api/events', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.put('/api/events', authMiddleware, async (req, res) => {
   try {
+    const cleanEvents = (req.body || []).map(evt => {
+      const item = { ...evt };
+      delete item._id;
+      return item;
+    });
     await Event.deleteMany({});
-    const updatedEvents = await Event.insertMany(req.body);
+    const updatedEvents = await Event.insertMany(cleanEvents);
+    sendSseNotification('eventsChanged', updatedEvents);
     res.json(updatedEvents);
   } catch (err) {
+    console.error("Error bulk updating events in MongoDB:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // Orders Endpoints
-app.get('/api/orders', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.get('/api/orders', authMiddleware, async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
     res.json(orders);
@@ -886,13 +1234,14 @@ app.post('/api/orders', submissionLimiter, async (req, res) => {
     const order = new Order(req.body);
     await order.save();
     sendSseNotification('newOrder', order);
+    sendSseNotification('ordersChanged', order);
     res.status(201).json(order);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.put('/api/orders/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.put('/api/orders/:id', async (req, res) => {
   try {
     const order = await Order.findOneAndUpdate(
       { id: req.params.id },
@@ -900,6 +1249,7 @@ app.put('/api/orders/:id', authMiddleware, ownerOnlyMiddleware, async (req, res)
       { new: true }
     );
     if (!order) return res.status(404).json({ error: 'Order not found' });
+    sendSseNotification('ordersChanged', order);
     res.json(order);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -907,7 +1257,7 @@ app.put('/api/orders/:id', authMiddleware, ownerOnlyMiddleware, async (req, res)
 });
 
 // Reservations Endpoints
-app.get('/api/reservations', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.get('/api/reservations', authMiddleware, async (req, res) => {
   try {
     const reservations = await Reservation.find().sort({ createdAt: -1 });
     res.json(reservations);
@@ -921,13 +1271,14 @@ app.post('/api/reservations', submissionLimiter, async (req, res) => {
     const reservation = new Reservation(req.body);
     await reservation.save();
     sendSseNotification('newReservation', reservation);
+    sendSseNotification('reservationsChanged', reservation);
     res.status(201).json(reservation);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.put('/api/reservations/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.put('/api/reservations/:id', async (req, res) => {
   try {
     const reservation = await Reservation.findOneAndUpdate(
       { id: req.params.id },
@@ -935,6 +1286,7 @@ app.put('/api/reservations/:id', authMiddleware, ownerOnlyMiddleware, async (req
       { new: true }
     );
     if (!reservation) return res.status(404).json({ error: 'Reservation not found' });
+    sendSseNotification('reservationsChanged', reservation);
     res.json(reservation);
   } catch (err) {
     res.status(500).json({ error: err.message });

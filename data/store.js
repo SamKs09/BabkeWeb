@@ -97,6 +97,34 @@ const BabkeDB = {
     }
   },
 
+  async toggleMenuAvailability(id, available) {
+    if (!this.cache) await this.init();
+    const item = (this.cache.menu || []).find(m => m.id === id || m.id.toLowerCase() === id.toLowerCase());
+    if (item) {
+      item.available = Boolean(available);
+      window.dispatchEvent(new Event('babkeMenuChanged'));
+      try {
+        localStorage.setItem('babke_menu_cache', JSON.stringify(this.cache.menu));
+      } catch (e) {}
+    }
+
+    try {
+      const res = await fetch(`/api/menu/${encodeURIComponent(id)}/availability`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ available: Boolean(available) })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        babkeChannel.postMessage({ type: 'menu_changed' });
+        return data;
+      }
+    } catch (err) {
+      console.warn('Backend server offline, saved availability state to local storage:', err);
+    }
+  },
+
   async deleteMenuItem(id) {
     if (!this.cache) await this.init();
     this.cache.menu = this.cache.menu.filter(m => m.id !== id);
@@ -296,15 +324,16 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'orders_changed' });
 
     try {
-      const res = await fetch(`/api/orders/${id}`, {
+      const res = await fetch(`/api/orders/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ status })
       });
       return res.ok;
     } catch (err) {
       console.error(`Error updating status for order ${id}:`, err);
-      return false;
+      return true; // Return true as local cache is updated
     }
   },
 
@@ -325,6 +354,7 @@ const BabkeDB = {
       const res = await fetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(reservation)
       });
       return await res.json();
@@ -344,39 +374,22 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'reservations_changed' });
 
     try {
-      const res = await fetch(`/api/reservations/${id}`, {
+      const res = await fetch(`/api/reservations/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ status })
       });
       return res.ok;
     } catch (err) {
       console.error(`Error updating status for reservation ${id}:`, err);
-      return false;
+      return true;
     }
   },
 
   // EVENTS
   getEvents() {
-    let events = this.cache ? (this.cache.events || []) : [];
-    
-    // Auto-archiving logic:
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    
-    let updated = false;
-    events = events.map(event => {
-      if (event.date && event.date < todayStr && event.status === 'published') {
-        event.status = 'archived';
-        updated = true;
-      }
-      return event;
-    });
-    
-    if (updated) {
-      this.saveEvents(events);
-    }
-    return events;
+    return this.cache ? (this.cache.events || []) : [];
   },
 
   async saveEvents(events) {
@@ -388,6 +401,7 @@ const BabkeDB = {
       const res = await fetch('/api/events', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(events)
       });
       return await res.json();
@@ -410,11 +424,12 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'events_changed' });
 
     try {
-      const url = isEdit ? `/api/events/${event.id}` : '/api/events';
+      const url = isEdit ? `/api/events/${encodeURIComponent(event.id)}` : '/api/events';
       const method = isEdit ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(event)
       });
       return await res.json();
@@ -431,8 +446,9 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'events_changed' });
 
     try {
-      const res = await fetch(`/api/events/${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/events/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        credentials: 'include'
       });
       return await res.json();
     } catch (err) {
@@ -526,8 +542,140 @@ const BabkeDB = {
     } catch (err) {
       console.error('Error deleting expense log from backend:', err);
     }
+  },
+
+  // RUINED PRODUCTS
+  getRuinedProducts() {
+    return this.cache ? (this.cache.ruinedProducts || []) : [];
+  },
+
+  async addRuinedProduct(item) {
+    if (!this.cache) await this.init();
+    if (!this.cache.ruinedProducts) this.cache.ruinedProducts = [];
+    this.cache.ruinedProducts.unshift(item);
+
+    window.dispatchEvent(new Event('babkeRuinedChanged'));
+    babkeChannel.postMessage({ type: 'ruined_changed' });
+
+    try {
+      const res = await fetch('/api/ruined-products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error logging ruined product to backend:', err);
+    }
+  },
+
+  async deleteRuinedProduct(id) {
+    if (!this.cache) await this.init();
+    if (this.cache.ruinedProducts) {
+      this.cache.ruinedProducts = this.cache.ruinedProducts.filter(r => r.id !== id);
+    }
+
+    window.dispatchEvent(new Event('babkeRuinedChanged'));
+    babkeChannel.postMessage({ type: 'ruined_changed' });
+
+    try {
+      const res = await fetch(`/api/ruined-products/${id}`, { method: 'DELETE' });
+      return await res.json();
+    } catch (err) {
+      console.error('Error deleting ruined product log:', err);
+    }
+  },
+
+  // PRODUCT TYPES
+  getProductTypes() {
+    return this.cache ? (this.cache.productTypes || []) : [];
+  },
+
+  async addProductType(type) {
+    if (!this.cache) await this.init();
+    if (!this.cache.productTypes) this.cache.productTypes = [];
+    this.cache.productTypes.push(type);
+
+    window.dispatchEvent(new Event('babkeProductTypesChanged'));
+    babkeChannel.postMessage({ type: 'product_types_changed' });
+
+    try {
+      const res = await fetch('/api/product-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(type)
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error adding product type to backend:', err);
+    }
+  },
+
+  async deleteProductType(id) {
+    if (!this.cache) await this.init();
+    if (this.cache.productTypes) {
+      this.cache.productTypes = this.cache.productTypes.filter(p => p.id !== id);
+    }
+
+    window.dispatchEvent(new Event('babkeProductTypesChanged'));
+    babkeChannel.postMessage({ type: 'product_types_changed' });
+
+    try {
+      const res = await fetch(`/api/product-types/${id}`, { method: 'DELETE' });
+      return await res.json();
+    } catch (err) {
+      console.error('Error deleting product type:', err);
+    }
+  },
+
+  // STOCK MOVEMENTS
+  getStockMovements() {
+    return this.cache ? (this.cache.stockMovements || []) : [];
+  },
+
+  async addStockMovement(movement) {
+    if (!this.cache) await this.init();
+    if (!this.cache.stockMovements) this.cache.stockMovements = [];
+    this.cache.stockMovements.unshift(movement);
+
+    window.dispatchEvent(new Event('babkeStockChanged'));
+    babkeChannel.postMessage({ type: 'stock_changed' });
+
+    try {
+      const res = await fetch('/api/stock/movements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(movement)
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error adding stock movement:', err);
+    }
+  },
+
+  async deleteStockMovement(id) {
+    if (!this.cache) await this.init();
+    if (this.cache.stockMovements) {
+      this.cache.stockMovements = this.cache.stockMovements.filter(s => s.id !== id);
+    }
+
+    window.dispatchEvent(new Event('babkeStockChanged'));
+    babkeChannel.postMessage({ type: 'stock_changed' });
+
+    try {
+      const res = await fetch(`/api/stock/movements/${id}`, { method: 'DELETE' });
+      return await res.json();
+    } catch (err) {
+      console.error('Error deleting stock movement:', err);
+    }
+  },
+
+  // AUDIT LOGS
+  getAuditLogs() {
+    return this.cache ? (this.cache.auditLogs || []) : [];
   }
 };
+
 
 // Handle incoming message broadcasts from other tabs
 babkeChannel.onmessage = async (event) => {
