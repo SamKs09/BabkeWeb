@@ -673,6 +673,112 @@ const BabkeDB = {
   // AUDIT LOGS
   getAuditLogs() {
     return this.cache ? (this.cache.auditLogs || []) : [];
+  },
+
+  // ACCOUNTING SHEETS
+  getAccountingSheets(sheetType) {
+    if (!this.cache || !this.cache.accountingSheets) return sheetType ? [] : { sahloul_jfs: [], frits: [], nettoyage: [], poulet_viandes: [] };
+    if (sheetType) {
+      return this.cache.accountingSheets[sheetType] || [];
+    }
+    return this.cache.accountingSheets;
+  },
+
+  async addAccountingSheetItem(item) {
+    if (!this.cache) await this.init();
+    if (!this.cache.accountingSheets) this.cache.accountingSheets = { sahloul_jfs: [], frits: [], nettoyage: [], poulet_viandes: [] };
+    const sheetType = item.sheetType;
+    if (!this.cache.accountingSheets[sheetType]) this.cache.accountingSheets[sheetType] = [];
+    this.cache.accountingSheets[sheetType].push(item);
+
+    window.dispatchEvent(new Event('babkeAccountingSheetsChanged'));
+    babkeChannel.postMessage({ type: 'accounting_sheets_changed' });
+
+    try {
+      const res = await fetch('/api/accounting-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error adding accounting sheet entry:', err);
+    }
+  },
+
+  async updateAccountingSheetItem(id, item) {
+    if (!this.cache) await this.init();
+    if (this.cache.accountingSheets) {
+      const sheetType = item.sheetType;
+      if (this.cache.accountingSheets[sheetType]) {
+        const idx = this.cache.accountingSheets[sheetType].findIndex(x => x.id === id);
+        if (idx > -1) this.cache.accountingSheets[sheetType][idx] = { ...this.cache.accountingSheets[sheetType][idx], ...item };
+      }
+    }
+
+    window.dispatchEvent(new Event('babkeAccountingSheetsChanged'));
+    babkeChannel.postMessage({ type: 'accounting_sheets_changed' });
+
+    try {
+      const res = await fetch(`/api/accounting-sheets/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error updating accounting sheet entry:', err);
+    }
+  },
+
+  async deleteAccountingSheetItem(id, sheetType) {
+    if (!this.cache) await this.init();
+    if (this.cache.accountingSheets && this.cache.accountingSheets[sheetType]) {
+      this.cache.accountingSheets[sheetType] = this.cache.accountingSheets[sheetType].filter(x => x.id !== id);
+    }
+
+    window.dispatchEvent(new Event('babkeAccountingSheetsChanged'));
+    babkeChannel.postMessage({ type: 'accounting_sheets_changed' });
+
+    try {
+      const res = await fetch(`/api/accounting-sheets/${encodeURIComponent(id)}?sheetType=${encodeURIComponent(sheetType)}`, { method: 'DELETE' });
+      return await res.json();
+    } catch (err) {
+      console.error('Error deleting accounting sheet entry:', err);
+    }
+  },
+
+  // DATABASE RESET & RE-SEED
+  async resetDatabase() {
+    try {
+      const res = await fetch('/api/admin/reset-database', { method: 'POST' });
+      if (res.ok) {
+        // Clear local storage caches
+        localStorage.clear();
+        // Re-fetch all data from backend
+        await this.init(true);
+        // Trigger global state refresh events
+        window.dispatchEvent(new Event('babkeMenuChanged'));
+        window.dispatchEvent(new Event('babkeReviewsChanged'));
+        window.dispatchEvent(new Event('babkeEventsChanged'));
+        window.dispatchEvent(new Event('babkeGalleryChanged'));
+        window.dispatchEvent(new Event('babkeOrdersChanged'));
+        window.dispatchEvent(new Event('babkeReservationsChanged'));
+        window.dispatchEvent(new Event('babkeLeftoversChanged'));
+        window.dispatchEvent(new Event('babkeExpensesChanged'));
+        window.dispatchEvent(new Event('babkeStockChanged'));
+        window.dispatchEvent(new Event('babkeRuinedChanged'));
+        window.dispatchEvent(new Event('babkeProductTypesChanged'));
+        window.dispatchEvent(new Event('babkeAccountingSheetsChanged'));
+        babkeChannel.postMessage({ type: 'database_reset' });
+        return { success: true };
+      }
+      const data = await res.json();
+      return { success: false, error: data.error || 'Erreur lors de la réinitialisation' };
+    } catch (err) {
+      console.error('Error resetting database via store:', err);
+      return { success: false, error: err.message };
+    }
   }
 };
 

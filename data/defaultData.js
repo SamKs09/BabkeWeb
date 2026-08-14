@@ -613,7 +613,63 @@ const DEFAULT_DATA = {
       actionType: "STOCK_MOVEMENT",
       details: "Achat Stock: Chawarma Poulet (50 kg) - Coût/Fournisseur: 600 TND / Volailles Sousse"
     }
-  ]
+  ],
+  accountingSheets: {
+    sahloul_jfs: [
+      { id: "sjfs-1", article: "a1", quantity: 100, unitValue: 1.045, total: 104.5 },
+      { id: "sjfs-2", article: "osk 50", quantity: 3, unitValue: 7.8, total: 23.4 },
+      { id: "sjfs-3", article: "jumbo", quantity: 12, unitValue: 2.8, total: 33.6 },
+      { id: "sjfs-4", article: "savon main", quantity: 5, unitValue: 3.6, total: 18.0 },
+      { id: "sjfs-5", article: "goble", quantity: 10, unitValue: 5.0, total: 50.0 }
+    ],
+    frits: [
+      { id: "frit-1", date: "2026-07-01", quantity: 65, unitValue: 7.0, total: 455.0 },
+      { id: "frit-2", date: "2026-07-02", quantity: 50, unitValue: 7.0, total: 350.0 },
+      { id: "frit-3", date: "2026-07-03", quantity: 60, unitValue: 7.0, total: 420.0 },
+      { id: "frit-4", date: "2026-07-04", quantity: 70, unitValue: 7.0, total: 490.0 }
+    ],
+    nettoyage: [
+      { id: "net-1", date: "2026-07-03", article: "dinol", quantity: 20, unitValue: 1.0, total: 20.0 },
+      { id: "net-2", date: "2026-07-03", article: "javel", quantity: 20, unitValue: 0.5, total: 10.0 },
+      { id: "net-3", date: "2026-07-22", article: "javel", quantity: 60, unitValue: 0.5, total: 30.0 },
+      { id: "net-4", date: "2026-07-22", article: "dinol", quantity: 80, unitValue: 1.0, total: 80.0 },
+      { id: "net-5", date: "2026-07-29", article: "javel", quantity: 40, unitValue: 0.5, total: 20.0 },
+      { id: "net-6", date: "2026-07-29", article: "dinol", quantity: 90, unitValue: 1.0, total: 90.0 }
+    ],
+    poulet_viandes: [
+      { id: "pv-1", date: "2026-07-01", cuisseQty: 35.9, cuisseVal: 11.2, cuisseTot: 402.08, blancQty: 27, blancVal: 14.8, blancTot: 399.6, escalopeQty: 35, escalopeVal: 15.2, escalopeTot: 532.0, cuisseCompQty: 0, cuisseCompVal: 0, cuisseCompTot: 0, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-2", date: "2026-07-02", cuisseQty: 43.2, cuisseVal: 11.6, cuisseTot: 501.12, blancQty: 22, blancVal: 15.2, blancTot: 334.4, escalopeQty: 35, escalopeVal: 15.4, escalopeTot: 539.0, cuisseCompQty: 2, cuisseCompVal: 9.0, cuisseCompTot: 18.0, oeufQty: 5, oeufVal: 6.8, oeufTot: 34.0 },
+      { id: "pv-3", date: "2026-07-03", cuisseQty: 40.5, cuisseVal: 11.8, cuisseTot: 477.90, blancQty: 22, blancVal: 15.2, blancTot: 334.4, escalopeQty: 35, escalopeVal: 15.5, escalopeTot: 542.5, cuisseCompQty: 1, cuisseCompVal: 9.0, cuisseCompTot: 9.0, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-4", date: "2026-07-04", cuisseQty: 41.8, cuisseVal: 11.8, cuisseTot: 493.24, blancQty: 27, blancVal: 15.2, blancTot: 410.4, escalopeQty: 48, escalopeVal: 15.5, escalopeTot: 744.0, cuisseCompQty: 1.6, cuisseCompVal: 9.0, cuisseCompTot: 14.4, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-5", date: "2026-07-05", cuisseQty: 43.2, cuisseVal: 11.8, cuisseTot: 509.76, blancQty: 22, blancVal: 15.2, blancTot: 334.4, escalopeQty: 40, escalopeVal: 15.6, escalopeTot: 624.0, cuisseCompQty: 1.7, cuisseCompVal: 9.4, cuisseCompTot: 15.98, oeufQty: 5, oeufVal: 6.8, oeufTot: 34.0 },
+      { id: "pv-6", date: "2026-07-06", cuisseQty: 37.8, cuisseVal: 12.0, cuisseTot: 453.60, blancQty: 27, blancVal: 15.2, blancTot: 410.4, escalopeQty: 28, escalopeVal: 15.6, escalopeTot: 436.8, cuisseCompQty: 6, cuisseCompVal: 9.4, cuisseCompTot: 56.4, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-7", date: "2026-07-07", cuisseQty: 33.7, cuisseVal: 12.0, cuisseTot: 404.40, blancQty: 22, blancVal: 15.4, blancTot: 338.8, escalopeQty: 30, escalopeVal: 15.6, escalopeTot: 468.0, cuisseCompQty: 0, cuisseCompVal: 0, cuisseCompTot: 0, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-8", date: "2026-07-08", cuisseQty: 36.6, cuisseVal: 12.0, cuisseTot: 439.20, blancQty: 21, blancVal: 15.2, blancTot: 319.2, escalopeQty: 25, escalopeVal: 15.5, escalopeTot: 387.5, cuisseCompQty: 2.6, cuisseCompVal: 9.4, cuisseCompTot: 24.44, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-9", date: "2026-07-09", cuisseQty: 37.8, cuisseVal: 12.0, cuisseTot: 453.60, blancQty: 21, blancVal: 15.2, blancTot: 319.2, escalopeQty: 32, escalopeVal: 15.5, escalopeTot: 496.0, cuisseCompQty: 0.9, cuisseCompVal: 9.4, cuisseCompTot: 8.46, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-10", date: "2026-07-10", cuisseQty: 40.5, cuisseVal: 12.0, cuisseTot: 486.00, blancQty: 26, blancVal: 15.2, blancTot: 395.2, escalopeQty: 40, escalopeVal: 15.5, escalopeTot: 620.0, cuisseCompQty: 1, cuisseCompVal: 9.4, cuisseCompTot: 9.4, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-11", date: "2026-07-11", cuisseQty: 40.4, cuisseVal: 12.0, cuisseTot: 484.80, blancQty: 27, blancVal: 15.2, blancTot: 410.4, escalopeQty: 35, escalopeVal: 15.5, escalopeTot: 542.5, cuisseCompQty: 1, cuisseCompVal: 9.4, cuisseCompTot: 9.4, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-12", date: "2026-07-12", cuisseQty: 43.1, cuisseVal: 12.0, cuisseTot: 517.20, blancQty: 22, blancVal: 15.2, blancTot: 334.4, escalopeQty: 35, escalopeVal: 15.6, escalopeTot: 546.0, cuisseCompQty: 0, cuisseCompVal: 0, cuisseCompTot: 0, oeufQty: 5, oeufVal: 6.8, oeufTot: 34.0 },
+      { id: "pv-13", date: "2026-07-13", cuisseQty: 38.2, cuisseVal: 12.0, cuisseTot: 458.40, blancQty: 27, blancVal: 15.2, blancTot: 410.4, escalopeQty: 40, escalopeVal: 15.6, escalopeTot: 624.0, cuisseCompQty: 0, cuisseCompVal: 0, cuisseCompTot: 0, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-14", date: "2026-07-14", cuisseQty: 38.7, cuisseVal: 12.0, cuisseTot: 464.40, blancQty: 22, blancVal: 15.2, blancTot: 334.4, escalopeQty: 40, escalopeVal: 15.6, escalopeTot: 624.0, cuisseCompQty: 1.5, cuisseCompVal: 9.4, cuisseCompTot: 14.1, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-15", date: "2026-07-15", cuisseQty: 42.3, cuisseVal: 12.0, cuisseTot: 507.60, blancQty: 27, blancVal: 15.3, blancTot: 413.1, escalopeQty: 37, escalopeVal: 15.7, escalopeTot: 580.9, cuisseCompQty: 2, cuisseCompVal: 9.5, cuisseCompTot: 19.0, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-16", date: "2026-07-16", cuisseQty: 40.1, cuisseVal: 12.0, cuisseTot: 481.20, blancQty: 27, blancVal: 15.2, blancTot: 410.4, escalopeQty: 40, escalopeVal: 15.7, escalopeTot: 628.0, cuisseCompQty: 0, cuisseCompVal: 0, cuisseCompTot: 0, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-17", date: "2026-07-17", cuisseQty: 45.2, cuisseVal: 12.0, cuisseTot: 542.40, blancQty: 22, blancVal: 15.2, blancTot: 334.4, escalopeQty: 35, escalopeVal: 15.7, escalopeTot: 549.5, cuisseCompQty: 1.3, cuisseCompVal: 9.4, cuisseCompTot: 12.22, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-18", date: "2026-07-18", cuisseQty: 47.2, cuisseVal: 12.0, cuisseTot: 566.40, blancQty: 23, blancVal: 15.2, blancTot: 349.6, escalopeQty: 42, escalopeVal: 15.7, escalopeTot: 659.4, cuisseCompQty: 0, cuisseCompVal: 0, cuisseCompTot: 0, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-19", date: "2026-07-19", cuisseQty: 49.6, cuisseVal: 12.0, cuisseTot: 595.20, blancQty: 22, blancVal: 15.2, blancTot: 334.4, escalopeQty: 50, escalopeVal: 15.7, escalopeTot: 785.0, cuisseCompQty: 2.6, cuisseCompVal: 9.5, cuisseCompTot: 24.7, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-20", date: "2026-07-20", cuisseQty: 44.3, cuisseVal: 12.0, cuisseTot: 531.60, blancQty: 22, blancVal: 15.5, blancTot: 341.0, escalopeQty: 40, escalopeVal: 15.7, escalopeTot: 628.0, cuisseCompQty: 1.4, cuisseCompVal: 9.5, cuisseCompTot: 13.3, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-21", date: "2026-07-21", cuisseQty: 50.5, cuisseVal: 12.2, cuisseTot: 616.10, blancQty: 22, blancVal: 15.5, blancTot: 341.0, escalopeQty: 35, escalopeVal: 15.9, escalopeTot: 556.5, cuisseCompQty: 0, cuisseCompVal: 0, cuisseCompTot: 0, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-22", date: "2026-07-22", cuisseQty: 43.0, cuisseVal: 12.4, cuisseTot: 533.20, blancQty: 22, blancVal: 15.7, blancTot: 345.4, escalopeQty: 33, escalopeVal: 16.0, escalopeTot: 528.0, cuisseCompQty: 0, cuisseCompVal: 0, cuisseCompTot: 0, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-23", date: "2026-07-23", cuisseQty: 48.4, cuisseVal: 12.4, cuisseTot: 600.16, blancQty: 22, blancVal: 16.5, blancTot: 363.0, escalopeQty: 33, escalopeVal: 16.8, escalopeTot: 554.4, cuisseCompQty: 0.6, cuisseCompVal: 10.0, cuisseCompTot: 6.0, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-24", date: "2026-07-24", cuisseQty: 47.3, cuisseVal: 12.8, cuisseTot: 605.44, blancQty: 22, blancVal: 16.7, blancTot: 367.4, escalopeQty: 400, escalopeVal: 17.0, escalopeTot: 6800.0, cuisseCompQty: 1.4, cuisseCompVal: 10.0, cuisseCompTot: 14.0, oeufQty: 10, oeufVal: 6.5, oeufTot: 65.0 },
+      { id: "pv-25", date: "2026-07-25", cuisseQty: 55.8, cuisseVal: 13.4, cuisseTot: 747.72, blancQty: 21, blancVal: 17.0, blancTot: 357.0, escalopeQty: 35, escalopeVal: 17.4, escalopeTot: 609.0, cuisseCompQty: 0.5, cuisseCompVal: 11.0, cuisseCompTot: 5.5, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-26", date: "2026-07-26", cuisseQty: 51.0, cuisseVal: 13.8, cuisseTot: 703.80, blancQty: 31, blancVal: 17.5, blancTot: 542.5, escalopeQty: 43, escalopeVal: 17.8, escalopeTot: 765.4, cuisseCompQty: 7, cuisseCompVal: 10.5, cuisseCompTot: 73.5, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-27", date: "2026-07-27", cuisseQty: 49.5, cuisseVal: 13.8, cuisseTot: 683.10, blancQty: 21, blancVal: 17.5, blancTot: 367.5, escalopeQty: 37, escalopeVal: 17.8, escalopeTot: 658.6, cuisseCompQty: 0.5, cuisseCompVal: 10.5, cuisseCompTot: 5.25, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-28", date: "2026-07-28", cuisseQty: 56.2, cuisseVal: 13.8, cuisseTot: 775.56, blancQty: 22, blancVal: 17.5, blancTot: 385.0, escalopeQty: 50, escalopeVal: 17.8, escalopeTot: 890.0, cuisseCompQty: 1.3, cuisseCompVal: 10.8, cuisseCompTot: 14.04, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-29", date: "2026-07-29", cuisseQty: 47.0, cuisseVal: 13.8, cuisseTot: 648.60, blancQty: 22, blancVal: 17.5, blancTot: 385.0, escalopeQty: 41, escalopeVal: 17.8, escalopeTot: 729.8, cuisseCompQty: 1.2, cuisseCompVal: 10.5, cuisseCompTot: 12.6, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-30", date: "2026-07-30", cuisseQty: 51.2, cuisseVal: 13.87, cuisseTot: 710.14, blancQty: 22, blancVal: 17.6, blancTot: 387.2, escalopeQty: 35, escalopeVal: 17.8, escalopeTot: 623.0, cuisseCompQty: 0.8, cuisseCompVal: 10.5, cuisseCompTot: 8.4, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
+      { id: "pv-31", date: "2026-07-31", cuisseQty: 58.5, cuisseVal: 14.0, cuisseTot: 819.00, blancQty: 28, blancVal: 17.6, blancTot: 492.8, escalopeQty: 43, escalopeVal: 17.8, escalopeTot: 765.4, cuisseCompQty: 1.3, cuisseCompVal: 10.8, cuisseCompTot: 14.04, oeufQty: 0, oeufVal: 0, oeufTot: 0 }
+    ]
+  }
 };
 
 if (typeof module !== 'undefined' && module.exports) {

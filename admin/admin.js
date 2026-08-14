@@ -538,6 +538,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  const resetDataBtn = document.getElementById('btn-reset-demo-data');
+  if (resetDataBtn) {
+    resetDataBtn.addEventListener('click', async () => {
+      if (confirm("⚠️ ATTENTION : Êtes-vous sûr de vouloir supprimer TOUTES les données actuelles et ré-ensemencer la base de données avec des données démo propres ?")) {
+        showToast("⏳ Réinitialisation et ré-ensemencement en cours...", "warning");
+        const res = await BabkeDB.resetDatabase();
+        if (res.success) {
+          showToast("⚡ Base de données réinitialisée et ré-ensemencée avec succès !");
+          if (typeof renderCurrentPanel === 'function') renderCurrentPanel();
+        } else {
+          showToast("❌ " + (res.error || "Erreur lors de la réinitialisation"), "error");
+        }
+      }
+    });
+  }
+
   // User Profile Dropdown Menu Toggle Handler
   const profileTrigger = document.getElementById('user-profile-trigger');
   const profileDropdown = document.getElementById('user-profile-dropdown');
@@ -1444,7 +1460,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // E. COMPTABILITÉ & EXPORT EXCEL PANEL (Comptable & Admin)
+  // ── Accounting Module State ──
+  let currentAcctViewMode = 'comptable'; // 'comptable' | 'proprietaire' | 'pnl'
+  let currentAcctSubTab = 'poulet_viandes'; // 'poulet_viandes' | 'frits' | 'nettoyage' | 'sahloul_jfs'
+
+  // E. COMPTABILITÉ DIGITALISÉE, EXPORT EXCEL & ANALYTIQUE PROPRIÉTAIRE
   function renderComptabilitePanel() {
     const contentArea = document.getElementById('admin-body-content');
     if (!contentArea || typeof BabkeDB === 'undefined') return;
@@ -1454,187 +1474,912 @@ document.addEventListener('DOMContentLoaded', async () => {
     const stockMovements = BabkeDB.getStockMovements();
     const leftovers = BabkeDB.getLeftovers();
     const ruined = BabkeDB.getRuinedProducts();
+    const sheets = BabkeDB.getAccountingSheets() || {};
+
+    const pvData = sheets.poulet_viandes || [];
+    const fritsData = sheets.frits || [];
+    const netData = sheets.nettoyage || [];
+    const sjfsData = sheets.sahloul_jfs || [];
 
     // Financial Calculations for P&L
     const grossRevenue = orders.reduce((sum, o) => sum + (o.subtotal || 0), 0);
+    
+    // Total cost from digitalized sheets
+    const totalPvCost = pvData.reduce((s, r) => s + (r.cuisseTot || 0) + (r.blancTot || 0) + (r.escalopeTot || 0) + (r.cuisseCompTot || 0) + (r.oeufTot || 0), 0);
+    const totalFritsCost = fritsData.reduce((s, r) => s + (r.total || (r.quantity * r.unitValue) || 0), 0);
+    const totalNetCost = netData.reduce((s, r) => s + (r.total || (r.quantity * r.unitValue) || 0), 0);
+    const totalSjfsCost = sjfsData.reduce((s, r) => s + (r.total || (r.quantity * r.unitValue) || 0), 0);
+    const totalSheetsCost = totalPvCost + totalFritsCost + totalNetCost + totalSjfsCost;
+
     const cogsStockIn = stockMovements
       .filter(m => m.type === 'IN')
-      .reduce((sum, m) => sum + (m.totalPrice || ((m.quantity || 0) * (m.unitPrice || 0))), 0);
+      .reduce((sum, m) => sum + (m.totalPrice || ((m.quantity || 0) * (m.unitPrice || 0))), 0) + totalSheetsCost;
+
     const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const totalCosts = cogsStockIn + totalExpenses;
     const netProfit = grossRevenue - totalCosts;
     const marginPct = grossRevenue > 0 ? ((netProfit / grossRevenue) * 100) : 0;
-
     const isProfitable = netProfit >= 0;
 
-    contentArea.innerHTML = `
-      <div style="margin-bottom: 24px;">
-        <h3 style="font-size: 1.3rem; font-weight: 900; margin-bottom: 6px;">📊 Espace Comptabilité & Rapport Financier P&L</h3>
-        <p style="font-size: 0.88rem; color: var(--text-admin-muted);">Analyse complète des Revenus, Coûts des Marchandises (COGS), Dépenses et Bénéfice Net (P&L).</p>
-      </div>
+    // Destroy existing chart instances before rendering
+    ['chart-acct-price-trends', 'chart-acct-category-breakdown'].forEach(_destroyChart);
 
-      <!-- Profit & Loss (P&L) Financial Report Card -->
-      <div class="admin-card glass-card" style="padding: 24px; margin-bottom: 30px; border-left: 4px solid ${isProfitable ? 'var(--accent-success, #10b981)' : '#ef4444'};">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
+    contentArea.innerHTML = `
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
           <div>
-            <h4 style="font-size: 1.2rem; font-weight: 900; margin-bottom: 4px;">📈 Compte de Résultat Financier (Profit & Loss)</h4>
-            <span style="font-size: 0.82rem; color: var(--text-admin-muted);">Période cumulée des ventes et dépenses enregistrées</span>
+            <h3 style="font-size: 1.35rem; font-weight: 900; color: var(--text-admin-primary); margin-bottom: 4px;">📊 Espace Comptabilité & Grand Livre Digitalisé</h3>
+            <p style="font-size: 0.85rem; color: var(--text-admin-muted);">Saisie directe des feuilles d'achats (Poulet, Frits, Nettoyage, Sahloul JFS) avec calculs automatiques, revue analytique Propriétaire et export Excel.</p>
           </div>
-          <button class="btn-excel-export" id="btn-export-pnl" style="padding: 10px 18px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Exporter Rapport P&L (.csv)</span>
+          
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn-excel-export" id="btn-export-master-workbook" style="padding: 10px 16px; background: #059669; border-color: #059669;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+              <span>Exporter Grand Livre Excel (.csv)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Primary View Mode Selector Tabs -->
+        <div class="acct-mode-nav-tabs" style="display: flex; gap: 10px; border-bottom: 1px solid var(--border-admin); padding-bottom: 12px; margin-bottom: 20px;">
+          <button type="button" class="acct-mode-btn ${currentAcctViewMode === 'comptable' ? 'active' : ''}" data-acct-mode="comptable" style="padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; border: 1px solid var(--border-admin); background: ${currentAcctViewMode === 'comptable' ? 'var(--accent-admin)' : 'transparent'}; color: ${currentAcctViewMode === 'comptable' ? '#fff' : 'var(--text-admin-secondary)'}; transition: all 0.2s ease;">
+            📝 Mode Comptable (Saisie Excel Directe)
+          </button>
+          <button type="button" class="acct-mode-btn ${currentAcctViewMode === 'proprietaire' ? 'active' : ''}" data-acct-mode="proprietaire" style="padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; border: 1px solid var(--border-admin); background: ${currentAcctViewMode === 'proprietaire' ? 'var(--accent-admin)' : 'transparent'}; color: ${currentAcctViewMode === 'proprietaire' ? '#fff' : 'var(--text-admin-secondary)'}; transition: all 0.2s ease;">
+            👑 Mode Propriétaire (Revue & Analytique)
+          </button>
+          <button type="button" class="acct-mode-btn ${currentAcctViewMode === 'pnl' ? 'active' : ''}" data-acct-mode="pnl" style="padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; border: 1px solid var(--border-admin); background: ${currentAcctViewMode === 'pnl' ? 'var(--accent-admin)' : 'transparent'}; color: ${currentAcctViewMode === 'pnl' ? '#fff' : 'var(--text-admin-secondary)'}; transition: all 0.2s ease;">
+            📈 Rapport P&L & Exports Définitifs
           </button>
         </div>
+      </div>
 
-        <!-- P&L Stats Overview Grid -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-          <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-admin); padding: 16px; border-radius: 10px;">
-            <span style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-admin-muted); font-weight: 700;">Chiffre d'Affaires Brut</span>
-            <h3 style="font-size: 1.4rem; font-weight: 900; color: #3b82f6; margin-top: 6px;">+${grossRevenue.toFixed(2)} TND</h3>
-            <span style="font-size: 0.75rem; color: var(--text-admin-muted);">${orders.length} commandes livrées</span>
+      <!-- VIEW MODE A: SAISIE DIRECTE COMPTABLE (EXCEL SPREADSHEETS) -->
+      ${currentAcctViewMode === 'comptable' ? `
+        <div class="acct-workspace-card glass-card admin-card" style="padding: 22px; margin-bottom: 24px;">
+          <!-- Sub-Tabs Bar for Excel Sheets -->
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border-admin);">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="acct-subtab-btn ${currentAcctSubTab === 'poulet_viandes' ? 'active' : ''}" data-subtab="poulet_viandes" style="padding: 7px 14px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid ${currentAcctSubTab === 'poulet_viandes' ? 'var(--accent-admin)' : 'var(--border-admin)'}; background: ${currentAcctSubTab === 'poulet_viandes' ? 'rgba(255,90,31,0.15)' : 'transparent'}; color: ${currentAcctSubTab === 'poulet_viandes' ? 'var(--accent-admin)' : 'var(--text-admin-muted)'};">
+                🍗 Poulet & Viandes (${pvData.length} jours)
+              </button>
+              <button type="button" class="acct-subtab-btn ${currentAcctSubTab === 'frits' ? 'active' : ''}" data-subtab="frits" style="padding: 7px 14px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid ${currentAcctSubTab === 'frits' ? 'var(--accent-admin)' : 'var(--border-admin)'}; background: ${currentAcctSubTab === 'frits' ? 'rgba(255,90,31,0.15)' : 'transparent'}; color: ${currentAcctSubTab === 'frits' ? 'var(--accent-admin)' : 'var(--text-admin-muted)'};">
+                🍟 Frits (${fritsData.length} enregistrements)
+              </button>
+              <button type="button" class="acct-subtab-btn ${currentAcctSubTab === 'nettoyage' ? 'active' : ''}" data-subtab="nettoyage" style="padding: 7px 14px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid ${currentAcctSubTab === 'nettoyage' ? 'var(--accent-admin)' : 'var(--border-admin)'}; background: ${currentAcctSubTab === 'nettoyage' ? 'rgba(255,90,31,0.15)' : 'transparent'}; color: ${currentAcctSubTab === 'nettoyage' ? 'var(--accent-admin)' : 'var(--text-admin-muted)'};">
+                🧹 Produits Nettoyage (${netData.length} articles)
+              </button>
+              <button type="button" class="acct-subtab-btn ${currentAcctSubTab === 'sahloul_jfs' ? 'active' : ''}" data-subtab="sahloul_jfs" style="padding: 7px 14px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid ${currentAcctSubTab === 'sahloul_jfs' ? 'var(--accent-admin)' : 'var(--border-admin)'}; background: ${currentAcctSubTab === 'sahloul_jfs' ? 'rgba(255,90,31,0.15)' : 'transparent'}; color: ${currentAcctSubTab === 'sahloul_jfs' ? 'var(--accent-admin)' : 'var(--text-admin-muted)'};">
+                📦 SAHLOUL JFS (${sjfsData.length} articles)
+              </button>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+              <button type="button" class="btn-admin-primary" id="btn-add-acct-entry" style="padding: 8px 16px; font-size: 0.83rem;">
+                + Saisir Nouvelle Ligne
+              </button>
+              <button type="button" class="btn-excel-export" id="btn-export-active-sheet" style="padding: 8px 14px; font-size: 0.8rem;">
+                📥 Exporter Feuille (.csv)
+              </button>
+            </div>
           </div>
 
-          <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-admin); padding: 16px; border-radius: 10px;">
-            <span style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-admin-muted); font-weight: 700;">Coût des Achats (COGS)</span>
-            <h3 style="font-size: 1.4rem; font-weight: 900; color: #f59e0b; margin-top: 6px;">-${cogsStockIn.toFixed(2)} TND</h3>
-            <span style="font-size: 0.75rem; color: var(--text-admin-muted);">Achats stock fournisseur</span>
-          </div>
-
-          <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-admin); padding: 16px; border-radius: 10px;">
-            <span style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-admin-muted); font-weight: 700;">Dépenses de Caisse</span>
-            <h3 style="font-size: 1.4rem; font-weight: 900; color: #ef4444; margin-top: 6px;">-${totalExpenses.toFixed(2)} TND</h3>
-            <span style="font-size: 0.75rem; color: var(--text-admin-muted);">${expenses.length} dépenses saisies</span>
-          </div>
-
-          <div style="background: ${isProfitable ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}; border: 1px solid ${isProfitable ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}; padding: 16px; border-radius: 10px;">
-            <span style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: ${isProfitable ? '#10b981' : '#ef4444'}; font-weight: 800;">Bénéfice Net (Résultat)</span>
-            <h3 style="font-size: 1.4rem; font-weight: 900; color: ${isProfitable ? '#10b981' : '#ef4444'}; margin-top: 6px;">${netProfit >= 0 ? '+' : ''}${netProfit.toFixed(2)} TND</h3>
-            <span style="font-size: 0.75rem; font-weight: 700; color: ${isProfitable ? '#10b981' : '#ef4444'};">Marge Nette : ${marginPct.toFixed(1)}%</span>
+          <!-- Dynamic Spreadsheet Table Container -->
+          <div id="acct-sheet-table-container">
+            ${renderAcctSubTabTableContent(currentAcctSubTab, sheets)}
           </div>
         </div>
+      ` : ''}
 
-        <!-- P&L Table Breakdown -->
+      <!-- VIEW MODE B: MODE PROPRIÉTAIRE (REVUE & ANALYTIQUE) -->
+      ${currentAcctViewMode === 'proprietaire' ? `
+        <div style="margin-bottom: 24px;">
+          <!-- Owner Review Status Banner -->
+          <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 18px 22px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 24px;">
+            <div>
+              <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #10b981; letter-spacing: 0.05em;">● Statut Validation Propriétaire</span>
+              <h4 style="font-size: 1.15rem; font-weight: 900; color: var(--text-admin-primary); margin-top: 2px;">Saisies Comptables Enregistrées & Vérifiées 🟢</h4>
+              <p style="font-size: 0.8rem; color: var(--text-admin-muted); margin-top: 2px;">Feuilles d'achats soumises par le Comptable. Analyse automatique des coûts moyens pondérés et variations des prix fournisseurs.</p>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 0.75rem; color: var(--text-admin-muted); display: block;">Total Achats Ingrédients Cumulés</span>
+              <strong style="font-size: 1.4rem; font-weight: 900; color: #3b82f6;">${totalSheetsCost.toFixed(2)} TND</strong>
+            </div>
+          </div>
+
+          <!-- Key Metrics: Weighted Average Unit Cost (Moyennes Pondérées) -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            ${calculateWeightedAverageCardsHtml(pvData)}
+          </div>
+
+          <!-- Charts Section: Price Fluctuation Trend & Expense Distribution -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 24px;">
+            <div class="admin-card glass-card" style="padding: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div>
+                  <h4 style="font-size: 1.05rem; font-weight: 800;">📈 Évolution des Prix Unitaires par kg (TND)</h4>
+                  <span style="font-size: 0.76rem; color: var(--text-admin-muted);">Fluctuations quotidiennes du prix du kg (Cuisse, Blanc, Escalope)</span>
+                </div>
+              </div>
+              <div style="position: relative; height: 280px; width: 100%;">
+                <canvas id="chart-acct-price-trends"></canvas>
+              </div>
+            </div>
+
+            <div class="admin-card glass-card" style="padding: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div>
+                  <h4 style="font-size: 1.05rem; font-weight: 800;">🍩 Répartition des Dépenses par Catégorie</h4>
+                  <span style="font-size: 0.76rem; color: var(--text-admin-muted);">Proportion des coûts (Poulet/Viandes vs Frits vs Nettoyage vs Supplies)</span>
+                </div>
+              </div>
+              <div style="position: relative; height: 280px; width: 100%; display: flex; justify-content: center; align-items: center;">
+                <canvas id="chart-acct-category-breakdown"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- VIEW MODE C: RAPPORT P&L & EXPORTS DE FIN D'EXERCICE -->
+      ${currentAcctViewMode === 'pnl' ? `
+        <!-- Profit & Loss (P&L) Financial Report Card -->
+        <div class="admin-card glass-card" style="padding: 24px; margin-bottom: 30px; border-left: 4px solid ${isProfitable ? 'var(--accent-success, #10b981)' : '#ef4444'};">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
+            <div>
+              <h4 style="font-size: 1.2rem; font-weight: 900; margin-bottom: 4px;">📈 Compte de Résultat Financier (Profit & Loss)</h4>
+              <span style="font-size: 0.82rem; color: var(--text-admin-muted);">Période cumulée des ventes et dépenses enregistrées</span>
+            </div>
+            <button class="btn-excel-export" id="btn-export-pnl" style="padding: 10px 18px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Exporter Rapport P&L (.csv)</span>
+            </button>
+          </div>
+
+          <!-- P&L Stats Overview Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-admin); padding: 16px; border-radius: 10px;">
+              <span style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-admin-muted); font-weight: 700;">Chiffre d'Affaires Brut</span>
+              <h3 style="font-size: 1.4rem; font-weight: 900; color: #3b82f6; margin-top: 6px;">+${grossRevenue.toFixed(2)} TND</h3>
+              <span style="font-size: 0.75rem; color: var(--text-admin-muted);">${orders.length} commandes livrées</span>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-admin); padding: 16px; border-radius: 10px;">
+              <span style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-admin-muted); font-weight: 700;">Coût des Achats (COGS)</span>
+              <h3 style="font-size: 1.4rem; font-weight: 900; color: #f59e0b; margin-top: 6px;">-${cogsStockIn.toFixed(2)} TND</h3>
+              <span style="font-size: 0.75rem; color: var(--text-admin-muted);">Achats stock & feuilles comptables</span>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-admin); padding: 16px; border-radius: 10px;">
+              <span style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-admin-muted); font-weight: 700;">Dépenses de Caisse</span>
+              <h3 style="font-size: 1.4rem; font-weight: 900; color: #ef4444; margin-top: 6px;">-${totalExpenses.toFixed(2)} TND</h3>
+              <span style="font-size: 0.75rem; color: var(--text-admin-muted);">${expenses.length} dépenses saisies</span>
+            </div>
+
+            <div style="background: ${isProfitable ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}; border: 1px solid ${isProfitable ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}; padding: 16px; border-radius: 10px;">
+              <span style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: ${isProfitable ? '#10b981' : '#ef4444'}; font-weight: 800;">Bénéfice Net (Résultat)</span>
+              <h3 style="font-size: 1.4rem; font-weight: 900; color: ${isProfitable ? '#10b981' : '#ef4444'}; margin-top: 6px;">${netProfit >= 0 ? '+' : ''}${netProfit.toFixed(2)} TND</h3>
+              <span style="font-size: 0.75rem; font-weight: 700; color: ${isProfitable ? '#10b981' : '#ef4444'};">Marge Nette : ${marginPct.toFixed(1)}%</span>
+            </div>
+          </div>
+
+          <!-- P&L Table Breakdown -->
+          <div class="table-responsive-wrapper">
+            <table class="admin-table" style="margin: 0;">
+              <thead>
+                <tr>
+                  <th>Ligne du Compte de Résultat (P&L)</th>
+                  <th>Valeur Cumulée</th>
+                  <th>% du Chiffre d'Affaires</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="font-weight: 700;">1. Chiffre d'Affaires (Ventes Commandes)</td>
+                  <td style="font-weight: 800; color: #3b82f6;">+${grossRevenue.toFixed(2)} TND</td>
+                  <td style="font-weight: 600;">100.0%</td>
+                  <td><span class="badge-status delivered">ENTRÉE REVENUS</span></td>
+                </tr>
+                <tr>
+                  <td style="font-weight: 700;">2. Achats de Stock & Feuille Comptables (COGS)</td>
+                  <td style="font-weight: 800; color: #f59e0b;">-${cogsStockIn.toFixed(2)} TND</td>
+                  <td style="font-weight: 600;">${grossRevenue > 0 ? ((cogsStockIn / grossRevenue) * 100).toFixed(1) : '0.0'}%</td>
+                  <td><span class="badge-status preparing">COÛT DIRECT</span></td>
+                </tr>
+                <tr>
+                  <td style="font-weight: 700;">3. Dépenses de Caisse Opérationnelles</td>
+                  <td style="font-weight: 800; color: #ef4444;">-${totalExpenses.toFixed(2)} TND</td>
+                  <td style="font-weight: 600;">${grossRevenue > 0 ? ((totalExpenses / grossRevenue) * 100).toFixed(1) : '0.0'}%</td>
+                  <td><span class="badge-status cancelled">CHARGES OPEX</span></td>
+                </tr>
+                <tr style="background: rgba(255, 255, 255, 0.04); font-weight: 900;">
+                  <td style="font-weight: 900; font-size: 0.95rem;">BÉNÉFICE NET DE L'EXERCICE</td>
+                  <td style="font-size: 1.05rem; color: ${isProfitable ? '#10b981' : '#ef4444'};">${netProfit >= 0 ? '+' : ''}${netProfit.toFixed(2)} TND</td>
+                  <td style="font-size: 1.05rem; color: ${isProfitable ? '#10b981' : '#ef4444'};">${marginPct.toFixed(1)}%</td>
+                  <td><span class="badge-status ${isProfitable ? 'delivered' : 'cancelled'}">${isProfitable ? 'BÉNÉFICIAIRE 🟢' : 'DÉFICITAIRE 🔴'}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : ''}
+    `;
+
+    // ── Wire Mode Switcher Buttons ──
+    contentArea.querySelectorAll('.acct-mode-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        currentAcctViewMode = e.currentTarget.dataset.acctMode;
+        renderComptabilitePanel();
+      });
+    });
+
+    // ── Wire SubTab Buttons ──
+    contentArea.querySelectorAll('.acct-subtab-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        currentAcctSubTab = e.currentTarget.dataset.subtab;
+        renderComptabilitePanel();
+      });
+    });
+
+    // ── Master Excel Export Handler ──
+    document.getElementById('btn-export-master-workbook')?.addEventListener('click', () => {
+      exportMasterAccountingWorkbookCsv(sheets);
+    });
+
+    // ── Active Sheet Export Handler ──
+    document.getElementById('btn-export-active-sheet')?.addEventListener('click', () => {
+      exportActiveSheetCsv(currentAcctSubTab, sheets);
+    });
+
+    // ── Add Entry Button Handler ──
+    document.getElementById('btn-add-acct-entry')?.addEventListener('click', () => {
+      openAcctModal(currentAcctSubTab);
+    });
+
+    // ── Row Action Edit/Delete Listeners ──
+    contentArea.querySelectorAll('.btn-edit-acct-row').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        const sheetType = e.currentTarget.dataset.sheetType;
+        const items = sheets[sheetType] || [];
+        const item = items.find(x => x.id === id);
+        if (item) openAcctModal(sheetType, item);
+      });
+    });
+
+    contentArea.querySelectorAll('.btn-delete-acct-row').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget.dataset.id;
+        const sheetType = e.currentTarget.dataset.sheetType;
+        if (confirm("Voulez-vous vraiment supprimer cette ligne de saisie comptable ?")) {
+          await BabkeDB.deleteAccountingSheetItem(id, sheetType);
+          showToast("Ligne comptable supprimée avec succès", "warning");
+          renderComptabilitePanel();
+        }
+      });
+    });
+
+    // ── Render Charts for Mode Propriétaire ──
+    if (currentAcctViewMode === 'proprietaire') {
+      renderOwnerAnalyticsCharts(pvData, totalPvCost, totalFritsCost, totalNetCost, totalSjfsCost);
+    }
+
+    // ── P&L Export Button Handler ──
+    if (currentAcctViewMode === 'pnl') {
+      document.getElementById('btn-export-pnl')?.addEventListener('click', () => {
+        const headers = ["Poste PnL", "Montant (TND)", "Pourcentage CA (%)"];
+        const rows = [
+          ["Chiffre d'Affaires Brut (Ventes)", grossRevenue.toFixed(2), "100.0%"],
+          ["Coût des Achats Stock (COGS)", cogsStockIn.toFixed(2), grossRevenue > 0 ? ((cogsStockIn / grossRevenue) * 100).toFixed(1) + "%" : "0.0%"],
+          ["Dépenses de Caisse Opérationnelles", totalExpenses.toFixed(2), grossRevenue > 0 ? ((totalExpenses / grossRevenue) * 100).toFixed(1) + "%" : "0.0%"],
+          ["Bénéfice Net Résultat", netProfit.toFixed(2), marginPct.toFixed(1) + "%"]
+        ];
+        exportToCsv(`Babke_Rapport_Financier_PNL_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
+        showToast("📊 Rapport Financier P&L exporté avec succès !");
+      });
+    }
+  }
+
+  // ── Helper Table Content Renderer ──
+  function renderAcctSubTabTableContent(subTab, sheets) {
+    if (subTab === 'poulet_viandes') {
+      const rows = sheets.poulet_viandes || [];
+      let totCuisseQty = 0, totCuisseTot = 0;
+      let totBlancQty = 0, totBlancTot = 0;
+      let totEscQty = 0, totEscTot = 0;
+      let totCuisseCompQty = 0, totCuisseCompTot = 0;
+      let totOeufQty = 0, totOeufTot = 0;
+
+      rows.forEach(r => {
+        totCuisseQty += (r.cuisseQty || 0); totCuisseTot += (r.cuisseTot || 0);
+        totBlancQty += (r.blancQty || 0); totBlancTot += (r.blancTot || 0);
+        totEscQty += (r.escalopeQty || 0); totEscTot += (r.escalopeTot || 0);
+        totCuisseCompQty += (r.cuisseCompQty || 0); totCuisseCompTot += (r.cuisseCompTot || 0);
+        totOeufQty += (r.oeufQty || 0); totOeufTot += (r.oeufTot || 0);
+      });
+
+      const avgCuisse = totCuisseQty > 0 ? (totCuisseTot / totCuisseQty) : 0;
+      const avgBlanc = totBlancQty > 0 ? (totBlancTot / totBlancQty) : 0;
+      const avgEsc = totEscQty > 0 ? (totEscTot / totEscQty) : 0;
+      const avgCuisseComp = totCuisseCompQty > 0 ? (totCuisseCompTot / totCuisseCompQty) : 0;
+
+      return `
         <div class="table-responsive-wrapper">
-          <table class="admin-table" style="margin: 0;">
+          <table class="admin-table" style="font-size: 0.81rem;">
             <thead>
-              <tr>
-                <th>Ligne du Compte de Résultat (P&L)</th>
-                <th>Valeur Cumulée</th>
-                <th>% du Chiffre d'Affaires</th>
-                <th>Statut</th>
+              <tr style="text-align: center;">
+                <th rowspan="2" style="vertical-align: middle;">Date</th>
+                <th colspan="3" style="background: rgba(255, 90, 31, 0.08); color: var(--accent-admin);">CUISSE</th>
+                <th colspan="3" style="background: rgba(59, 130, 246, 0.08); color: #3b82f6;">BLANC</th>
+                <th colspan="3" style="background: rgba(16, 185, 129, 0.08); color: #10b981;">ESCALOPE</th>
+                <th colspan="3" style="background: rgba(245, 158, 11, 0.08); color: #f59e0b;">CUISSE COMPLET</th>
+                <th colspan="2" style="background: rgba(168, 85, 247, 0.08); color: #a855f7;">ŒUF</th>
+                <th rowspan="2" style="vertical-align: middle;">Actions</th>
+              </tr>
+              <tr style="font-size: 0.75rem;">
+                <th>Qty</th><th>Prix</th><th>Total</th>
+                <th>Qty</th><th>Prix</th><th>Total</th>
+                <th>Qty</th><th>Prix</th><th>Total</th>
+                <th>Qty</th><th>Prix</th><th>Total</th>
+                <th>Qty</th><th>Prix</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td style="font-weight: 700;">1. Chiffre d'Affaires (Ventes Commandes)</td>
-                <td style="font-weight: 800; color: #3b82f6;">+${grossRevenue.toFixed(2)} TND</td>
-                <td style="font-weight: 600;">100.0%</td>
-                <td><span class="badge-status delivered">ENTRÉE REVENUS</span></td>
+              ${rows.length === 0 ? '<tr><td colspan="16" style="text-align:center; padding: 20px;">Aucune donnée enregistrée</td></tr>' : 
+                rows.map(r => `
+                  <tr>
+                    <td style="font-weight: 700;">${r.date || ''}</td>
+                    <td>${r.cuisseQty || 0}</td><td>${r.cuisseVal || 0}</td><td style="font-weight:700;">${(r.cuisseTot || 0).toFixed(2)}</td>
+                    <td>${r.blancQty || 0}</td><td>${r.blancVal || 0}</td><td style="font-weight:700;">${(r.blancTot || 0).toFixed(2)}</td>
+                    <td>${r.escalopeQty || 0}</td><td>${r.escalopeVal || 0}</td><td style="font-weight:700;">${(r.escalopeTot || 0).toFixed(2)}</td>
+                    <td>${r.cuisseCompQty || 0}</td><td>${r.cuisseCompVal || 0}</td><td style="font-weight:700;">${(r.cuisseCompTot || 0).toFixed(2)}</td>
+                    <td>${r.oeufQty || 0}</td><td>${r.oeufVal || 0}</td>
+                    <td>
+                      <div style="display:flex; gap:6px;">
+                        <button class="btn-action-icon btn-edit-acct-row" data-id="${r.id}" data-sheet-type="poulet_viandes" title="Modifier">✏️</button>
+                        <button class="btn-action-icon btn-delete-acct-row" data-id="${r.id}" data-sheet-type="poulet_viandes" title="Supprimer">🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')
+              }
+              <tr style="background: rgba(255,255,255,0.06); font-weight: 800; border-top: 2px solid var(--border-admin);">
+                <td style="font-weight:900;">TOTAL CUMULÉ</td>
+                <td>${totCuisseQty.toFixed(1)}</td><td>--</td><td style="color:var(--accent-admin);">${totCuisseTot.toFixed(2)}</td>
+                <td>${totBlancQty.toFixed(1)}</td><td>--</td><td style="color:#3b82f6;">${totBlancTot.toFixed(2)}</td>
+                <td>${totEscQty.toFixed(1)}</td><td>--</td><td style="color:#10b981;">${totEscTot.toFixed(2)}</td>
+                <td>${totCuisseCompQty.toFixed(1)}</td><td>--</td><td style="color:#f59e0b;">${totCuisseCompTot.toFixed(2)}</td>
+                <td>${totOeufQty.toFixed(1)}</td><td>--</td>
+                <td>--</td>
               </tr>
-              <tr>
-                <td style="font-weight: 700;">2. Achats de Stock & Ingrédients (COGS)</td>
-                <td style="font-weight: 800; color: #f59e0b;">-${cogsStockIn.toFixed(2)} TND</td>
-                <td style="font-weight: 600;">${grossRevenue > 0 ? ((cogsStockIn / grossRevenue) * 100).toFixed(1) : '0.0'}%</td>
-                <td><span class="badge-status preparing">COÛT DIRECT</span></td>
-              </tr>
-              <tr>
-                <td style="font-weight: 700;">3. Dépenses de Caisse Opérationnelles</td>
-                <td style="font-weight: 800; color: #ef4444;">-${totalExpenses.toFixed(2)} TND</td>
-                <td style="font-weight: 600;">${grossRevenue > 0 ? ((totalExpenses / grossRevenue) * 100).toFixed(1) : '0.0'}%</td>
-                <td><span class="badge-status cancelled">CHARGES OPEX</span></td>
-              </tr>
-              <tr style="background: rgba(255, 255, 255, 0.04); font-weight: 900;">
-                <td style="font-weight: 900; font-size: 0.95rem;">BÉNÉFICE NET DE L'EXERCICE</td>
-                <td style="font-size: 1.05rem; color: ${isProfitable ? '#10b981' : '#ef4444'};">${netProfit >= 0 ? '+' : ''}${netProfit.toFixed(2)} TND</td>
-                <td style="font-size: 1.05rem; color: ${isProfitable ? '#10b981' : '#ef4444'};">${marginPct.toFixed(1)}%</td>
-                <td><span class="badge-status ${isProfitable ? 'delivered' : 'cancelled'}">${isProfitable ? 'BÉNÉFICIAIRE 🟢' : 'DÉFICITAIRE 🔴'}</span></td>
+              <tr style="background: rgba(59, 130, 246, 0.08); font-weight: 900; color: #3b82f6;">
+                <td style="font-weight:900;">MOYENNE PONDÉRÉE</td>
+                <td colspan="3" style="text-align:center;">${avgCuisse.toFixed(2)} TND / kg</td>
+                <td colspan="3" style="text-align:center;">${avgBlanc.toFixed(2)} TND / kg</td>
+                <td colspan="3" style="text-align:center;">${avgEsc.toFixed(2)} TND / kg</td>
+                <td colspan="3" style="text-align:center;">${avgCuisseComp.toFixed(2)} TND / kg</td>
+                <td colspan="2" style="text-align:center;">--</td>
+                <td>--</td>
               </tr>
             </tbody>
           </table>
         </div>
+      `;
+    }
+
+    if (subTab === 'frits') {
+      const rows = sheets.frits || [];
+      let totQty = 0, totCost = 0;
+      rows.forEach(r => { totQty += (r.quantity || 0); totCost += (r.total || (r.quantity * r.unitValue) || 0); });
+      const avgPrice = totQty > 0 ? (totCost / totQty) : 0;
+
+      return `
+        <div class="table-responsive-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Quantité (kg / sacs)</th>
+                <th>Valeur Unitaire (TND)</th>
+                <th>Total Dépensé (TND)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding: 20px;">Aucune donnée enregistrée</td></tr>' :
+                rows.map(r => `
+                  <tr>
+                    <td style="font-weight: 700;">${r.date || ''}</td>
+                    <td>${r.quantity || 0}</td>
+                    <td>${r.unitValue || 0} TND</td>
+                    <td style="font-weight: 800; color: var(--accent-admin);">${(r.total || (r.quantity * r.unitValue) || 0).toFixed(2)} TND</td>
+                    <td>
+                      <div style="display:flex; gap:6px;">
+                        <button class="btn-action-icon btn-edit-acct-row" data-id="${r.id}" data-sheet-type="frits" title="Modifier">✏️</button>
+                        <button class="btn-action-icon btn-delete-acct-row" data-id="${r.id}" data-sheet-type="frits" title="Supprimer">🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')
+              }
+              <tr style="background: rgba(255,255,255,0.06); font-weight: 900;">
+                <td>TOTAL FRITS</td>
+                <td>${totQty.toFixed(1)}</td>
+                <td>Moyenne : ${avgPrice.toFixed(2)} TND</td>
+                <td style="color: var(--accent-admin); font-size: 1.05rem;">${totCost.toFixed(2)} TND</td>
+                <td>--</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    if (subTab === 'nettoyage') {
+      const rows = sheets.nettoyage || [];
+      let totCost = 0;
+      rows.forEach(r => { totCost += (r.total || (r.quantity * r.unitValue) || 0); });
+
+      return `
+        <div class="table-responsive-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Article de Nettoyage</th>
+                <th>Quantité</th>
+                <th>Valeur Unitaire (TND)</th>
+                <th>Total (TND)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="6" style="text-align:center; padding: 20px;">Aucune donnée enregistrée</td></tr>' :
+                rows.map(r => `
+                  <tr>
+                    <td style="font-weight: 700;">${r.date || ''}</td>
+                    <td style="font-weight: 700; text-transform: uppercase;">${r.article || ''}</td>
+                    <td>${r.quantity || 0}</td>
+                    <td>${r.unitValue || 0} TND</td>
+                    <td style="font-weight: 800; color: #3b82f6;">${(r.total || (r.quantity * r.unitValue) || 0).toFixed(2)} TND</td>
+                    <td>
+                      <div style="display:flex; gap:6px;">
+                        <button class="btn-action-icon btn-edit-acct-row" data-id="${r.id}" data-sheet-type="nettoyage" title="Modifier">✏️</button>
+                        <button class="btn-action-icon btn-delete-acct-row" data-id="${r.id}" data-sheet-type="nettoyage" title="Supprimer">🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')
+              }
+              <tr style="background: rgba(255,255,255,0.06); font-weight: 900;">
+                <td colspan="4">TOTAL PRODUITS NETTOYAGE</td>
+                <td style="color: #3b82f6; font-size: 1.05rem;">${totCost.toFixed(2)} TND</td>
+                <td>--</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    if (subTab === 'sahloul_jfs') {
+      const rows = sheets.sahloul_jfs || [];
+      let totCost = 0;
+      rows.forEach(r => { totCost += (r.total || (r.quantity * r.unitValue) || 0); });
+
+      return `
+        <div class="table-responsive-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Article Supply</th>
+                <th>Quantité</th>
+                <th>Valeur Unitaire (TND)</th>
+                <th>Total (TND)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding: 20px;">Aucune donnée enregistrée</td></tr>' :
+                rows.map(r => `
+                  <tr>
+                    <td style="font-weight: 800; text-transform: uppercase; color: var(--accent-admin);">${r.article || ''}</td>
+                    <td>${r.quantity || 0}</td>
+                    <td>${r.unitValue || 0} TND</td>
+                    <td style="font-weight: 800; color: #10b981;">${(r.total || (r.quantity * r.unitValue) || 0).toFixed(2)} TND</td>
+                    <td>
+                      <div style="display:flex; gap:6px;">
+                        <button class="btn-action-icon btn-edit-acct-row" data-id="${r.id}" data-sheet-type="sahloul_jfs" title="Modifier">✏️</button>
+                        <button class="btn-action-icon btn-delete-acct-row" data-id="${r.id}" data-sheet-type="sahloul_jfs" title="Supprimer">🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')
+              }
+              <tr style="background: rgba(255,255,255,0.06); font-weight: 900;">
+                <td colspan="3">TOTAL ARTICLES SAHLOUL JFS</td>
+                <td style="color: #10b981; font-size: 1.05rem;">${totCost.toFixed(2)} TND</td>
+                <td>--</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    return '';
+  }
+
+  // ── Helper HTML generator for Weighted Average Cards in Owner Mode ──
+  function calculateWeightedAverageCardsHtml(pvData) {
+    let totCuisseQty = 0, totCuisseTot = 0;
+    let totBlancQty = 0, totBlancTot = 0;
+    let totEscQty = 0, totEscTot = 0;
+    let totCuisseCompQty = 0, totCuisseCompTot = 0;
+
+    pvData.forEach(r => {
+      totCuisseQty += (r.cuisseQty || 0); totCuisseTot += (r.cuisseTot || 0);
+      totBlancQty += (r.blancQty || 0); totBlancTot += (r.blancTot || 0);
+      totEscQty += (r.escalopeQty || 0); totEscTot += (r.escalopeTot || 0);
+      totCuisseCompQty += (r.cuisseCompQty || 0); totCuisseCompTot += (r.cuisseCompTot || 0);
+    });
+
+    const avgCuisse = totCuisseQty > 0 ? (totCuisseTot / totCuisseQty) : 0;
+    const avgBlanc = totBlancQty > 0 ? (totBlancTot / totBlancQty) : 0;
+    const avgEsc = totEscQty > 0 ? (totEscTot / totEscQty) : 0;
+    const avgCuisseComp = totCuisseCompQty > 0 ? (totCuisseCompTot / totCuisseCompQty) : 0;
+
+    return `
+      <div style="background: rgba(255, 90, 31, 0.08); border: 1px solid rgba(255, 90, 31, 0.25); padding: 16px; border-radius: 12px;">
+        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: var(--accent-admin);">Cuisse (Poulet)</span>
+        <h3 style="font-size: 1.35rem; font-weight: 900; color: var(--text-admin-primary); margin-top: 4px;">${avgCuisse.toFixed(2)} TND / kg</h3>
+        <span style="font-size: 0.74rem; color: var(--text-admin-muted);">Total : ${totCuisseTot.toFixed(1)} TND (${totCuisseQty.toFixed(1)} kg)</span>
       </div>
 
-      <!-- Excel Export Cards Grid -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-bottom: 30px;">
-        <div class="admin-card" style="padding: 22px;">
-          <h4 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px;">📊 Dépenses de Caisse</h4>
-          <p style="font-size: 0.8rem; color: var(--text-admin-muted); margin-bottom: 16px;">Journal complet des petites dépenses de caisse enregistrées (${expenses.length} lignes).</p>
-          <button class="btn-excel-export" id="btn-export-expenses" style="width: 100%; justify-content: center;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Télécharger Dépenses (.csv)</span>
-          </button>
-        </div>
+      <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); padding: 16px; border-radius: 12px;">
+        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #3b82f6;">Blanc (Poulet)</span>
+        <h3 style="font-size: 1.35rem; font-weight: 900; color: var(--text-admin-primary); margin-top: 4px;">${avgBlanc.toFixed(2)} TND / kg</h3>
+        <span style="font-size: 0.74rem; color: var(--text-admin-muted);">Total : ${totBlancTot.toFixed(1)} TND (${totBlancQty.toFixed(1)} kg)</span>
+      </div>
 
-        <div class="admin-card" style="padding: 22px;">
-          <h4 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px;">📦 Achats & Stocks</h4>
-          <p style="font-size: 0.8rem; color: var(--text-admin-muted); margin-bottom: 16px;">Historique des entrées d'achats et sorties de stock (${stockMovements.length} lignes).</p>
-          <button class="btn-excel-export" id="btn-export-stock" style="width: 100%; justify-content: center;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Télécharger Stocks (.csv)</span>
-          </button>
-        </div>
+      <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); padding: 16px; border-radius: 12px;">
+        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #10b981;">Escalope</span>
+        <h3 style="font-size: 1.35rem; font-weight: 900; color: var(--text-admin-primary); margin-top: 4px;">${avgEsc.toFixed(2)} TND / kg</h3>
+        <span style="font-size: 0.74rem; color: var(--text-admin-muted);">Total : ${totEscTot.toFixed(1)} TND (${totEscQty.toFixed(1)} kg)</span>
+      </div>
 
-        <div class="admin-card" style="padding: 22px;">
-          <h4 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px;">🥗 Restes de Fin de Journée</h4>
-          <p style="font-size: 0.8rem; color: var(--text-admin-muted); margin-bottom: 16px;">Restes invendus enregistrés chaque soir par l'équipe (${leftovers.length} lignes).</p>
-          <button class="btn-excel-export" id="btn-export-leftovers" style="width: 100%; justify-content: center;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Télécharger Restes (.csv)</span>
-          </button>
-        </div>
-
-        <div class="admin-card" style="padding: 22px;">
-          <h4 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px;">🗑️ Produits Gâtés & Pertes</h4>
-          <p style="font-size: 0.8rem; color: var(--text-admin-muted); margin-bottom: 16px;">Registre des pertes et produits détériorés avec motifs (${ruined.length} lignes).</p>
-          <button class="btn-excel-export" id="btn-export-ruined" style="width: 100%; justify-content: center;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Télécharger Pertes (.csv)</span>
-          </button>
-        </div>
+      <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); padding: 16px; border-radius: 12px;">
+        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 800; color: #f59e0b;">Cuisse Complet</span>
+        <h3 style="font-size: 1.35rem; font-weight: 900; color: var(--text-admin-primary); margin-top: 4px;">${avgCuisseComp.toFixed(2)} TND / kg</h3>
+        <span style="font-size: 0.74rem; color: var(--text-admin-muted);">Total : ${totCuisseCompTot.toFixed(1)} TND (${totCuisseCompQty.toFixed(1)} kg)</span>
       </div>
     `;
+  }
 
-    // Export P&L Report Handler
-    document.getElementById('btn-export-pnl')?.addEventListener('click', () => {
-      const headers = ["Poste Pnl", "Montant (TND)", "Pourcentage CA (%)"];
-      const rows = [
-        ["Chiffre d'Affaires Brut (Ventes)", grossRevenue.toFixed(2), "100.0%"],
-        ["Coût des Achats Stock (COGS)", cogsStockIn.toFixed(2), grossRevenue > 0 ? ((cogsStockIn / grossRevenue) * 100).toFixed(1) + "%" : "0.0%"],
-        ["Dépenses de Caisse Opérationnelles", totalExpenses.toFixed(2), grossRevenue > 0 ? ((totalExpenses / grossRevenue) * 100).toFixed(1) + "%" : "0.0%"],
-        ["Bénéfice Net Résultat", netProfit.toFixed(2), marginPct.toFixed(1) + "%"]
-      ];
-      exportToCsv(`Babke_Rapport_Financier_PNL_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
-      showToast("📊 Rapport Financier P&L exporté avec succès !");
+  // ── Helper Chart Renderer for Owner Mode ──
+  function renderOwnerAnalyticsCharts(pvData, totalPv, totalFrits, totalNet, totalSjfs) {
+    if (typeof Chart === 'undefined') return;
+
+    // Line Chart: Price Fluctuation Trend
+    const ctxTrend = document.getElementById('chart-acct-price-trends')?.getContext('2d');
+    if (ctxTrend) {
+      const labels = pvData.map(r => r.date ? r.date.replace('2026-07-', '07/') : '');
+      const cuisseValData = pvData.map(r => r.cuisseVal || 0);
+      const blancValData = pvData.map(r => r.blancVal || 0);
+      const escalopeValData = pvData.map(r => r.escalopeVal || 0);
+
+      _chartInstances['chart-acct-price-trends'] = new Chart(ctxTrend, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'Cuisse (TND/kg)', data: cuisseValData, borderColor: '#ff5a1f', backgroundColor: 'rgba(255, 90, 31, 0.1)', tension: 0.3, fill: false },
+            { label: 'Blanc (TND/kg)', data: blancValData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.3, fill: false },
+            { label: 'Escalope (TND/kg)', data: escalopeValData, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.3, fill: false }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { family: 'Outfit', size: 11 } } }
+          },
+          scales: {
+            y: { title: { display: true, text: 'Prix Unitaire (TND)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    // Doughnut Chart: Category Expense Breakdown
+    const ctxBreakdown = document.getElementById('chart-acct-category-breakdown')?.getContext('2d');
+    if (ctxBreakdown) {
+      _chartInstances['chart-acct-category-breakdown'] = new Chart(ctxBreakdown, {
+        type: 'doughnut',
+        data: {
+          labels: ['Poulet & Viandes', 'Frits', 'Produits Nettoyage', 'Supplies SAHLOUL'],
+          datasets: [{
+            data: [totalPv, totalFrits, totalNet, totalSjfs],
+            backgroundColor: ['#ff5a1f', '#f59e0b', '#3b82f6', '#10b981'],
+            borderWidth: 2,
+            borderColor: 'var(--bg-admin-card)'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Outfit', size: 11 } } }
+          }
+        }
+      });
+    }
+  }
+
+  // ── Modal Handler for Accounting Entries ──
+  function openAcctModal(sheetType, editItem = null) {
+    const modal = document.getElementById('accounting-sheet-modal');
+    const form = document.getElementById('acct-sheet-form');
+    const fieldsContainer = document.getElementById('acct-dynamic-fields');
+    const titleEl = document.getElementById('acct-modal-title');
+    const previewTotalEl = document.getElementById('acct-calc-preview-total');
+    if (!modal || !form || !fieldsContainer) return;
+
+    document.getElementById('acct-form-id').value = editItem ? editItem.id : '';
+    document.getElementById('acct-form-sheet-type').value = sheetType;
+
+    const titles = {
+      'poulet_viandes': 'Saisie Journée Poulet & Viandes',
+      'frits': 'Saisie Achats / Consommation Frits',
+      'nettoyage': 'Saisie Produits de Nettoyage',
+      'sahloul_jfs': 'Saisie Fournitures SAHLOUL JFS'
+    };
+    if (titleEl) titleEl.textContent = (editItem ? "Modifier " : "Nouvelle ") + (titles[sheetType] || 'Ligne Comptable');
+
+    // Build dynamic input fields
+    if (sheetType === 'poulet_viandes') {
+      fieldsContainer.innerHTML = `
+        <div class="form-group-admin" style="margin-bottom: 14px;">
+          <label for="acct-in-date">Date</label>
+          <input type="date" id="acct-in-date" value="${editItem ? editItem.date : new Date().toISOString().split('T')[0]}" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; background: rgba(255,90,31,0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,90,31,0.2);">
+          <strong style="grid-column: 1 / -1; font-size: 0.82rem; color: var(--accent-admin);">CUISSE</strong>
+          <div><label style="font-size:0.75rem;">Quantité (kg)</label><input type="number" step="0.1" id="acct-cuisse-qty" value="${editItem ? editItem.cuisseQty || 0 : ''}"></div>
+          <div><label style="font-size:0.75rem;">Valeur Unitaire (TND)</label><input type="number" step="0.1" id="acct-cuisse-val" value="${editItem ? editItem.cuisseVal || 0 : ''}"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; background: rgba(59,130,246,0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(59,130,246,0.2);">
+          <strong style="grid-column: 1 / -1; font-size: 0.82rem; color: #3b82f6;">BLANC</strong>
+          <div><label style="font-size:0.75rem;">Quantité (kg)</label><input type="number" step="0.1" id="acct-blanc-qty" value="${editItem ? editItem.blancQty || 0 : ''}"></div>
+          <div><label style="font-size:0.75rem;">Valeur Unitaire (TND)</label><input type="number" step="0.1" id="acct-blanc-val" value="${editItem ? editItem.blancVal || 0 : ''}"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; background: rgba(16,185,129,0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(16,185,129,0.2);">
+          <strong style="grid-column: 1 / -1; font-size: 0.82rem; color: #10b981;">ESCALOPE</strong>
+          <div><label style="font-size:0.75rem;">Quantité (kg)</label><input type="number" step="0.1" id="acct-esc-qty" value="${editItem ? editItem.escalopeQty || 0 : ''}"></div>
+          <div><label style="font-size:0.75rem;">Valeur Unitaire (TND)</label><input type="number" step="0.1" id="acct-esc-val" value="${editItem ? editItem.escalopeVal || 0 : ''}"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; background: rgba(245,158,11,0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(245,158,11,0.2);">
+          <strong style="grid-column: 1 / -1; font-size: 0.82rem; color: #f59e0b;">CUISSE COMPLET</strong>
+          <div><label style="font-size:0.75rem;">Quantité (kg)</label><input type="number" step="0.1" id="acct-ccomp-qty" value="${editItem ? editItem.cuisseCompQty || 0 : ''}"></div>
+          <div><label style="font-size:0.75rem;">Valeur Unitaire (TND)</label><input type="number" step="0.1" id="acct-ccomp-val" value="${editItem ? editItem.cuisseCompVal || 0 : ''}"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: rgba(168,85,247,0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(168,85,247,0.2);">
+          <strong style="grid-column: 1 / -1; font-size: 0.82rem; color: #a855f7;">ŒUF</strong>
+          <div><label style="font-size:0.75rem;">Quantité</label><input type="number" step="1" id="acct-oeuf-qty" value="${editItem ? editItem.oeufQty || 0 : ''}"></div>
+          <div><label style="font-size:0.75rem;">Valeur Unitaire (TND)</label><input type="number" step="0.1" id="acct-oeuf-val" value="${editItem ? editItem.oeufVal || 0 : ''}"></div>
+        </div>
+      `;
+    } else if (sheetType === 'frits') {
+      fieldsContainer.innerHTML = `
+        <div class="form-grid-admin">
+          <div class="form-group-admin">
+            <label for="acct-in-date">Date</label>
+            <input type="date" id="acct-in-date" value="${editItem ? editItem.date : new Date().toISOString().split('T')[0]}" required>
+          </div>
+          <div class="form-group-admin">
+            <label for="acct-in-qty">Quantité (kg / sacs)</label>
+            <input type="number" step="0.1" id="acct-in-qty" value="${editItem ? editItem.quantity : ''}" required>
+          </div>
+        </div>
+        <div class="form-group-admin" style="margin-top: 14px;">
+          <label for="acct-in-unitval">Valeur Unitaire (TND)</label>
+          <input type="number" step="0.1" id="acct-in-unitval" value="${editItem ? editItem.unitValue : ''}" required>
+        </div>
+      `;
+    } else if (sheetType === 'nettoyage') {
+      fieldsContainer.innerHTML = `
+        <div class="form-grid-admin">
+          <div class="form-group-admin">
+            <label for="acct-in-date">Date</label>
+            <input type="date" id="acct-in-date" value="${editItem ? editItem.date : new Date().toISOString().split('T')[0]}" required>
+          </div>
+          <div class="form-group-admin">
+            <label for="acct-in-article">Article Nettoyage</label>
+            <input type="text" id="acct-in-article" placeholder="ex : dinol, javel..." value="${editItem ? editItem.article : ''}" required>
+          </div>
+        </div>
+        <div class="form-grid-admin" style="margin-top: 14px;">
+          <div class="form-group-admin">
+            <label for="acct-in-qty">Quantité</label>
+            <input type="number" step="0.1" id="acct-in-qty" value="${editItem ? editItem.quantity : ''}" required>
+          </div>
+          <div class="form-group-admin">
+            <label for="acct-in-unitval">Valeur Unitaire (TND)</label>
+            <input type="number" step="0.1" id="acct-in-unitval" value="${editItem ? editItem.unitValue : ''}" required>
+          </div>
+        </div>
+      `;
+    } else if (sheetType === 'sahloul_jfs') {
+      fieldsContainer.innerHTML = `
+        <div class="form-group-admin">
+          <label for="acct-in-article">Article Supply SAHLOUL</label>
+          <input type="text" id="acct-in-article" placeholder="ex : a1, osk 50, jumbo, savon main, goble..." value="${editItem ? editItem.article : ''}" required>
+        </div>
+        <div class="form-grid-admin" style="margin-top: 14px;">
+          <div class="form-group-admin">
+            <label for="acct-in-qty">Quantité</label>
+            <input type="number" step="0.1" id="acct-in-qty" value="${editItem ? editItem.quantity : ''}" required>
+          </div>
+          <div class="form-group-admin">
+            <label for="acct-in-unitval">Valeur Unitaire (TND)</label>
+            <input type="number" step="0.1" id="acct-in-unitval" value="${editItem ? editItem.unitValue : ''}" required>
+          </div>
+        </div>
+      `;
+    }
+
+    // Function to calculate and update modal live preview
+    const updatePreviewCalc = () => {
+      let total = 0;
+      if (sheetType === 'poulet_viandes') {
+        const cQ = parseFloat(document.getElementById('acct-cuisse-qty')?.value || 0);
+        const cV = parseFloat(document.getElementById('acct-cuisse-val')?.value || 0);
+        const bQ = parseFloat(document.getElementById('acct-blanc-qty')?.value || 0);
+        const bV = parseFloat(document.getElementById('acct-blanc-val')?.value || 0);
+        const eQ = parseFloat(document.getElementById('acct-esc-qty')?.value || 0);
+        const eV = parseFloat(document.getElementById('acct-esc-val')?.value || 0);
+        const ccQ = parseFloat(document.getElementById('acct-ccomp-qty')?.value || 0);
+        const ccV = parseFloat(document.getElementById('acct-ccomp-val')?.value || 0);
+        const oQ = parseFloat(document.getElementById('acct-oeuf-qty')?.value || 0);
+        const oV = parseFloat(document.getElementById('acct-oeuf-val')?.value || 0);
+        total = (cQ * cV) + (bQ * bV) + (eQ * eV) + (ccQ * ccV) + (oQ * oV);
+      } else {
+        const q = parseFloat(document.getElementById('acct-in-qty')?.value || 0);
+        const v = parseFloat(document.getElementById('acct-in-unitval')?.value || 0);
+        total = q * v;
+      }
+      if (previewTotalEl) previewTotalEl.textContent = `Total : ${total.toFixed(2)} TND`;
+    };
+
+    fieldsContainer.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', updatePreviewCalc);
+    });
+    updatePreviewCalc();
+
+    modal.classList.add('show');
+  }
+
+  // ── Modal Form Submit & Close Handlers ──
+  document.getElementById('btn-close-acct-modal')?.addEventListener('click', () => {
+    document.getElementById('accounting-sheet-modal')?.classList.remove('show');
+  });
+
+  document.getElementById('btn-cancel-acct-modal')?.addEventListener('click', () => {
+    document.getElementById('accounting-sheet-modal')?.classList.remove('show');
+  });
+
+  document.getElementById('acct-sheet-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('acct-form-id').value;
+    const sheetType = document.getElementById('acct-form-sheet-type').value;
+
+    let payload = { sheetType: sheetType };
+    if (id) payload.id = id;
+
+    if (sheetType === 'poulet_viandes') {
+      const date = document.getElementById('acct-in-date').value;
+      const cQ = parseFloat(document.getElementById('acct-cuisse-qty').value || 0);
+      const cV = parseFloat(document.getElementById('acct-cuisse-val').value || 0);
+      const bQ = parseFloat(document.getElementById('acct-blanc-qty').value || 0);
+      const bV = parseFloat(document.getElementById('acct-blanc-val').value || 0);
+      const eQ = parseFloat(document.getElementById('acct-esc-qty').value || 0);
+      const eV = parseFloat(document.getElementById('acct-esc-val').value || 0);
+      const ccQ = parseFloat(document.getElementById('acct-ccomp-qty').value || 0);
+      const ccV = parseFloat(document.getElementById('acct-ccomp-val').value || 0);
+      const oQ = parseFloat(document.getElementById('acct-oeuf-qty').value || 0);
+      const oV = parseFloat(document.getElementById('acct-oeuf-val').value || 0);
+
+      payload = {
+        ...payload,
+        date: date,
+        cuisseQty: cQ, cuisseVal: cV, cuisseTot: (cQ * cV),
+        blancQty: bQ, blancVal: bV, blancTot: (bQ * bV),
+        escalopeQty: eQ, escalopeVal: eV, escalopeTot: (eQ * eV),
+        cuisseCompQty: ccQ, cuisseCompVal: ccV, cuisseCompTot: (ccQ * ccV),
+        oeufQty: oQ, oeufVal: oV, oeufTot: (oQ * oV)
+      };
+    } else {
+      const date = document.getElementById('acct-in-date')?.value || '';
+      const article = document.getElementById('acct-in-article')?.value || '';
+      const q = parseFloat(document.getElementById('acct-in-qty').value || 0);
+      const v = parseFloat(document.getElementById('acct-in-unitval').value || 0);
+      payload = {
+        ...payload,
+        date: date,
+        article: article,
+        quantity: q,
+        unitValue: v,
+        total: (q * v)
+      };
+    }
+
+    if (id) {
+      await BabkeDB.updateAccountingSheetItem(id, payload);
+      showToast("Ligne comptable mise à jour avec succès");
+    } else {
+      await BabkeDB.addAccountingSheetItem(payload);
+      showToast("Nouvelle ligne comptable enregistrée avec succès");
+    }
+
+    document.getElementById('accounting-sheet-modal')?.classList.remove('show');
+    renderComptabilitePanel();
+  });
+
+  // ── CSV Exporter Helpers for Accounting Sheets ──
+  function exportActiveSheetCsv(subTab, sheets) {
+    if (subTab === 'poulet_viandes') {
+      const headers = ["Date", "Cuisse Qty (kg)", "Cuisse Prix (TND)", "Cuisse Total (TND)", "Blanc Qty (kg)", "Blanc Prix (TND)", "Blanc Total (TND)", "Escalope Qty (kg)", "Escalope Prix (TND)", "Escalope Total (TND)", "Cuisse Complet Qty", "Cuisse Complet Prix", "Cuisse Complet Total", "Oeuf Qty", "Oeuf Prix"];
+      const rows = (sheets.poulet_viandes || []).map(r => [r.date, r.cuisseQty, r.cuisseVal, r.cuisseTot, r.blancQty, r.blancVal, r.blancTot, r.escalopeQty, r.escalopeVal, r.escalopeTot, r.cuisseCompQty, r.cuisseCompVal, r.cuisseCompTot, r.oeufQty, r.oeufVal]);
+      exportToCsv(`Babke_Comptabilite_Poulet_Viandes_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
+    } else if (subTab === 'frits') {
+      const headers = ["Date", "Quantite", "Valeur Unitaire (TND)", "Total Depense (TND)"];
+      const rows = (sheets.frits || []).map(r => [r.date, r.quantity, r.unitValue, r.total || (r.quantity * r.unitValue)]);
+      exportToCsv(`Babke_Comptabilite_Frits_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
+    } else if (subTab === 'nettoyage') {
+      const headers = ["Date", "Article", "Quantite", "Valeur Unitaire (TND)", "Total (TND)"];
+      const rows = (sheets.nettoyage || []).map(r => [r.date, r.article, r.quantity, r.unitValue, r.total || (r.quantity * r.unitValue)]);
+      exportToCsv(`Babke_Comptabilite_Produits_Nettoyage_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
+    } else if (subTab === 'sahloul_jfs') {
+      const headers = ["Article", "Quantite", "Valeur Unitaire (TND)", "Total (TND)"];
+      const rows = (sheets.sahloul_jfs || []).map(r => [r.article, r.quantity, r.unitValue, r.total || (r.quantity * r.unitValue)]);
+      exportToCsv(`Babke_Comptabilite_SAHLOUL_JFS_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
+    }
+    showToast("📥 Feuille Excel exportée avec succès !");
+  }
+
+  function exportMasterAccountingWorkbookCsv(sheets) {
+    const headers = ["Type Feuille", "Date", "Article / Coupe", "Quantite", "Valeur Unitaire (TND)", "Total (TND)"];
+    const rows = [];
+
+    (sheets.poulet_viandes || []).forEach(r => {
+      if (r.cuisseTot) rows.push(["POULET & VIANDES", r.date, "Cuisse", r.cuisseQty, r.cuisseVal, r.cuisseTot]);
+      if (r.blancTot) rows.push(["POULET & VIANDES", r.date, "Blanc", r.blancQty, r.blancVal, r.blancTot]);
+      if (r.escalopeTot) rows.push(["POULET & VIANDES", r.date, "Escalope", r.escalopeQty, r.escalopeVal, r.escalopeTot]);
+      if (r.cuisseCompTot) rows.push(["POULET & VIANDES", r.date, "Cuisse Complet", r.cuisseCompQty, r.cuisseCompVal, r.cuisseCompTot]);
+      if (r.oeufQty) rows.push(["POULET & VIANDES", r.date, "Oeuf", r.oeufQty, r.oeufVal, (r.oeufQty * r.oeufVal)]);
     });
 
-    // Export Excel CSV Event Handlers
-    document.getElementById('btn-export-expenses')?.addEventListener('click', () => {
-      const headers = ["Date", "Categorie", "Description", "Montant (TND)", "Mode Paiement", "Enregistre Par"];
-      const rows = expenses.map(e => [e.date, e.category, e.description, e.amount, e.paymentMethod, e.recordedBy]);
-      exportToCsv(`Babke_Depenses_Caisse_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
-      showToast("📥 Fichier Dépenses exporté avec succès !");
+    (sheets.frits || []).forEach(r => {
+      rows.push(["FRITS", r.date, "Frits", r.quantity, r.unitValue, r.total || (r.quantity * r.unitValue)]);
     });
 
-    document.getElementById('btn-export-stock')?.addEventListener('click', () => {
-      const headers = ["Date", "Produit", "Type", "Quantite", "Unite", "Prix Unitaire", "Prix Total (TND)", "Fournisseur / Motif", "Enregistre Par"];
-      const rows = stockMovements.map(s => [s.date, s.productName, s.type === 'IN' ? 'ACHAT (ENTRÉE)' : 'RETRAIT (SORTIE)', s.quantity, s.unit, s.unitPrice, s.totalPrice, s.supplier || s.reason, s.recordedBy]);
-      exportToCsv(`Babke_Mouvements_Stock_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
-      showToast("📥 Fichier Stocks exporté avec succès !");
+    (sheets.nettoyage || []).forEach(r => {
+      rows.push(["PRODUITS NETTOYAGE", r.date, r.article, r.quantity, r.unitValue, r.total || (r.quantity * r.unitValue)]);
     });
 
-    document.getElementById('btn-export-leftovers')?.addEventListener('click', () => {
-      const headers = ["Date", "Produit Reste", "Quantite", "Unite"];
-      const rows = leftovers.map(l => [l.date, l.item, l.quantity, l.unit]);
-      exportToCsv(`Babke_Restes_Fin_Journee_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
-      showToast("📥 Fichier Restes exporté avec succès !");
+    (sheets.sahloul_jfs || []).forEach(r => {
+      rows.push(["SAHLOUL JFS", "N/A", r.article, r.quantity, r.unitValue, r.total || (r.quantity * r.unitValue)]);
     });
 
-    document.getElementById('btn-export-ruined')?.addEventListener('click', () => {
-      const headers = ["Date", "Produit Gate", "Quantite", "Unite", "Cause / Motif", "Enregistre Par"];
-      const rows = ruined.map(r => [r.date, r.item, r.quantity, r.unit, r.reason, r.recordedBy]);
-      exportToCsv(`Babke_Produits_Gates_Pertes_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
-      showToast("📥 Fichier Pertes exporté avec succès !");
-    });
+    exportToCsv(`Babke_Grand_Livre_Comptable_Master_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
+    showToast("📂 Grand Livre Comptable Master exporté avec succès !");
   }
 
 
@@ -4591,6 +5336,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     addActivityLog("Types de produits mis à jour");
     if (currentActivePanel === 'product-types') renderProductTypesPanel();
     else if (currentActivePanel === 'stock') renderStockPanel();
+  });
+
+  window.addEventListener('babkeAccountingSheetsChanged', () => {
+    addActivityLog("Saisie comptable mise à jour en temps réel");
+    if (currentActivePanel === 'comptabilite') renderComptabilitePanel();
+    else if (currentActivePanel === 'overview') renderOverviewPanel();
   });
 
   // Background polling every 30 seconds

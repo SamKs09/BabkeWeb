@@ -220,6 +220,23 @@ const AuditLog = mongoose.model('AuditLog', new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 }));
 
+const AccountingSheet = mongoose.model('AccountingSheet', new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  sheetType: { type: String, required: true }, // 'sahloul_jfs', 'frits', 'nettoyage', 'poulet_viandes'
+  date: String,
+  article: String,
+  quantity: Number,
+  unitValue: Number,
+  total: Number,
+  cuisseQty: Number, cuisseVal: Number, cuisseTot: Number,
+  blancQty: Number, blancVal: Number, blancTot: Number,
+  escalopeQty: Number, escalopeVal: Number, escalopeTot: Number,
+  cuisseCompQty: Number, cuisseCompVal: Number, cuisseCompTot: Number,
+  oeufQty: Number, oeufVal: Number, oeufTot: Number,
+  recordedBy: { type: String, default: 'comptable' },
+  createdAt: { type: Date, default: Date.now }
+}, { strict: false }));
+
 // Helper to record timestamped audit log
 async function createAuditLog(userRole, username, actionType, details) {
   try {
@@ -441,6 +458,22 @@ async function seedDatabase() {
       console.log('Seeded AuditLog collection successfully.');
     }
 
+    // Seed Accounting Sheets
+    const asCount = await AccountingSheet.countDocuments();
+    if (asCount === 0 && defaultData.accountingSheets) {
+      const docsToInsert = [];
+      const sheets = defaultData.accountingSheets;
+      for (const sheetType in sheets) {
+        sheets[sheetType].forEach(item => {
+          docsToInsert.push({ ...item, sheetType: sheetType, recordedBy: 'comptable' });
+        });
+      }
+      if (docsToInsert.length > 0) {
+        await AccountingSheet.insertMany(docsToInsert);
+        console.log(`Seeded ${docsToInsert.length} AccountingSheet entries successfully.`);
+      }
+    }
+
   } catch (err) {
     console.error('Error seeding database:', err);
   }
@@ -468,6 +501,7 @@ app.get('/api/all-data', async (req, res) => {
     let ruinedProducts = [];
     let stockMovements = [];
     let auditLogs = [];
+    let accountingSheets = { sahloul_jfs: [], frits: [], nettoyage: [], poulet_viandes: [] };
 
     const token = req.cookies.admin_token;
     if (token) {
@@ -476,6 +510,12 @@ app.get('/api/all-data', async (req, res) => {
         leftovers = await Leftover.find().sort({ date: -1, createdAt: -1 }).lean();
         ruinedProducts = await RuinedProduct.find().sort({ date: -1, createdAt: -1 }).lean();
         stockMovements = await StockMovement.find().sort({ date: -1, createdAt: -1 }).lean();
+
+        const allSheets = await AccountingSheet.find().sort({ date: 1, createdAt: 1 }).lean();
+        allSheets.forEach(s => {
+          if (!accountingSheets[s.sheetType]) accountingSheets[s.sheetType] = [];
+          accountingSheets[s.sheetType].push(s);
+        });
 
         if (verified.role === 'admin' || verified.role === 'comptable' || verified.role === 'cashier') {
           orders = await Order.find().sort({ createdAt: -1 }).lean();
@@ -504,7 +544,8 @@ app.get('/api/all-data', async (req, res) => {
       ruinedProducts,
       productTypes,
       stockMovements,
-      auditLogs
+      auditLogs,
+      accountingSheets
     });
   } catch (err) {
     console.error('Error fetching all data:', err);
@@ -577,6 +618,142 @@ app.post('/api/admin/logout', authMiddleware, async (req, res) => {
   }
   res.clearCookie('admin_token');
   res.json({ success: true });
+});
+
+// Admin Reset & Seed Database Route
+app.post('/api/admin/reset-database', authMiddleware, async (req, res) => {
+  try {
+    const defaultData = require('./data/defaultData.js');
+    console.log('🧹 Purging all MongoDB collections via admin trigger...');
+
+    await Promise.all([
+      Menu.deleteMany({}),
+      Content.deleteMany({}),
+      Review.deleteMany({}),
+      Gallery.deleteMany({}),
+      Event.deleteMany({}),
+      Order.deleteMany({}),
+      Reservation.deleteMany({}),
+      Leftover.deleteMany({}),
+      Expense.deleteMany({}),
+      ProductType.deleteMany({}),
+      StockMovement.deleteMany({}),
+      RuinedProduct.deleteMany({}),
+      AuditLog.deleteMany({}),
+      AccountingSheet.deleteMany({})
+    ]);
+
+    // Seed Menu
+    await Menu.insertMany(defaultData.menu);
+
+    // Seed Content
+    await Content.create({ key: 'main', ...defaultData.content });
+
+    // Seed Reviews
+    await Review.insertMany(defaultData.reviews);
+
+    // Seed Gallery
+    await Gallery.insertMany(defaultData.gallery);
+
+    // Seed Events
+    await Event.insertMany(defaultData.events || []);
+
+    // Seed Orders
+    const seedOrders = [
+      {
+        id: "ORD-1719000000",
+        customer: { name: "Ahmed Mansour", phone: "+216 98 765 432", address: "Hammam Sousse, near Monoprix" },
+        items: [{ name: "Chicken Shawarma Wrap", qty: 2, price: 12.5, spice: "Spicy", addons: ["Extra Cheddar"], exclusions: [] }],
+        subtotal: 28.0,
+        status: "delivered",
+        createdAt: new Date("2026-06-21T18:32:00.000Z")
+      },
+      {
+        id: "ORD-1719010000",
+        customer: { name: "Sophie Dubois", phone: "+216 22 334 455", address: "Port El Kantaoui, Appt 4B" },
+        items: [
+          { name: "Plat Royal Babke", qty: 1, price: 34.0, spice: "Medium", addons: [], exclusions: ["No Onions"] },
+          { name: "Smoky Baba Ghanoush", qty: 1, price: 8.5, spice: "Mild", addons: [], exclusions: [] }
+        ],
+        subtotal: 42.5,
+        status: "preparing",
+        createdAt: new Date("2026-06-22T10:15:00.000Z")
+      }
+    ];
+    await Order.insertMany(seedOrders);
+
+    // Seed Reservations
+    const seedReservations = [
+      {
+        id: "RES-1719000000",
+        name: "Yassine Dridi",
+        phone: "+216 55 443 322",
+        date: "2026-08-15",
+        time: "20:00",
+        guests: 4,
+        notes: "Outdoor seating preferred, table in the shade",
+        status: "confirmed",
+        createdAt: new Date("2026-08-10T14:10:00.000Z")
+      },
+      {
+        id: "RES-1719010000",
+        name: "Amira Ben Ali",
+        phone: "+216 99 887 766",
+        date: "2026-08-16",
+        time: "13:30",
+        guests: 2,
+        notes: "Anniversary dinner, surprise dessert if possible",
+        status: "pending",
+        createdAt: new Date("2026-08-12T09:45:00.000Z")
+      }
+    ];
+    await Reservation.insertMany(seedReservations);
+
+    // Seed Leftovers
+    const today = new Date();
+    const formatStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const day1 = new Date(today.getTime() - 24 * 3600 * 1000);
+    const day2 = new Date(today.getTime() - 2 * 24 * 3600 * 1000);
+    const seedLeftovers = [
+      { id: "left-1", date: formatStr(day2), item: "Kebab", quantity: 3.5, unit: "kg" },
+      { id: "left-2", date: formatStr(day2), item: "Chich Taouk", quantity: 15, unit: "sticks" },
+      { id: "left-3", date: formatStr(day1), item: "Chicken Shawarma", quantity: 4.2, unit: "kg" },
+      { id: "left-4", date: formatStr(day1), item: "Crispy", quantity: 8, unit: "sticks" }
+    ];
+    await Leftover.insertMany(seedLeftovers);
+
+    // Seed Expenses
+    await Expense.insertMany(defaultData.expenses);
+
+    // Seed ProductTypes
+    await ProductType.insertMany(defaultData.productTypes);
+
+    // Seed StockMovements
+    await StockMovement.insertMany(defaultData.stockMovements);
+
+    // Seed RuinedProducts
+    await RuinedProduct.insertMany(defaultData.ruinedProducts);
+
+    // Seed AuditLogs
+    await AuditLog.insertMany(defaultData.auditLogs);
+
+    // Seed AccountingSheets
+    const docsToInsert = [];
+    const sheets = defaultData.accountingSheets;
+    for (const sheetType in sheets) {
+      sheets[sheetType].forEach(item => {
+        docsToInsert.push({ ...item, sheetType: sheetType, recordedBy: 'comptable' });
+      });
+    }
+    await AccountingSheet.insertMany(docsToInsert);
+
+    await createAuditLog(req.admin.role, req.admin.username, 'DATABASE_RESET', 'Réinitialisation complète et ré-ensemencement de toutes les données du dashboard');
+
+    res.json({ success: true, message: 'Base de données réinitialisée et ré-ensemencée avec succès !' });
+  } catch (err) {
+    console.error('Error resetting database:', err);
+    res.status(500).json({ error: 'Échec de la réinitialisation de la base de données' });
+  }
 });
 
 // Leftovers Endpoints
@@ -710,6 +887,65 @@ app.delete('/api/stock/movements/:id', authMiddleware, async (req, res) => {
     if (!deleted) return res.status(404).json({ error: 'Stock movement not found' });
     await createAuditLog(req.admin.role, req.admin.username, 'STOCK_DELETE', `Suppression Mouvement Stock: ${deleted.productName}`);
     sendSseNotification('deleteStockMovement', { id: req.params.id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Accounting Sheets Endpoints (For Comptable & Propriétaire)
+app.get('/api/accounting-sheets', authMiddleware, async (req, res) => {
+  try {
+    const sheetType = req.query.sheetType;
+    const query = sheetType ? { sheetType } : {};
+    const items = await AccountingSheet.find(query).sort({ date: 1, createdAt: 1 });
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/accounting-sheets', authMiddleware, async (req, res) => {
+  try {
+    const itemData = {
+      ...req.body,
+      id: req.body.id || ('as_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
+      recordedBy: req.admin ? req.admin.role : 'comptable'
+    };
+    const item = new AccountingSheet(itemData);
+    await item.save();
+    await createAuditLog(req.admin.role, req.admin.username, 'ACCOUNTING_SHEET_ADD', `Saisie comptable (${item.sheetType}): ${item.article || item.date || 'Ligne de saisie'}`);
+    sendSseNotification('newAccountingSheet', item);
+    res.status(201).json(item);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/accounting-sheets/:id', authMiddleware, async (req, res) => {
+  try {
+    const updateData = { ...req.body };
+    delete updateData._id;
+    const updated = await AccountingSheet.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: updateData },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: 'Accounting sheet entry not found' });
+    await createAuditLog(req.admin.role, req.admin.username, 'ACCOUNTING_SHEET_UPDATE', `Mise à jour saisie comptable (${updated.sheetType}): ${updated.id}`);
+    sendSseNotification('updateAccountingSheet', updated);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/accounting-sheets/:id', authMiddleware, async (req, res) => {
+  try {
+    const deleted = await AccountingSheet.findOneAndDelete({ id: req.params.id });
+    if (!deleted) return res.status(404).json({ error: 'Accounting sheet entry not found' });
+    await createAuditLog(req.admin.role, req.admin.username, 'ACCOUNTING_SHEET_DELETE', `Suppression saisie comptable (${deleted.sheetType}): ${deleted.id}`);
+    sendSseNotification('deleteAccountingSheet', { id: req.params.id });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

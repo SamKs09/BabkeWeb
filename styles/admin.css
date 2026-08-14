@@ -2330,3 +2330,46 @@ body.light-theme .stat-card[data-target-panel]:hover {
   color: #ffffff;
 }
 
+/* ==========================================================================
+   DIGITIZED ACCOUNTING SPREADSHEET & MODE SWITCHER STYLING
+   ========================================================================== */
+.acct-mode-btn {
+  font-family: 'Outfit', sans-serif;
+}
+.acct-mode-btn.active {
+  box-shadow: 0 4px 14px rgba(255, 90, 31, 0.25);
+}
+body.light-theme .acct-mode-btn.active {
+  background: #c03a2e !important;
+  color: #ffffff !important;
+  border-color: #c03a2e !important;
+}
+
+.acct-subtab-btn {
+  transition: all 0.2s ease;
+  font-family: 'Outfit', sans-serif;
+}
+.acct-subtab-btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn-action-icon {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-admin);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: var(--transition-admin);
+}
+.btn-action-icon:hover {
+  background: rgba(255, 90, 31, 0.15);
+  border-color: var(--accent-admin);
+  transform: scale(1.1);
+}
+body.light-theme .btn-action-icon {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+
