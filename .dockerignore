@@ -1,0 +1,135 @@
+# BabkeWeb — build context exclusions
+#
+# This file is load-bearing for SECURITY, not just for build speed.
+# server.js:1533 does `app.use(express.static(__dirname))`, i.e. the whole
+# application root is served over HTTP. The Dockerfile therefore uses an
+# explicit COPY allowlist as the primary gate, and this file is the second
+# layer: it keeps secrets and dev-only code out of the build context entirely,
+# so a future careless `COPY . .` cannot leak them either.
+#
+# Pattern semantics (moby/patternmatcher): paths are matched relative to the
+# context root, `*` does not cross `/`, and `**` spans directories. Patterns are
+# NOT recursive by default, which is why the security-critical entries below are
+# listed in both root and `**/` form.
+
+
+# --- Secrets -----------------------------------------------------------------
+# .env is TRACKED in git (commit 5e481a9) and holds MONGODB_URI, ADMIN_USERNAME,
+# ADMIN_PASSWORD and SESSION_SECRET. Combined with express.static(__dirname),
+# copying it into the image would publish it at https://<host>/.env.
+# Secrets are injected by compose at run time; they never belong in a layer.
+.env
+.env.*
+**/.env
+**/.env.*
+
+
+# --- Version control ---------------------------------------------------------
+# 15MB, and its history contains the committed .env above, so excluding the
+# working-tree .env alone would not be enough.
+.git
+**/.git
+.gitignore
+.gitattributes
+
+
+# --- Dependencies ------------------------------------------------------------
+# 18MB across 1759 files that are, unusually, tracked in git. The deps stage
+# rebuilds node_modules from package-lock.json with `npm ci`, so shipping the
+# host copy would only risk baking in host-built or stale artefacts.
+node_modules
+**/node_modules
+.npm
+.pnp
+.pnp.js
+
+
+# --- Dev-only / stale scripts ------------------------------------------------
+# None of these are reachable from server.js, index.html or admin/index.html.
+#
+# scripts/mongo_runner.js is the important one: it evaluates attacker-shaped
+# input via  Function('"use strict"; return (' + payloadStr + ')')()  — arbitrary
+# code execution. It must never exist inside a production image.
+#
+# !! DO NOT "tidy" the line below into `scripts/` !!
+# The rest of scripts/ (app.js, cart.js, chatbot.js, embers.js, hero-spin.js,
+# preloader.js, translations.js) is loaded by the landing page and is REQUIRED.
+# An exact file path excludes exactly that one file and leaves its siblings in
+# the context; a directory pattern would blank the landing page's JavaScript.
+# Excluding the directory and re-including siblings with `!` is also wrong here:
+# an excluded directory is not walked, so the exceptions are unreliable.
+scripts/mongo_runner.js
+
+# Referenced by `npm run build`, but there is no build step in the image — the
+# runtime stage never invokes it.
+build_check.js
+# One-shot database seeding / inspection utilities; they connect to Mongo with
+# admin rights and are not part of serving traffic.
+seed.js
+seed_and_check.js
+check_events_now.js
+
+
+# --- Cloudflare / Wrangler leftovers ----------------------------------------
+# Artefacts of an abandoned Workers/Pages deployment. The target is a Docker
+# container behind host nginx, so these are dead config.
+wrangler.jsonc
+.wranglerignore
+.cloudflareignore
+.assetsignore
+
+
+# --- Docs and agent tooling --------------------------------------------------
+.agents/
+README.md
+# pages/ currently contains only readme.md — documentation, no runtime content.
+pages/
+
+
+# --- Logs --------------------------------------------------------------------
+*.log
+**/*.log
+logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+
+# --- Build/deploy files that describe the image rather than live in it -------
+# Safe to exclude: the daemon always reads the Dockerfile from the context
+# regardless of this file.
+Dockerfile
+Dockerfile.*
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+compose.yml
+compose.*.yml
+
+
+# --- Editor / OS junk --------------------------------------------------------
+# This working copy lives under OneDrive, so desktop.ini is a live risk.
+.DS_Store
+**/.DS_Store
+Thumbs.db
+**/Thumbs.db
+desktop.ini
+**/desktop.ini
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+
+
+# --- Local scratch (per .gitignore) ------------------------------------------
+scratch/
+test_*.js
+verify_*.js
+.next/
+out/
+build/
+dist/

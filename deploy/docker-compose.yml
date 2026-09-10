@@ -1,0 +1,100 @@
+# Babke — production stack for 185.172.57.237 (shared VPS, ~20 other tenants).
+#
+# Lives on the box at:  /opt/babke/docker-compose.yml
+# Code lives at:        /opt/babke/src/          (build context, replaceable)
+# Secrets live at:      /opt/babke/.env          (never inside src/)
+#
+# BUILD CONTEXT ASSUMPTION (explicit):
+#   Compose resolves a relative build context against the PROJECT DIRECTORY,
+#   which is the directory holding the -f file — here /opt/babke. The code sits
+#   at /opt/babke/src, so the correct context is ./src, NOT ../src.
+#   ../src would resolve to /opt/src and fail (or worse, build something else).
+#   In this repo the same file is checked in at deploy/docker-compose.yml; it is
+#   COPIED to /opt/babke/docker-compose.yml, it is not built from deploy/.
+#
+# Always invoke through:
+#   docker compose -p babke --env-file /opt/babke/.env -f /opt/babke/docker-compose.yml ...
+#
+# HOST nginx (not containerized) owns 80/443 and proxies all three vhosts to
+# 127.0.0.1:4050. Nothing here needs to be reachable from outside the loopback.
+
+name: babke
+
+# 12 stacks share one disk — cap every container's logs.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  api:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    # ONLY the loopback. Host nginx terminates TLS and proxies here.
+    ports:
+      - "127.0.0.1:4050:4000"
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      TZ: Africa/Tunis
+      # Service hostname `mongo` on the implicit private bridge network.
+      # Root creds live in the admin db, hence authSource=admin.
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER:?MONGO_ROOT_USER missing from /opt/babke/.env}:${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD missing from /opt/babke/.env}@mongo:27017/babke?authSource=admin
+      # JWT signing key for the admin_token cookie. server.js falls back to a
+      # hardcoded default if unset — :? makes that impossible in production.
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET missing from /opt/babke/.env}
+      # Five login roles, names taken verbatim from server.js.
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME missing from /opt/babke/.env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD missing from /opt/babke/.env}
+      COMPTABLE_USERNAME: ${COMPTABLE_USERNAME:?COMPTABLE_USERNAME missing from /opt/babke/.env}
+      COMPTABLE_PASSWORD: ${COMPTABLE_PASSWORD:?COMPTABLE_PASSWORD missing from /opt/babke/.env}
+      MEDIA_USERNAME: ${MEDIA_USERNAME:?MEDIA_USERNAME missing from /opt/babke/.env}
+      MEDIA_PASSWORD: ${MEDIA_PASSWORD:?MEDIA_PASSWORD missing from /opt/babke/.env}
+      CASHIER_USERNAME: ${CASHIER_USERNAME:?CASHIER_USERNAME missing from /opt/babke/.env}
+      CASHIER_PASSWORD: ${CASHIER_PASSWORD:?CASHIER_PASSWORD missing from /opt/babke/.env}
+      WORKER_USERNAME: ${WORKER_USERNAME:?WORKER_USERNAME missing from /opt/babke/.env}
+      WORKER_PASSWORD: ${WORKER_PASSWORD:?WORKER_PASSWORD missing from /opt/babke/.env}
+      # Comma-separated https origins allowed to send credentialed requests.
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?ALLOWED_ORIGINS missing from /opt/babke/.env}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    # Necessary but not sufficient: healthy only means mongod answers ping.
+    # server.js keeps its own connect-retry loop for restarts and failovers.
+    mem_limit: 512m
+    logging: *logging
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    # NO ports stanza on purpose. Mongo is reachable only from `api` over the
+    # stack's private bridge network. Never publish it, not even on loopback.
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:?MONGO_ROOT_USER missing from /opt/babke/.env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD missing from /opt/babke/.env}
+      TZ: Africa/Tunis
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    mem_limit: 1g
+    logging: *logging
+
+# Named volume only — no bind mounts anywhere in this stack.
+# There is no uploads volume: multer is not a dependency, images are base64
+# data URIs stored in Mongo documents.
+# Real name on the box is babke_mongo-data (project name prefix).
+volumes:
+  mongo-data:
+
+# No `networks:` block on purpose. Compose creates one implicit private bridge
+# (babke_default). Do not pin a name and do not join any external network —
+# ~20 other tenants share this daemon.

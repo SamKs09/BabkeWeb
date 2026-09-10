@@ -7,36 +7,143 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
-  console.warn('\x1b[33m%s\x1b[0m', 'WARNING: ADMIN_USERNAME or ADMIN_PASSWORD not set in environment. Falling back to defaults.');
-}
-if (!process.env.SESSION_SECRET) {
-  console.warn('\x1b[33m%s\x1b[0m', 'WARNING: SESSION_SECRET not set in environment. Falling back to default secret.');
+// ----------------------------------------------------
+// REQUIRED ENVIRONMENT — hard fail, never fall back to baked-in credentials.
+// A forgotten --env-file must crash the container, not silently ship
+// well-known passwords and a well-known JWT signing key.
+// ----------------------------------------------------
+const REQUIRED_ENV = [
+  'SESSION_SECRET',
+  'MONGODB_URI',
+  'ADMIN_USERNAME',
+  'ADMIN_PASSWORD',
+  'COMPTABLE_USERNAME',
+  'COMPTABLE_PASSWORD',
+  'MEDIA_USERNAME',
+  'MEDIA_PASSWORD',
+  'CASHIER_USERNAME',
+  'CASHIER_PASSWORD',
+  'WORKER_USERNAME',
+  'WORKER_PASSWORD'
+];
+
+const missingEnv = REQUIRED_ENV.filter(
+  name => !process.env[name] || String(process.env[name]).trim() === ''
+);
+
+if (missingEnv.length > 0) {
+  console.error('\x1b[31m%s\x1b[0m', 'FATAL: refusing to start — required environment variables are missing or empty:');
+  missingEnv.forEach(name => console.error(`  - ${name}`));
+  console.error('Provide them via the container environment (compose env_file / --env-file) and restart.');
+  process.exit(1);
 }
 
+const SESSION_SECRET = process.env.SESSION_SECRET;
 
 const app = express();
+
+// Behind the host nginx reverse proxy: trust exactly one hop so req.ip is the
+// real client IP. Without this every request looks like 127.0.0.1, which turns
+// submissionLimiter into a GLOBAL 15-per-10-minutes cap and makes
+// express-rate-limit 8.x throw ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+// Express matches routes and static mounts case-INSENSITIVELY by default, while
+// nginx prefix locations are case-SENSITIVE on Linux. That mismatch let
+// /Admin/ slip past the landing vhost's `location ^~ /admin/ { return 404; }`
+// and still be served by the app. The vhosts now use a case-insensitive regex,
+// and this makes the app agree with them rather than relying on nginx alone.
+app.set('case sensitive routing', true);
+
 const PORT = process.env.PORT || 65342;
 
 // Middleware
 app.use(cookieParser());
+
+// Explicit CORS allowlist from ALLOWED_ORIGINS (comma-separated).
+// Requests with no Origin header (curl, server-to-server, same-origin
+// navigations) are still allowed.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+// Log each rejected origin once, so a misconfigured ALLOWED_ORIGINS is obvious
+// in the container logs without spamming them.
+const warnedOrigins = new Set();
+
 app.use(cors({
-  origin: true, // Allow all origins for API calls, but credential-based ones require credentials
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (!warnedOrigins.has(origin)) {
+      warnedOrigins.add(origin);
+      console.warn(`CORS: origin not in ALLOWED_ORIGINS, no Access-Control-Allow-Origin sent: ${origin}`);
+    }
+    // Deny by withholding the header (the browser then blocks the response)
+    // rather than by throwing, which would surface as a confusing HTTP 500.
+    return callback(null, false);
+  },
   credentials: true
 }));
-app.use(express.json({ limit: '50mb' })); // Support base64 image uploads
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// Body size ceiling. This middleware runs BEFORE every route, every auth check
+// and both rate limiters, so whatever is allowed here can be sent by anyone,
+// unauthenticated, to any path. The old '50mb' against the container's 512m
+// mem_limit was an availability risk: a parsed JSON body peaks at roughly 3x
+// its wire size in heap, so a few concurrent 50mb POSTs would OOM-kill the
+// container and 502 the site for every other visitor.
+// 10mb is well above anything the app can actually produce: admin/admin.js
+// resizes every upload to 800x800 JPEG q0.8 (~100 KB of base64) before sending,
+// and images are stored inside Mongo documents, which BSON caps at 16 MB.
+app.use(express.json({ limit: '10mb' })); // base64 images, client-compressed to ~100KB
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// MongoDB Connection
-const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/babke';
-mongoose.connect(mongoURI)
-  .then(() => {
-    console.log(`Successfully connected to MongoDB at ${mongoURI}`);
-    seedDatabase();
-  })
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-  });
+// ----------------------------------------------------
+// MongoDB Connection — bounded retry, then exit non-zero.
+// Mongoose only auto-reconnects AFTER a first successful connect, so a failed
+// first connect used to leave the process up serving 10s bufferTimeoutMS 500s
+// forever. Exiting lets the container restart policy take over.
+// ----------------------------------------------------
+const mongoURI = process.env.MONGODB_URI;
+
+// Never log the URI itself — it carries the mongo password.
+function describeMongoTarget(uri) {
+  try {
+    const parsed = new URL(uri);
+    const dbName = (parsed.pathname || '').replace(/^\//, '') || '(default db)';
+    return `${parsed.host}/${dbName}`;
+  } catch (e) {
+    return '(unparseable MONGODB_URI)';
+  }
+}
+
+const MONGO_CONNECT_ATTEMPTS = 10;
+const MONGO_RETRY_DELAY_MS = 3000;
+
+async function connectToMongoWithRetry() {
+  for (let attempt = 1; attempt <= MONGO_CONNECT_ATTEMPTS; attempt++) {
+    try {
+      await mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 5000 });
+      console.log(`Successfully connected to MongoDB at ${describeMongoTarget(mongoURI)}`);
+      await seedDatabase();
+      return;
+    } catch (err) {
+      console.error(
+        `MongoDB connection attempt ${attempt}/${MONGO_CONNECT_ATTEMPTS} to ${describeMongoTarget(mongoURI)} failed: ${err.message}`
+      );
+      if (attempt < MONGO_CONNECT_ATTEMPTS) {
+        await new Promise(resolve => setTimeout(resolve, MONGO_RETRY_DELAY_MS));
+      }
+    }
+  }
+
+  console.error(
+    `FATAL: MongoDB at ${describeMongoTarget(mongoURI)} unreachable after ${MONGO_CONNECT_ATTEMPTS} attempts. Exiting so the restart policy can take over.`
+  );
+  process.exit(1);
+}
+
+connectToMongoWithRetry();
 
 // ----------------------------------------------------
 // SECURITY & AUTH MIDDLEWARE
@@ -60,7 +167,7 @@ const authMiddleware = (req, res, next) => {
     return res.status(401).json({ error: 'Unauthorized access. Token missing.' });
   }
   try {
-    const verified = jwt.verify(token, process.env.SESSION_SECRET || 'babkesupersecretkey2026');
+    const verified = jwt.verify(token, SESSION_SECRET);
     req.admin = verified;
     next();
   } catch (err) {
@@ -315,24 +422,11 @@ async function seedDatabase() {
     if (eventsCount === 0) {
       await Event.insertMany(defaultData.events || []);
       console.log('Seeded Events collection successfully.');
-    } else {
-      // Auto-migrate past seeded events to future dates and restore published status
-      const defaultEvt0 = (defaultData.events || []).find(e => e.id === "evt-0");
-      const defaultEvt1 = (defaultData.events || []).find(e => e.id === "evt-1");
-      if (defaultEvt0) {
-        await Event.updateOne(
-          { id: "evt-0" },
-          { $set: { date: defaultEvt0.date, status: "published" } }
-        );
-      }
-      if (defaultEvt1) {
-        await Event.updateOne(
-          { id: "evt-1" },
-          { $set: { date: defaultEvt1.date, status: "published" } }
-        );
-      }
-      console.log('Successfully migrated seeded events to future dates.');
     }
+    // NOTE: there is deliberately no else-branch here. The previous code
+    // force-reset evt-0 / evt-1 back to status:"published" with hardcoded
+    // dates on every boot, which republished events staff had cancelled
+    // after every single deploy. Existing events are now left alone.
 
     // Seed Orders
     const orderCount = await Order.countDocuments();
@@ -423,18 +517,37 @@ async function seedDatabase() {
     }
 
     // Seed Product Types (Physical Sheet Articles Sync)
+    // This used to deleteMany({}) + insertMany on every boot, silently
+    // reverting every staff-created product type on each container restart.
+    // It is now an idempotent top-up; the destructive path is opt-in only.
+    const defaultProductTypes = defaultData.productTypes || [];
     const ptCount = await ProductType.countDocuments();
+
     if (ptCount === 0) {
-      const seedPt = defaultData.productTypes || [];
-      if (seedPt.length > 0) {
-        await ProductType.insertMany(seedPt);
-        console.log('Seeded ProductType collection with 34 physical sheet articles successfully.');
+      if (defaultProductTypes.length > 0) {
+        await ProductType.insertMany(defaultProductTypes);
+        console.log(`Seeded ProductType collection with ${defaultProductTypes.length} physical sheet articles successfully.`);
       }
-    } else {
-      // Re-sync product types to ensure all 34 articles match the physical sheet
+    } else if (process.env.FORCE_RESEED_PRODUCT_TYPES === 'true') {
+      console.warn('\x1b[33m%s\x1b[0m', 'FORCE_RESEED_PRODUCT_TYPES=true — wiping ProductType collection and re-inserting defaults. Staff-created product types will be LOST.');
       await ProductType.deleteMany({});
-      await ProductType.insertMany(defaultData.productTypes);
-      console.log('ProductType collection synced successfully with all 34 physical sheet articles.');
+      await ProductType.insertMany(defaultProductTypes);
+      console.log('ProductType collection force-reseeded from defaults.');
+    } else {
+      // Insert only the defaults that are missing. $setOnInsert means an
+      // existing document (default or staff-created) is never modified.
+      let insertedCount = 0;
+      for (const pt of defaultProductTypes) {
+        const result = await ProductType.updateOne(
+          { id: pt.id },
+          { $setOnInsert: pt },
+          { upsert: true }
+        );
+        if (result.upsertedCount) insertedCount++;
+      }
+      if (insertedCount > 0) {
+        console.log(`ProductType collection topped up with ${insertedCount} missing default article(s); existing entries left untouched.`);
+      }
     }
 
     // Seed Stock Movements
@@ -506,7 +619,7 @@ app.get('/api/all-data', async (req, res) => {
     const token = req.cookies.admin_token;
     if (token) {
       try {
-        const verified = jwt.verify(token, process.env.SESSION_SECRET || 'babkesupersecretkey2026');
+        const verified = jwt.verify(token, SESSION_SECRET);
         leftovers = await Leftover.find().sort({ date: -1, createdAt: -1 }).lean();
         ruinedProducts = await RuinedProduct.find().sort({ date: -1, createdAt: -1 }).lean();
         stockMovements = await StockMovement.find().sort({ date: -1, createdAt: -1 }).lean();
@@ -557,20 +670,21 @@ app.get('/api/all-data', async (req, res) => {
 app.post('/api/admin/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body;
 
-  const adminUser = process.env.ADMIN_USERNAME || 'admin';
-  const adminPass = process.env.ADMIN_PASSWORD || 'babke2026';
+  // No fallbacks: every one of these is validated at boot by REQUIRED_ENV.
+  const adminUser = process.env.ADMIN_USERNAME;
+  const adminPass = process.env.ADMIN_PASSWORD;
 
-  const comptableUser = process.env.COMPTABLE_USERNAME || 'comptable';
-  const comptablePass = process.env.COMPTABLE_PASSWORD || 'babkecomptable2026';
+  const comptableUser = process.env.COMPTABLE_USERNAME;
+  const comptablePass = process.env.COMPTABLE_PASSWORD;
 
-  const mediaUser = process.env.MEDIA_USERNAME || 'media';
-  const mediaPass = process.env.MEDIA_PASSWORD || 'babkemedia2026';
+  const mediaUser = process.env.MEDIA_USERNAME;
+  const mediaPass = process.env.MEDIA_PASSWORD;
 
-  const cashierUser = process.env.CASHIER_USERNAME || 'cashier';
-  const cashierPass = process.env.CASHIER_PASSWORD || 'babkecashier2026';
-  
-  const workerUser = process.env.WORKER_USERNAME || 'worker';
-  const workerPass = process.env.WORKER_PASSWORD || 'babkeworker2026';
+  const cashierUser = process.env.CASHIER_USERNAME;
+  const cashierPass = process.env.CASHIER_PASSWORD;
+
+  const workerUser = process.env.WORKER_USERNAME;
+  const workerPass = process.env.WORKER_PASSWORD;
 
   let role = null;
   if (username === adminUser && password === adminPass) {
@@ -588,13 +702,14 @@ app.post('/api/admin/login', loginLimiter, async (req, res) => {
   if (role) {
     const token = jwt.sign(
       { username: username, role: role },
-      process.env.SESSION_SECRET || 'babkesupersecretkey2026',
+      SESSION_SECRET,
       { expiresIn: '24h' }
     );
     res.cookie('admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
+      path: '/',
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
@@ -616,12 +731,19 @@ app.post('/api/admin/logout', authMiddleware, async (req, res) => {
   if (req.admin) {
     await createAuditLog(req.admin.role, req.admin.username, 'LOGOUT', `Déconnexion de l'utilisateur (${req.admin.role.toUpperCase()})`);
   }
-  res.clearCookie('admin_token');
+  // Must mirror the FULL option set used in res.cookie() above, or the
+  // browser will not match (and therefore will not clear) the cookie.
+  res.clearCookie('admin_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/'
+  });
   res.json({ success: true });
 });
 
-// Admin Reset & Seed Database Route
-app.post('/api/admin/reset-database', authMiddleware, async (req, res) => {
+// Admin Reset & Seed Database Route — owner only: this wipes 14 collections.
+app.post('/api/admin/reset-database', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
   try {
     const defaultData = require('./data/defaultData.js');
     console.log('🧹 Purging all MongoDB collections via admin trigger...');
@@ -825,7 +947,7 @@ app.delete('/api/ruined-products/:id', authMiddleware, async (req, res) => {
 });
 
 // Product Types Endpoints (Managed by Comptable & Admin)
-app.get('/api/product-types', async (req, res) => {
+app.get('/api/product-types', authMiddleware, async (req, res) => {
   try {
     const types = await ProductType.find().sort({ name: 1 });
     res.json(types);
@@ -1031,7 +1153,7 @@ app.get('/api/admin/events-stream', (req, res) => {
   if (!token) return res.status(401).end();
 
   try {
-    jwt.verify(token, process.env.SESSION_SECRET || 'babkesupersecretkey2026');
+    jwt.verify(token, SESSION_SECRET);
   } catch (err) {
     return res.status(401).end();
   }
@@ -1039,28 +1161,71 @@ app.get('/api/admin/events-stream', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  // Stop nginx from buffering the stream, push the headers out immediately and
+  // write a first byte so EventSource.onopen fires instead of nginx 504-ing at
+  // proxy_read_timeout. The heartbeat keeps idle proxies from dropping us.
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  res.write(': connected\n\n');
+  res.write('retry: 5000\n\n');
+  const hb = setInterval(() => { try { res.write(': ping\n\n'); } catch (e) {} }, 25000);
+  if (typeof hb.unref === 'function') hb.unref(); // never hold the event loop open on shutdown
 
   sseClients.push(res);
 
   req.on('close', () => {
+    clearInterval(hb);
     sseClients = sseClients.filter(client => client !== res);
   });
 });
 
-// Public SSE stream for real-time storefront synchronization
+// Public SSE stream for real-time storefront synchronization.
+// This endpoint is unauthenticated, so sendSseNotification() only forwards the
+// events listed in PUBLIC_SSE_EVENTS to it (see below).
 app.get('/api/sse', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  res.write(': connected\n\n');
+  res.write('retry: 5000\n\n');
+  const hb = setInterval(() => { try { res.write(': ping\n\n'); } catch (e) {} }, 25000);
+  if (typeof hb.unref === 'function') hb.unref();
 
   publicSseClients.push(res);
 
   req.on('close', () => {
+    clearInterval(hb);
     publicSseClients = publicSseClients.filter(client => client !== res);
   });
 });
 
+// Events anonymous storefront visitors are allowed to receive. Everything else
+// (newOrder, newReservation, newExpense, newStockMovement, newLeftover,
+// newRuinedProduct, newAccountingSheet, newAuditLog, newProductType, the
+// delete*/update* events, reservationsChanged, ...) is admin-only, because
+// those payloads carry customer names, phone numbers, addresses and internal
+// financials.
+const PUBLIC_SSE_EVENTS = new Set([
+  'menuChanged',
+  'eventsChanged',
+  'contentChanged',
+  'reviewsChanged',
+  'galleryChanged',
+  'ordersChanged'
+]);
+
+// ordersChanged is public so the storefront order tracker can refresh, but the
+// public copy is reduced to the order id — never the customer object.
+function toPublicSsePayload(event, data) {
+  if (event !== 'ordersChanged') return data;
+  if (Array.isArray(data)) return data.map(item => ({ id: item && item.id }));
+  return { id: data && data.id };
+}
+
 function sendSseNotification(event, data) {
+  // Admin stream: unchanged, full payload.
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
   sseClients.forEach(client => {
@@ -1071,9 +1236,13 @@ function sendSseNotification(event, data) {
     }
   });
 
+  if (!PUBLIC_SSE_EVENTS.has(event)) return;
+
+  const publicPayload = `event: ${event}\ndata: ${JSON.stringify(toPublicSsePayload(event, data))}\n\n`;
+
   publicSseClients.forEach(client => {
     try {
-      client.write(payload);
+      client.write(publicPayload);
     } catch (err) {
       publicSseClients = publicSseClients.filter(c => c !== client);
     }
@@ -1118,7 +1287,7 @@ app.put('/api/menu/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) =
 });
 
 // Toggle/update menu item availability (accessible by cashiers, workers, and admins)
-app.patch('/api/menu/:id/availability', async (req, res) => {
+app.patch('/api/menu/:id/availability', authMiddleware, async (req, res) => {
   try {
     const { available } = req.body;
     const targetId = req.params.id;
@@ -1477,7 +1646,7 @@ app.post('/api/orders', submissionLimiter, async (req, res) => {
   }
 });
 
-app.put('/api/orders/:id', async (req, res) => {
+app.put('/api/orders/:id', authMiddleware, async (req, res) => {
   try {
     const order = await Order.findOneAndUpdate(
       { id: req.params.id },
@@ -1514,7 +1683,7 @@ app.post('/api/reservations', submissionLimiter, async (req, res) => {
   }
 });
 
-app.put('/api/reservations/:id', async (req, res) => {
+app.put('/api/reservations/:id', authMiddleware, async (req, res) => {
   try {
     const reservation = await Reservation.findOneAndUpdate(
       { id: req.params.id },
@@ -1529,19 +1698,128 @@ app.put('/api/reservations/:id', async (req, res) => {
   }
 });
 
-// Serve Static Assets from Root
-app.use(express.static(__dirname));
+// ----------------------------------------------------
+// HEALTHCHECK
+// Deliberately does NOT touch Mongo: any query would sit on the 10s
+// bufferTimeoutMS while Mongo is down and blow the container healthcheck.
+// readyState: 0 disconnected, 1 connected, 2 connecting, 3 disconnecting.
+// ----------------------------------------------------
+app.get('/healthz', (req, res) => {
+  const state = mongoose.connection.readyState;
+  const healthy = state === 1;
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ok' : 'degraded',
+    mongo: state,
+    uptime: Math.round(process.uptime())
+  });
+});
 
-// Fallback index.html serving (single page application support, though not strictly needed since static handles it)
-app.get('*', (req, res) => {
+// ----------------------------------------------------
+// STATIC ASSETS — explicit allowlist ONLY.
+// This used to be `app.use(express.static(__dirname))`, which published the
+// entire repository root: /server.js, /seed.js, /package.json,
+// /package-lock.json, /config/settings.js, /node_modules/** and /.git/*.
+// ----------------------------------------------------
+const STATIC_DIRS = ['assets', 'styles', 'scripts', 'components', 'data', 'config'];
+const staticOptions = { dotfiles: 'deny', index: false, redirect: false };
+
+STATIC_DIRS.forEach(dir => {
+  app.use(`/${dir}`, express.static(path.join(__dirname, dir), staticOptions));
+});
+
+// Admin SPA lives in its own directory and keeps a directory index.
+app.use('/admin', express.static(path.join(__dirname, 'admin'), {
+  index: 'index.html',
+  dotfiles: 'deny'
+}));
+
+// Landing page.
+app.get(['/', '/index.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Unknown API paths must be a JSON 404. Previously they fell through to the
+// catch-all and got a 200 HTML page, which silently broke every client that
+// mistyped a route.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
+});
+
+// ----------------------------------------------------
+// SPA FALLBACK — navigation requests only.
+// Anything that looks like a file (has an extension) or a dotfile gets a real
+// 404 instead of index.html, so browsers never receive HTML under a
+// .js/.css/.json MIME type.
+// ----------------------------------------------------
+const LOOKS_LIKE_FILE = /\.[A-Za-z0-9]{1,8}$/;
+const LOOKS_LIKE_DOTFILE = /(^|\/)\.[^/]/;
+
+app.use((req, res) => {
+  const isNavigation =
+    (req.method === 'GET' || req.method === 'HEAD') &&
+    Boolean(req.accepts('html')) &&
+    !LOOKS_LIKE_DOTFILE.test(req.path) &&
+    !LOOKS_LIKE_FILE.test(req.path);
+
+  if (isNavigation) {
+    return res.sendFile(path.join(__dirname, 'index.html'));
+  }
+
+  res.status(404).type('text/plain').send('404 Not Found');
+});
+
 // Start Server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`====================================================`);
   console.log(`  Babke Kebab Backend Server running on port ${PORT}`);
-  console.log(`  Open storefront: http://localhost:${PORT}/index.html`);
-  console.log(`  Open dashboard:  http://localhost:${PORT}/admin/index.html`);
+  console.log(`  Open storefront: http://localhost:${PORT}/`);
+  console.log(`  Open dashboard:  http://localhost:${PORT}/admin/`);
   console.log(`====================================================`);
 });
+
+// ----------------------------------------------------
+// GRACEFUL SHUTDOWN
+// As PID 1 in the container, without these handlers `docker stop` waits the
+// full grace period and then SIGKILLs.
+// ----------------------------------------------------
+let shuttingDown = false;
+
+function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received — shutting down gracefully...`);
+
+  // Backstop: never hang past this, whatever a socket is doing.
+  const forceExit = setTimeout(() => {
+    console.error('Graceful shutdown timed out — forcing exit.');
+    process.exit(1);
+  }, 8000);
+  if (typeof forceExit.unref === 'function') forceExit.unref();
+
+  // Release SSE keep-alive connections, otherwise server.close() never fires.
+  [...sseClients, ...publicSseClients].forEach(client => {
+    try { client.end(); } catch (e) { /* already gone */ }
+  });
+  sseClients = [];
+  publicSseClients = [];
+
+  server.close(async () => {
+    try {
+      await mongoose.connection.close(false);
+    } catch (err) {
+      console.error('Error closing MongoDB connection:', err.message);
+    }
+    clearTimeout(forceExit);
+    console.log('Shutdown complete.');
+    process.exit(0);
+  });
+
+  // Drop idle keep-alive sockets so server.close() does not wait on them.
+  // In-flight requests are still allowed to finish. (Node >= 18.2)
+  if (typeof server.closeIdleConnections === 'function') {
+    server.closeIdleConnections();
+  }
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
