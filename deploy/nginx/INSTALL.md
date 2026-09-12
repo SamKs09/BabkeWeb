@@ -338,14 +338,15 @@ step 4 warning check, reload, and retry certbot.
 `../config/settings.js` and `../data/store.js` with a non-prefixed
 `<script defer src="admin.js">`. Anything that keeps the document URL at `/`
 makes the browser fetch `/admin.js`, which the app's catch-all answers with
-`index.html`; the MIME refusal is silent and the SPA never boots. It must stay
+a plain-text 404 (the app refuses to serve index.html for any path carrying a
+file extension), so the SPA never boots. It must stay
 `location = / { return 301 /admin/index.html; }`.
 
 **SSE connects then dies after one message** - `proxy_http_version 1.1` is missing
 from that location, or `Connection` is set to `upgrade` instead of `""`, or
 `text/event-stream` crept into `gzip_types`. All three produce the same symptom.
 
-**Uploads 413** - `client_max_body_size 60M;` is missing from that vhost. There is
+**Uploads 413** - `client_max_body_size 12M;` is missing from that vhost. There is
 no http-level default on this box to fall back on.
 
 **Everything 502s** - the app container is not up or not publishing on

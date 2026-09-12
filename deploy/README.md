@@ -380,9 +380,14 @@ docker image rm babke-api:prev-<old-tag>
   dependency and images are base64 data URIs inside Mongo documents. All
   persistent state is in `babke_mongo-data` — backing up that volume backs up
   everything.
-* `express.json({ limit: '50mb' })` is what makes those data URIs work. If image
-  uploads start failing with 413, check the host nginx `client_max_body_size`
-  too — the app limit is only half the path.
+* `express.json({ limit: '10mb' })` is what makes those data URIs work. The admin
+  SPA resizes every upload to 800x800 JPEG before sending, so a real image is
+  around 100 KB of base64 and 10mb is generous. The ceiling is deliberately not
+  higher: this middleware runs before every auth check and rate limiter, so
+  whatever it accepts an anonymous caller can send, and a parsed JSON body peaks
+  at roughly three times its wire size against the container's 512m cap.
+  If image uploads start failing with 413, check the host nginx
+  `client_max_body_size` too (12M) — the app limit is only half the path.
 * Switching from the interim `nip.io` hostnames to `babke.tn` is an `.env` edit
   (`ALLOWED_ORIGINS`) plus a host nginx `server_name` change plus new certs.
   Nothing in `docker-compose.yml` changes.

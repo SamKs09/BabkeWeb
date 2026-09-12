@@ -44,8 +44,8 @@ services:
       # Service hostname `mongo` on the implicit private bridge network.
       # Root creds live in the admin db, hence authSource=admin.
       MONGODB_URI: mongodb://${MONGO_ROOT_USER:?MONGO_ROOT_USER missing from /opt/babke/.env}:${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD missing from /opt/babke/.env}@mongo:27017/babke?authSource=admin
-      # JWT signing key for the admin_token cookie. server.js falls back to a
-      # hardcoded default if unset — :? makes that impossible in production.
+      # JWT signing key for the admin_token cookie. server.js refuses to start
+      # when this is missing; the :? guard fails even earlier, at compose up.
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET missing from /opt/babke/.env}
       # Five login roles, names taken verbatim from server.js.
       ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME missing from /opt/babke/.env}
