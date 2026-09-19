@@ -2469,6 +2469,116 @@ body.light-theme .btn-adm-ghost { border-color: rgba(192, 58, 46, 0.28); }
 .adm-form-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
 .adm-inline-field { min-width: 150px; }
 
+/* --------------------------------------------------------------------------
+   Suppléments payants (content.supplements) — owner-only editor that sits
+   under the menu catalogue, beside the customization price standards.
+   Tokens only: no literal colours, so the light theme follows for free.
+   -------------------------------------------------------------------------- */
+.adm-supp-intro {
+  font-size: 0.85rem;
+  color: var(--text-admin-muted);
+  margin-bottom: 16px;
+  line-height: 1.5;
+  max-width: 72ch;
+}
+
+.adm-supp-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+
+.adm-supp-empty {
+  border: 1px dashed var(--border-admin);
+  border-radius: var(--radius-admin-md);
+  padding: 22px 18px;
+  text-align: center;
+  color: var(--text-admin-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.adm-supp-row {
+  border: 1px solid var(--border-admin);
+  border-radius: var(--radius-admin-md);
+  padding: 12px 14px 4px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color var(--transition-admin);
+}
+body.light-theme .adm-supp-row { background: rgba(192, 58, 46, 0.03); }
+.adm-supp-row:focus-within { border-color: var(--accent-admin); }
+
+.adm-supp-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.adm-supp-index {
+  flex: 0 0 auto;
+  min-width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-admin);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.adm-supp-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.72rem;
+  color: var(--text-admin-muted);
+  overflow-wrap: anywhere;
+}
+.adm-supp-id-new { font-style: italic; font-weight: 600; }
+
+/* Field that failed validation on save (aria-invalid set by admin.js). */
+.adm-supp-fields .admin-input[aria-invalid="true"] {
+  border-color: var(--adm-danger, #dc2626);
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.18);
+}
+
+.adm-supp-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(110px, 0.6fr);
+  gap: 12px;
+}
+.adm-supp-fields .form-group-admin label { font-size: 0.68rem; }
+.adm-supp-fields .admin-input { width: 100%; }
+
+/* Tunisian Arabic label: right-to-left field and right-aligned label. */
+.adm-supp-fields .adm-supp-tn { text-align: right; }
+.adm-supp-tn-field label { text-align: right; display: block; }
+
+.adm-supp-error:not([hidden]) { display: block; }
+
+.adm-supp-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.adm-supp-footer-left { display: flex; gap: 10px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .adm-supp-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .adm-supp-fields { grid-template-columns: 1fr; }
+  .adm-supp-footer { flex-direction: column; align-items: stretch; }
+  .adm-supp-footer-left > button,
+  .adm-supp-footer > .btn-admin-primary { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-supp-row { transition: none; }
+}
+
 /* Banners */
 .adm-banner {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;

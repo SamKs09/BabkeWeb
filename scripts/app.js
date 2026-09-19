@@ -5,6 +5,19 @@
 document.addEventListener('DOMContentLoaded', () => {
   const getLang = () => localStorage.getItem('babke_lang') || 'en';
 
+  // Escape any admin-editable value before it is interpolated into innerHTML
+  const esc = (value) => String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  // Honour prefers-reduced-motion for programmatic scrolling
+  const scrollBehavior = () => (
+    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+  );
+
   // Global Immersive Toast Notification utility
   window.showToast = (message) => {
     let container = document.querySelector('.babke-toast-container');
@@ -120,31 +133,173 @@ document.addEventListener('DOMContentLoaded', () => {
   let isScrollingProgrammatically = false;
   let scrollTimeout = null;
 
-  const menuTabs = document.querySelectorAll('.menu-tab');
+  // The two categories of the printed carte, in printed order, with their
+  // trilingual labels. Any other category found in the menu data is appended
+  // after them (see getMenuCategories), so a dish the owner files under a new
+  // category in the admin shows up in the grid as well as in the flip-book.
+  const DEFAULT_MENU_CATEGORIES = [
+    { id: 'plats', label: { en: 'Platters', fr: 'Plats', tn: 'أطباق' } },
+    { id: 'enfant', label: { en: 'Kids Menu', fr: 'Menu Enfant', tn: 'منيو الأطفال' } }
+  ];
+  // Dishes saved with no category at all are grouped here instead of being
+  // dropped. The leading underscore keeps this id out of the admin's category
+  // id format (a-z, 0-9, dash), so it cannot collide with a real category.
+  const UNCATEGORIZED_ID = '_none';
+  const UNCATEGORIZED_LABEL = { en: 'More', fr: 'Autres', tn: 'أخرى' };
 
-  // Smooth scroll links on tab clicks
-  menuTabs.forEach(tab => {
-    tab.addEventListener('click', (e) => {
-      e.preventDefault();
-      const category = e.currentTarget.dataset.category;
-      const targetSection = document.getElementById(`cat-section-${category}`);
-      if (targetSection) {
-        // Set flag to prevent IntersectionObserver overrides during smooth scroll
-        isScrollingProgrammatically = true;
-        clearTimeout(scrollTimeout);
+  const categoryKey = (item) => {
+    const raw = item && item.category != null ? String(item.category).trim() : '';
+    return raw || UNCATEGORIZED_ID;
+  };
 
-        // Immediate tab visual active state update
-        menuTabs.forEach(t => t.classList.remove('active'));
-        e.currentTarget.classList.add('active');
+  // Localized label from a { en, fr, tn } object (or a plain string). French
+  // is the printed language, so it is the first fallback.
+  const pickLabel = (label, lang) => {
+    if (typeof label === 'string') return label.trim();
+    if (!label || typeof label !== 'object') return '';
+    const found = [label[lang], label.fr, label.en, label.tn]
+      .find(v => typeof v === 'string' && v.trim());
+    return found ? found.trim() : '';
+  };
 
-        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Readable label from a bare category id: 'boissons' -> 'Boissons',
+  // 'hot-drinks' -> 'Hot drinks'.
+  const humanizeCategoryId = (id) => {
+    const words = String(id).replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return words ? words.charAt(0).toUpperCase() + words.slice(1) : String(id);
+  };
 
-        // Reset programmatic scroll flag after scroll duration
-        scrollTimeout = setTimeout(() => {
-          isScrollingProgrammatically = false;
-        }, 800);
-      }
+  // Category titles the owner typed in the menu-book settings, in the book's
+  // order. These are the only labels the data carries for a category.
+  const getBookCategoryTitles = () => {
+    const titles = new Map();
+    let settings = null;
+    try {
+      settings = typeof BabkeDB.getMenuBook === 'function' ? BabkeDB.getMenuBook() : null;
+    } catch (e) {
+      settings = null;
+    }
+    const list = settings && Array.isArray(settings.categories) ? settings.categories : [];
+    list.forEach(c => {
+      if (!c || typeof c !== 'object' || c.id == null) return;
+      const id = String(c.id).trim();
+      if (id && !titles.has(id)) titles.set(id, c.title);
     });
+    return titles;
+  };
+
+  // Every category that has at least one dish, as [{ id, title }]:
+  // 'plats' and 'enfant' first, then extra categories in the menu book's
+  // order, then any remaining ones in order of first appearance in the menu,
+  // then dishes with no category at all.
+  const getMenuCategories = (menuItems, lang) => {
+    const present = new Set(menuItems.map(categoryKey));
+    const cats = [];
+    const seen = new Set();
+    const add = (id, title) => {
+      if (seen.has(id) || !present.has(id)) return;
+      seen.add(id);
+      cats.push({ id, title: title || humanizeCategoryId(id) });
+    };
+
+    DEFAULT_MENU_CATEGORIES.forEach(c => add(c.id, pickLabel(c.label, lang)));
+    getBookCategoryTitles().forEach((title, id) => {
+      if (id !== UNCATEGORIZED_ID) add(id, pickLabel(title, lang));
+    });
+    menuItems.forEach(item => {
+      const id = categoryKey(item);
+      if (id !== UNCATEGORIZED_ID) add(id, humanizeCategoryId(id));
+    });
+    add(UNCATEGORIZED_ID, pickLabel(UNCATEGORIZED_LABEL, lang));
+    return cats;
+  };
+
+  // Tabs are looked up live: the static ones come from index.html, and
+  // syncMenuTabs() may append more for categories the markup doesn't know.
+  const getMenuTabs = () => Array.from(document.querySelectorAll('.menu-tab'));
+
+  const setActiveMenuTab = (category) => {
+    getMenuTabs().forEach(tab => {
+      const isActive = tab.dataset.category === category;
+      tab.classList.toggle('active', isActive);
+      tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+  };
+
+  // Give every rendered category a tab. The static tabs in index.html are
+  // left as they are. Tabs this file added earlier are relabelled, reused or
+  // removed. If the tab strip is missing, nothing is added: every category
+  // still gets its own section in the grid, so its dishes can still be reached.
+  const syncMenuTabs = (renderedCats) => {
+    const firstTab = document.querySelector('.menu-tab');
+    const strip = document.querySelector('.menu-tabs-glass') || (firstTab && firstTab.parentElement);
+    if (!strip) return;
+
+    const wanted = new Map(renderedCats.map(c => [c.id, c.title]));
+
+    // Drop our own tabs whose category no longer has any dish
+    strip.querySelectorAll('.menu-tab[data-babke-auto-tab]').forEach(tab => {
+      if (!wanted.has(tab.dataset.category)) tab.remove();
+    });
+
+    renderedCats.forEach(cat => {
+      const existing = getMenuTabs().find(tab => tab.dataset.category === cat.id);
+      if (existing) {
+        // Only relabel tabs this file created; the static ones are translated
+        // by translations.js
+        if (existing.hasAttribute('data-babke-auto-tab')) {
+          const labelEl = existing.querySelector('.tab-label');
+          if (labelEl) labelEl.textContent = cat.title;
+        }
+        return;
+      }
+      const tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'menu-tab';
+      tab.dataset.category = cat.id;
+      tab.dataset.babkeAutoTab = '1';
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', 'false');
+      const labelEl = document.createElement('span');
+      labelEl.className = 'tab-label';
+      labelEl.textContent = cat.title;
+      tab.appendChild(labelEl);
+      strip.appendChild(tab);
+    });
+
+    // Keep one active tab that points at a category actually on screen
+    const renderedIds = new Set(renderedCats.map(c => c.id));
+    const active = getMenuTabs().find(tab => tab.classList.contains('active'));
+    if (renderedCats.length && (!active || !renderedIds.has(active.dataset.category))) {
+      setActiveMenuTab(renderedCats[0].id);
+    } else if (active) {
+      setActiveMenuTab(active.dataset.category);
+    }
+  };
+
+  // Smooth scroll on tab clicks. Delegated so tabs added after page load
+  // (syncMenuTabs) behave exactly like the static ones.
+  document.addEventListener('click', (e) => {
+    const tab = e.target instanceof Element ? e.target.closest('.menu-tab') : null;
+    if (!tab || tab.dataset.category == null) return;
+    e.preventDefault();
+    const category = tab.dataset.category;
+    const targetSection = document.getElementById(`cat-section-${category}`);
+    if (targetSection) {
+      // Set flag to prevent IntersectionObserver overrides during smooth scroll
+      isScrollingProgrammatically = true;
+      clearTimeout(scrollTimeout);
+
+      // Immediate tab visual active state update
+      setActiveMenuTab(category);
+
+      targetSection.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+
+      // Reset programmatic scroll flag after scroll duration
+      scrollTimeout = setTimeout(() => {
+        isScrollingProgrammatically = false;
+      }, 800);
+    }
   });
 
   const setupMenuScrollObserver = () => {
@@ -169,14 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (entry.isIntersecting) {
           const id = entry.target.id;
           const category = id.replace('cat-section-', '');
-
-          menuTabs.forEach(tab => {
-            if (tab.dataset.category === category) {
-              tab.classList.add('active');
-            } else {
-              tab.classList.remove('active');
-            }
-          });
+          setActiveMenuTab(category);
         }
       });
     }, observerOptions);
@@ -193,16 +341,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const menuItems = BabkeDB.getMenu();
+    const rawMenu = BabkeDB.getMenu();
+    const menuItems = (Array.isArray(rawMenu) ? rawMenu : []).filter(item => item && typeof item === 'object');
     const lang = getLang();
 
-    // Localized category definitions matching the required languages
-    const categories = [
-      { id: 'wraps', label: { en: 'Wraps & Sandwiches', fr: 'Wraps & Sandwichs', tn: 'سندويشات' } },
-      { id: 'plates', label: { en: 'Feast Platters', fr: 'Plats Grillades', tn: 'أطباق مشوية' } },
-      { id: 'mezze', label: { en: 'Mezze & Dips', fr: 'Mezzés & Entrées', tn: 'مقبلات و غطوس' } },
-      { id: 'specialties', label: { en: 'Specialties', fr: 'Spécialités', tn: 'العروض الخاصة' } }
-    ];
+    // Categories come from the data (the known two first, in printed order)
+    const categories = getMenuCategories(menuItems, lang);
+    const renderedCats = [];
 
     // Localized bottom button texts
     let btnText = "Customize & Order";
@@ -215,10 +360,11 @@ document.addEventListener('DOMContentLoaded', () => {
     wrapper.innerHTML = '';
 
     categories.forEach(cat => {
-      const catItems = menuItems.filter(item => item.category === cat.id);
+      const catItems = menuItems.filter(item => categoryKey(item) === cat.id);
       if (catItems.length === 0) return;
+      renderedCats.push(cat);
 
-      const catTitle = cat.label[lang] || cat.label['en'];
+      const catTitle = cat.title;
 
       // Create Category Section
       const section = document.createElement('section');
@@ -271,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (tag.includes('2025') || tag.toLowerCase().includes('seller') || tag.toLowerCase().includes('vendeur') || tag.includes('طلب')) {
             style = 'style="background:#ffb830;color:#000000;font-weight:900;letter-spacing:0.02em;"';
           }
-          tagsHtml += `<span class="card-tag ${tagClass}" ${style}>${tag}</span>`;
+          tagsHtml += `<span class="card-tag ${esc(tagClass)}" ${style}>${esc(tag)}</span>`;
         });
 
         const isAvailable = item.available !== false;
@@ -285,40 +431,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const ribbonBannerHtml = isAvailable ? '' : `
           <div class="indisponible-banner-ribbon">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span>${bannerText}</span>
+            <span>${esc(bannerText)}</span>
           </div>
         `;
 
         const actionBtnHtml = isAvailable ? `
-          <button class="btn-card-add" data-id="${item.id}" data-name="${title}" data-price="${item.price}" data-desc="${desc}">
-            <span>${btnText}</span>
+          <button class="btn-card-add" data-id="${esc(item.id)}" data-name="${esc(title)}" data-price="${esc(item.price)}" data-desc="${esc(desc)}">
+            <span>${esc(btnText)}</span>
             <span class="btn-plus-icon">+</span>
           </button>
         ` : `
           <button class="btn-card-add sold-out-disabled" disabled style="background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.5); color: #ef4444; cursor: not-allowed; opacity: 0.9; width: 100%; justify-content: center; font-weight: 800; pointer-events: none;">
-            <span>🚫 ${soldOutBtnText}</span>
+            <span>🚫 ${esc(soldOutBtnText)}</span>
           </button>
         `;
 
         card.innerHTML = `
           <div class="menu-item-img-wrapper" style="position:relative;">
             ${ribbonBannerHtml}
-            <img src="${imageSrc}" onerror="this.onerror=null; this.src='${fallbackSrc}';" alt="${title}" class="menu-item-img" loading="lazy">
+            <img src="${esc(imageSrc)}" alt="${esc(title)}" class="menu-item-img" loading="lazy">
             <div class="menu-item-tags">
               ${tagsHtml}
             </div>
           </div>
           <div class="menu-item-body">
             <div class="menu-item-header">
-              <h3>${title}</h3>
+              <h3>${esc(title)}</h3>
               <span class="menu-item-price">${item.price.toFixed(1)} TND</span>
             </div>
-            <p class="menu-item-text">${desc}</p>
+            <p class="menu-item-text">${esc(desc)}</p>
           </div>
           <div class="menu-card-actions-row">
             ${actionBtnHtml}
           </div>
         `;
+
+        // Image fallback wired as a listener (keeps the URL out of an inline handler)
+        const cardImg = card.querySelector('.menu-item-img');
+        if (cardImg && fallbackSrc) {
+          cardImg.addEventListener('error', function handleImgError() {
+            cardImg.removeEventListener('error', handleImgError);
+            cardImg.src = fallbackSrc;
+          });
+        }
+
         track.appendChild(card);
       });
 
@@ -332,12 +488,12 @@ document.addEventListener('DOMContentLoaded', () => {
       prevBtn.addEventListener('click', () => {
         const cardWidth = track.querySelector('.menu-item-card')?.clientWidth || 280;
         const scrollAmount = cardWidth + 24;
-        track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+        track.scrollBy({ left: -scrollAmount, behavior: scrollBehavior() });
       });
       nextBtn.addEventListener('click', () => {
         const cardWidth = track.querySelector('.menu-item-card')?.clientWidth || 280;
         const scrollAmount = cardWidth + 24;
-        track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        track.scrollBy({ left: scrollAmount, behavior: scrollBehavior() });
       });
 
       // Update Arrow overlay buttons visibility & centering helper
@@ -384,7 +540,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Initialize/sync scroll observers
+    // Give each rendered category a tab, then initialize/sync scroll observers
+    syncMenuTabs(renderedCats);
     setupMenuScrollObserver();
   };
 
@@ -592,12 +749,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       prevBtn.onclick = () => {
         const cardWidth = track.firstElementChild ? track.firstElementChild.offsetWidth + 24 : 350;
-        track.scrollBy({ left: -cardWidth, behavior: 'smooth' });
+        track.scrollBy({ left: -cardWidth, behavior: scrollBehavior() });
       };
 
       nextBtn.onclick = () => {
         const cardWidth = track.firstElementChild ? track.firstElementChild.offsetWidth + 24 : 350;
-        track.scrollBy({ left: cardWidth, behavior: 'smooth' });
+        track.scrollBy({ left: cardWidth, behavior: scrollBehavior() });
       };
 
       track.onscroll = () => {

@@ -298,6 +298,26 @@ body.rtl-active .loyalty-stamp.is-tier::after {
   opacity: 0.92;
 }
 
+/* The seal mark is the Babke logo. On the ember stamp disc it is forced to
+   solid white so the shape stays readable at ~14px; elsewhere (tier rows and
+   unlocked chips) it keeps the brass tone of the surrounding text. */
+.loyalty-seal-mark {
+  display: block;
+  width: 62%;
+  height: 62%;
+  object-fit: contain;
+  opacity: 0.95;
+}
+.loyalty-stamp.filled .loyalty-seal-mark {
+  filter: brightness(0) invert(1);
+}
+.loyalty-tier-seal .loyalty-seal-mark,
+.loyalty-chip-seal .loyalty-seal-mark {
+  width: 100%;
+  height: 100%;
+  opacity: 0.9;
+}
+
 /* The press: each new seal lands with an overshoot, staggered. */
 .loyalty-stamp.filled.is-new {
   animation: loyaltyPress 420ms var(--loyalty-ease-back) both;

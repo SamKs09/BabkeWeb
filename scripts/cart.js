@@ -5,6 +5,12 @@
 document.addEventListener('DOMContentLoaded', () => {
   let cart = [];
   let currentCustomizingItem = null;
+  // Paid add-ons currently rendered in the customisation modal, normalised from
+  // BabkeDB.getContent().supplements. This snapshot is the price authority for
+  // the open modal: what the customer sees is what gets charged.
+  let activeSupplements = [];
+  // content.customizationPrices — only consulted by the legacy fallback modal.
+  let activeLegacyPrices = {};
 
   // Cart Translation Strings (Emojis Removed)
   const cartTranslations = {
@@ -138,6 +144,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const getLang = () => localStorage.getItem('babke_lang') || 'en';
 
+  const components = () => (typeof BabkeComponents !== 'undefined' ? BabkeComponents : {});
+
+  // Escape anything data-derived before it is interpolated into HTML.
+  const escapeHtml = (value) => {
+    const helper = components().escapeHtml;
+    if (typeof helper === 'function') return helper(value);
+    if (value === undefined || value === null) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
+  const normalizeSupplements = (raw, lang) => {
+    const helper = components().normalizeSupplements;
+    return typeof helper === 'function' ? helper(raw, lang) : [];
+  };
+
+  const getSiteContent = () => {
+    if (typeof BabkeDB === 'undefined' || typeof BabkeDB.getContent !== 'function') return {};
+    return BabkeDB.getContent() || {};
+  };
+
+  /**
+   * Price of one selected add-on input. Resolved from the supplement data by id;
+   * the DOM data-price is only a last-resort echo of what we rendered, never the
+   * client's own idea of a price.
+   */
+  const resolveAddonPrice = (input) => {
+    if (!input) return 0;
+    const addonId = input.dataset ? input.dataset.addonId : '';
+    if (addonId) {
+      const match = activeSupplements.find(sup => sup.id === addonId);
+      if (match) return Number(match.price) || 0;
+    }
+    const priceKey = input.dataset ? input.dataset.priceKey : '';
+    if (priceKey) {
+      const configured = Number(activeLegacyPrices[priceKey]);
+      if (isFinite(configured) && configured >= 0) return configured;
+      const defaults = components().LEGACY_ADDON_PRICE_DEFAULTS || {};
+      const fallback = Number(defaults[priceKey]);
+      return isFinite(fallback) ? fallback : 0;
+    }
+    const rendered = parseFloat(input.dataset ? input.dataset.price : '');
+    return isFinite(rendered) ? rendered : 0;
+  };
+
+  // Every checked paid add-on, in the order the modal lists them.
+  const collectSelectedAddons = (form) => {
+    if (!form) return [];
+    const selected = [];
+    form.querySelectorAll('input[name="addition"]:checked').forEach((input) => {
+      const addonId = (input.dataset && input.dataset.addonId) ? input.dataset.addonId : input.value;
+      selected.push({
+        id: String(addonId),
+        label: input.value,
+        price: resolveAddonPrice(input)
+      });
+    });
+    return selected;
+  };
+
   // Initialize Cart from LocalStorage
   const loadCart = () => {
     const savedCart = localStorage.getItem('babke_cart');
@@ -219,14 +289,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof BabkeComponents !== 'undefined' && BabkeComponents.getCartDrawerHTML && BabkeComponents.getCustomizationModalHTML) {
       const bodyContainer = document.body;
-      const customPrices = (typeof BabkeDB !== 'undefined' && typeof BabkeDB.getContent === 'function') ? (BabkeDB.getContent().customizationPrices || {}) : {};
-      
+      const siteContent = getSiteContent();
+      activeLegacyPrices = siteContent.customizationPrices || {};
+      activeSupplements = normalizeSupplements(siteContent.supplements, lang);
+
       const tempDiv1 = document.createElement('div');
       tempDiv1.innerHTML = BabkeComponents.getCartDrawerHTML(txt);
       while(tempDiv1.firstChild) bodyContainer.appendChild(tempDiv1.firstChild);
 
       const tempDiv2 = document.createElement('div');
-      tempDiv2.innerHTML = BabkeComponents.getCustomizationModalHTML(txt, customPrices);
+      tempDiv2.innerHTML = BabkeComponents.getCustomizationModalHTML(txt, activeLegacyPrices, activeSupplements, lang);
       while(tempDiv2.firstChild) bodyContainer.appendChild(tempDiv2.firstChild);
     }
 
@@ -247,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const actionRow = document.createElement('div');
         actionRow.className = 'menu-card-actions-row';
         actionRow.innerHTML = `
-          <button class="btn-card-add" data-id="${cardId}" data-name="${title}" data-price="${price}" data-desc="${desc}">
+          <button class="btn-card-add" data-id="${escapeHtml(cardId)}" data-name="${escapeHtml(title)}" data-price="${Number(price)}" data-desc="${escapeHtml(desc)}">
             <span>${txt.btn_card_add}</span>
             <span class="btn-plus-icon">+</span>
           </button>
@@ -451,31 +523,37 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    const updateModalTotalPrice = () => {
-      if (!currentCustomizingItem) return;
-      let basePrice = currentCustomizingItem.price;
-      
-      const checkedAdditions = customizationForm.querySelectorAll('input[name="addition"]:checked');
-      checkedAdditions.forEach(checkbox => {
-        basePrice += parseFloat(checkbox.dataset.price || 0);
+    // Unit price = dish + every selected paid add-on, priced from the data.
+    const getCustomizedUnitPrice = () => {
+      if (!currentCustomizingItem) return 0;
+      let unitPrice = Number(currentCustomizingItem.price) || 0;
+
+      collectSelectedAddons(customizationForm).forEach(addon => {
+        unitPrice += addon.price;
       });
 
       const checkedCheese = customizationForm.querySelector('input[name="cheese"]:checked');
-      if (checkedCheese && checkedCheese.dataset.price) {
-        basePrice += parseFloat(checkedCheese.dataset.price || 0);
+      if (checkedCheese && checkedCheese.value !== 'none') {
+        unitPrice += resolveAddonPrice(checkedCheese);
       }
 
-      const total = basePrice * modalQty;
-      document.getElementById('modal-total-button-price').textContent = `${total.toFixed(1)} TND`;
+      return unitPrice;
     };
 
-    customizationForm.querySelectorAll('input[name="addition"]').forEach(checkbox => {
-      checkbox.addEventListener('change', updateModalTotalPrice);
-    });
+    const updateModalTotalPrice = () => {
+      if (!currentCustomizingItem) return;
+      const total = getCustomizedUnitPrice() * modalQty;
+      const totalEl = document.getElementById('modal-total-button-price');
+      if (totalEl) totalEl.textContent = `${total.toFixed(1)} TND`;
+    };
 
-    customizationForm.querySelectorAll('input[name="cheese"]').forEach(radio => {
-      radio.addEventListener('change', updateModalTotalPrice);
-    });
+    // Delegated so the handler covers every add-on row without one listener each.
+    if (customizationForm) {
+      customizationForm.addEventListener('change', (e) => {
+        const name = e.target && e.target.name;
+        if (name === 'addition' || name === 'cheese') updateModalTotalPrice();
+      });
+    }
 
     if (btnModalInc) {
       btnModalInc.addEventListener('click', () => {
@@ -522,26 +600,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const veggies = [];
         customizationForm.querySelectorAll('input[name="veggie"]:checked').forEach(cb => veggies.push(cb.value));
 
-        // Collect cheese choice (radio — skip "none")
+        // Collect cheese choice (legacy fallback modal only — radio, skip "none")
         const cheeseInput = customizationForm.querySelector('input[name="cheese"]:checked');
         const cheese = (cheeseInput && cheeseInput.value !== 'none') ? cheeseInput.value : '';
-        const cheesePrice = (cheeseInput && cheeseInput.dataset.price) ? parseFloat(cheeseInput.dataset.price) || 0 : 0;
+        const cheesePrice = cheese ? resolveAddonPrice(cheeseInput) : 0;
 
-        // Collect paid extras
-        const additions = [];
-        const checkedAdditions = customizationForm.querySelectorAll('input[name="addition"]:checked');
-        let addonsCost = 0;
-        checkedAdditions.forEach(checkbox => {
-          additions.push(checkbox.value);
-          addonsCost += parseFloat(checkbox.dataset.price || 0);
-        });
+        // Collect paid extras (data-driven add-ons, priced from content.supplements)
+        const addonItems = collectSelectedAddons(customizationForm);
+        const additions = addonItems.map(addon => addon.label);
+        const addonsCost = addonItems.reduce((sum, addon) => sum + addon.price, 0);
 
         const totalAddonsCost = addonsCost + cheesePrice;
         const notes = modalSpecialNotes.value.trim();
 
-        // Build garniture summary string for unique cart key
+        // Build garniture summary string for unique cart key. Add-ons are keyed by
+        // their stable ids so the same choice merges regardless of display language.
         const garnitureKey = [...sauces, ...veggies, cheese].filter(Boolean).sort().join(',');
-        const customKey = `${currentCustomizingItem.id}-${spiceLevel}-${garnitureKey}-${additions.sort().join(',')}-${notes}`;
+        const addonKey = addonItems.map(addon => addon.id).sort().join(',');
+        const customKey = `${currentCustomizingItem.id}-${spiceLevel}-${garnitureKey}-${addonKey}-${notes}`;
 
         const cartItem = {
           key: customKey,
@@ -555,6 +631,8 @@ document.addEventListener('DOMContentLoaded', () => {
           veggies: veggies,
           cheese: cheese,
           addons: additions,
+          addonItems: addonItems,
+          addonsCost: totalAddonsCost,
           exclusions: [],
           notes: notes
         };
@@ -649,8 +727,15 @@ document.addEventListener('DOMContentLoaded', () => {
             name: item.name,
             qty: item.qty,
             price: item.itemPrice,
+            basePrice: item.basePrice,
             spice: item.spice,
-            addons: item.addons,
+            addons: item.addons || [],
+            // Priced breakdown of the paid add-ons, straight from the menu data.
+            addonItems: (item.addonItems || []).map(addon => ({
+              id: addon.id,
+              label: addon.label,
+              price: Number(addon.price) || 0
+            })),
             exclusions: item.exclusions
           })),
           subtotal: subtotal,
@@ -689,7 +774,9 @@ document.addEventListener('DOMContentLoaded', () => {
           if (veggiesList) msg += `   • Légumes: ${veggiesList}\n`;
           if (cheeseChoice) msg += `   • Fromage: ${cheeseChoice}\n`;
           
-          if (item.addons && item.addons.length > 0) {
+          if (item.addonItems && item.addonItems.length > 0) {
+            msg += `   • Extras: ${item.addonItems.map(a => `${a.label} (+${(Number(a.price) || 0).toFixed(1)} TND)`).join(', ')}\n`;
+          } else if (item.addons && item.addons.length > 0) {
             msg += `   • Extras: ${item.addons.join(', ')}\n`;
           }
           if (item.exclusions && item.exclusions.length > 0) {
@@ -817,20 +904,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const itemTotal = item.itemPrice * item.qty;
         subtotal += itemTotal;
 
-        const addonsString = item.addons && item.addons.length > 0 ? `<span class="cart-item-detail-tag addition">+ ${item.addons.join(', ')}</span>` : '';
-        const saucesString = item.sauces && item.sauces.length > 0 ? `<span class="cart-item-detail-tag sauce">${item.sauces.join(' · ')}</span>` : '';
-        const veggiesString = item.veggies && item.veggies.length > 0 ? `<span class="cart-item-detail-tag veggie">${item.veggies.join(' · ')}</span>` : '';
-        const cheeseString = item.cheese ? `<span class="cart-item-detail-tag cheese">${item.cheese}</span>` : '';
-        const exclString = item.exclusions && item.exclusions.length > 0 ? `<span class="cart-item-detail-tag exclusion">- ${item.exclusions.join(', ')}</span>` : '';
-        const notesString = item.notes ? `<p class="cart-item-note">Note: "${item.notes}"</p>` : '';
+        // One chip per paid add-on so a dozen of them wrap instead of overflowing.
+        let addonsString = '';
+        if (item.addonItems && item.addonItems.length > 0) {
+          addonsString = item.addonItems.map(addon => {
+            const priceLabel = (Number(addon.price) || 0) > 0 ? ` (+${(Number(addon.price) || 0).toFixed(1)} TND)` : '';
+            return `<span class="cart-item-detail-tag addition">+ ${escapeHtml(addon.label)}${escapeHtml(priceLabel)}</span>`;
+          }).join('');
+        } else if (item.addons && item.addons.length > 0) {
+          addonsString = `<span class="cart-item-detail-tag addition">+ ${escapeHtml(item.addons.join(', '))}</span>`;
+        }
+        const saucesString = item.sauces && item.sauces.length > 0 ? `<span class="cart-item-detail-tag sauce">${escapeHtml(item.sauces.join(' · '))}</span>` : '';
+        const veggiesString = item.veggies && item.veggies.length > 0 ? `<span class="cart-item-detail-tag veggie">${escapeHtml(item.veggies.join(' · '))}</span>` : '';
+        const cheeseString = item.cheese ? `<span class="cart-item-detail-tag cheese">${escapeHtml(item.cheese)}</span>` : '';
+        const exclString = item.exclusions && item.exclusions.length > 0 ? `<span class="cart-item-detail-tag exclusion">- ${escapeHtml(item.exclusions.join(', '))}</span>` : '';
+        const notesString = item.notes ? `<p class="cart-item-note">Note: "${escapeHtml(item.notes)}"</p>` : '';
 
         html += `
           <div class="cart-item-card">
             <div class="cart-item-main">
               <div class="cart-item-details">
-                <h4>${item.name}</h4>
+                <h4>${escapeHtml(item.name)}</h4>
                 <div class="cart-item-specs">
-                   <span class="cart-item-detail-tag spice">${item.spice}</span>
+                   <span class="cart-item-detail-tag spice">${escapeHtml(item.spice)}</span>
                    ${saucesString}
                    ${veggiesString}
                    ${cheeseString}
@@ -859,11 +955,14 @@ document.addEventListener('DOMContentLoaded', () => {
           ...(item.veggies || []),
           item.cheese || ''
         ].filter(Boolean);
-        const addonsSummary = item.addons && item.addons.length > 0 ? ` (+ ${item.addons.join(', ')})` : '';
+        const addonLabels = (item.addonItems && item.addonItems.length > 0)
+          ? item.addonItems.map(addon => addon.label)
+          : (item.addons || []);
+        const addonsSummary = addonLabels.length > 0 ? ` (+ ${addonLabels.join(', ')})` : '';
         const garniSummaryStr = garnitureSummary.length > 0 ? `, ${garnitureSummary.join(', ')}` : '';
         summaryHtml += `
           <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.8rem; border-bottom:1px solid rgba(255,255,255,0.02); padding-bottom:4px;">
-            <span>${item.qty}x <strong>${item.name}</strong> <span style="font-size:0.75rem; color:var(--text-muted);">(${item.spice}${garniSummaryStr}${addonsSummary})</span></span>
+            <span>${item.qty}x <strong>${escapeHtml(item.name)}</strong> <span style="font-size:0.75rem; color:var(--text-muted);">(${escapeHtml(item.spice)}${escapeHtml(garniSummaryStr)}${escapeHtml(addonsSummary)})</span></span>
             <strong>${itemTotal.toFixed(1)} TND</strong>
           </div>
         `;
@@ -923,6 +1022,8 @@ document.addEventListener('DOMContentLoaded', () => {
         qty: 1,
         spice: "Mild",
         addons: [],
+        addonItems: [],
+        addonsCost: 0,
         exclusions: [],
         notes: ""
       };

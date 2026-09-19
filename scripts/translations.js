@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       hero_award: "BEST SHAWARMA 2025 BY TORCHI.TN",
       hero_badge: "Sousse's Favorite Kebab Spot",
       hero_title: 'THE STREETS OF <span class="highlight">SOUSSE</span> JUST GOT FLAVOR.',
-      hero_desc: "Charcoal-grilled Turkish Adana, toasted Lebanese-style chicken shawarma, and loaded crispy fries dripping with our signature garlic whip and spices. Hand-carved daily, served fresh.",
+      hero_desc: "Charcoal-grilled Adana and halabi kebabs, chich taouk skewers and chawarma sliced to order. Every platter comes with rice, fries, three salads, three Babke sauces and our homemade bread.",
       hero_explore_menu: "Explore the Menu",
       hero_order_delivery: "Order Delivery",
       hero_stat_charcoal: "Charcoal Grilled",
@@ -34,20 +34,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       hero_tag_harissa: "Spicy Harissa",
       hero_tag_toum: "Garlic Toum",
       
-      ticker_text: " DINE IN & TAKEAWAY •  SPICY SHAWARMA WRAPS •  CHARCOAL GRILLED ADANA •  LOADED CHEDDAR FRIES •  FRESH CHICKPEA HUMMUS •  FAST SOUSSE DELIVERY • ",
+      // Ticker keys keep their legacy names (index.html references them), but the
+      // text must only name dishes on the printed menu.
+      ticker_text: " DINE IN & TAKEAWAY •  CHAWARMA PLATTERS •  CHARCOAL GRILLED ADANA •  CHICH TAOUK SKEWERS •  FALAFEL PLATTERS •  FAST SOUSSE DELIVERY • ",
       ticker_dine: "DINE IN & TAKEAWAY",
-      ticker_wraps: "SPICY SHAWARMA WRAPS",
+      ticker_wraps: "CHAWARMA PLATTERS",
       ticker_adana: "CHARCOAL GRILLED ADANA",
-      ticker_fries: "LOADED CHEDDAR FRIES",
-      ticker_hummus: "FRESH CHICKPEA HUMMUS",
+      ticker_fries: "CHICH TAOUK SKEWERS",
+      ticker_hummus: "FALAFEL PLATTERS",
       ticker_delivery: "FAST SOUSSE DELIVERY",
       
       menu_section_title: "CHOOSE YOUR CRAVING",
       menu_section_subtitle: "Crafted with authentic Lebanese ingredients and grilled over red-hot embers.",
-      tab_wraps: "Wraps & Sandwiches",
-      tab_plates: "Feast Platters",
-      tab_mezze: "Mezze & Dips",
-      tab_specialties: "Specialties",
+      tab_plats: "Platters",
+      tab_enfant: "Kids Menu",
       
       about_fresh: "100% Fresh Daily",
       about_fresh_desc: "Vegetables sliced and sauces whipped fresh every single morning.",
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       about_charcoal_desc: "We grill exclusively over pure wood embers for that signature smokiness.",
       
       gallery_title: "FEAST WITH YOUR EYES",
-      gallery_subtitle: "Follow us on Instagram <a href=\"https://www.instagram.com/babke_kebab/\" target=\"_blank\" class=\"instagram-link\">@babke_kebab</a> for your daily dose of smoke and cheddar.",
+      gallery_subtitle: "Follow us on Instagram <a href=\"https://www.instagram.com/babke_kebab/\" target=\"_blank\" class=\"instagram-link\">@babke_kebab</a> for your daily dose of smoke and skewers.",
       
       reviews_title: "STREET CREDIBILITY",
       reviews_subtitle: "Real feedback from real diners. No fluff, just pure flavor reviews.",
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       menubook_subtitle: "Turn the pages of our charcoal grill menu. Tap any dish to add it to your order.",
       menubook_cta: "Open the menu book",
       wheel_title: "THE BABKE WHEEL",
-      wheel_subtitle: "Spin for free and try your luck: mezze, shawarma or bonus seals. The embers decide.",
+      wheel_subtitle: "Spin for free and try your luck: charcoal-grilled plats, chawarma or bonus seals. The embers decide.",
       loyalty_title: "EVERY ORDER LEAVES ITS SEAL",
       loyalty_subtitle: "Collect a seal with every order and unlock dishes from the grill. Your card lives on your phone."
     },
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       hero_award: "MEILLEUR CHAWARMA 2025 PAR TORCHI.TN",
       hero_badge: "Le Coin Kebab Préféré de Sousse",
       hero_title: 'LES RUES DE <span class="highlight">SOUSSE</span> ONT ENFIN DU GOÛT.',
-      hero_desc: "Adana turc grillé au charbon de bois, chawarma poulet libanais croustillant, et frites chargées dégoulinantes de notre toum à l'ail et épices. Découpé chaque jour, servi chaud.",
+      hero_desc: "Kebabs adana et halabi grillés au charbon de bois, brochettes de chich taouk et chawarma découpé à la commande. Chaque plat est servi avec riz, frites, 3 salades, 3 sauces Babke et notre pain maison.",
       hero_explore_menu: "Découvrir le Menu",
       hero_order_delivery: "Commander en Livraison",
       hero_stat_charcoal: "Grillé au Charbon",
@@ -119,20 +119,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       hero_tag_harissa: "Harissa Épicée",
       hero_tag_toum: "Toum à l'Ail",
       
-      ticker_text: " SUR PLACE & À EMPORTER •  CHAWARMA ÉPICÉ •  ADANA TURC AU CHARBON •  FRITES LOADED AU CHEDDAR •  HOUMOUS MAISON FRAIS •  LIVRAISON SOUSSE RAPIDE • ",
+      ticker_text: " SUR PLACE & À EMPORTER •  PLATS CHAWARMA •  ADANA TURC AU CHARBON •  BROCHETTES CHICH TAOUK •  PLATS FALAFEL •  LIVRAISON SOUSSE RAPIDE • ",
       ticker_dine: "SUR PLACE & À EMPORTER",
-      ticker_wraps: "CHAWARMA ÉPICÉ",
+      ticker_wraps: "PLATS CHAWARMA",
       ticker_adana: "ADANA TURC AU CHARBON",
-      ticker_fries: "FRITES LOADED AU CHEDDAR",
-      ticker_hummus: "HOUMOUS MAISON FRAIS",
+      ticker_fries: "BROCHETTES CHICH TAOUK",
+      ticker_hummus: "PLATS FALAFEL",
       ticker_delivery: "LIVRAISON SOUSSE RAPIDE",
       
       menu_section_title: "CHOISISSEZ VOTRE ENVIE",
       menu_section_subtitle: "Préparé avec d'authentiques ingrédients libanais et grillé sur des braises de bois ardentes.",
-      tab_wraps: "Wraps & Sandwichs",
-      tab_plates: "Plats Grillades",
-      tab_mezze: "Mezzés & Entrées",
-      tab_specialties: "Spécialités",
+      tab_plats: "Plats",
+      tab_enfant: "Menu Enfant",
       
       about_fresh: "100% Frais du Jour",
       about_fresh_desc: "Légumes découpés et sauces maison fouettées chaque matin.",
@@ -140,7 +138,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       about_charcoal_desc: "Nous grillons exclusivement sur de vraies braises pour ce goût fumé inimitable.",
       
       gallery_title: "RÉGALEZ VOS YEUX",
-      gallery_subtitle: "Suivez-nous sur Instagram <a href=\"https://www.instagram.com/babke_kebab/\" target=\"_blank\" class=\"instagram-link\">@babke_kebab</a> pour votre dose quotidienne de fumée et cheddar.",
+      gallery_subtitle: "Suivez-nous sur Instagram <a href=\"https://www.instagram.com/babke_kebab/\" target=\"_blank\" class=\"instagram-link\">@babke_kebab</a> pour votre dose quotidienne de fumée et de brochettes.",
       
       reviews_title: "CRÉDIBILITÉ DE LA RUE",
       reviews_subtitle: "Vrais retours de nos clients. Pas de chichis, juste de la pure saveur.",
@@ -179,7 +177,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       menubook_subtitle: "Feuilletez notre carte des grillades au charbon. Touchez un plat pour l'ajouter à votre commande.",
       menubook_cta: "Feuilleter le carnet",
       wheel_title: "LA ROUE BABKE",
-      wheel_subtitle: "Tentez votre chance gratuitement : mezzé, chawarma ou sceaux bonus. La braise décide.",
+      wheel_subtitle: "Tentez votre chance gratuitement : plats grillés au charbon, chawarma ou sceaux bonus. La braise décide.",
       loyalty_title: "CHAQUE COMMANDE LAISSE SON SCEAU",
       loyalty_subtitle: "Un sceau à chaque commande, des plats offerts au bout du chemin. Votre carte vit dans votre téléphone."
     },
@@ -195,7 +193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       hero_award: "أحسن شاورما 2025 حسب TORCHI.TN",
       hero_badge: "أشهم بنّة كباب في سوسة",
       hero_title: 'شوارع <span class="highlight">سوسة</span> زادت بنّة على بنّة.',
-      hero_desc: "أدنّا تركي مشوي عالجمر الحامي، شاورما دجاج شرقية مقرمشة، وبطاطا مقلية محملة بالتومية الحارة والجبن المذوب. محضر كل يوم فريشك.",
+      hero_desc: "كباب أدنّا وحلبي مشوي عالجمر، أسياخ شيش طاووق وشاورما مقصوصة في الحين. كل طبق يجي معاه روز، بطاطا مقلية، 3 سلطات، 3 صلصات بَبكي وخبز الدار.",
       hero_explore_menu: "تصفّح المنيو",
       hero_order_delivery: "أطلب دليفري",
       hero_stat_charcoal: "مشوي 100% عالجمر",
@@ -204,20 +202,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       hero_tag_harissa: "هريسة عربي حارة",
       hero_tag_toum: "ثومية شرقية",
       
-      ticker_text: " على عين المكان وتيك أواي •  شاورما حارة •  أدنّا عالجمر •  بطاطا بالتشيدر •  حمص فريشك •  توصيل سريع في سوسة • ",
+      ticker_text: " على عين المكان وتيك أواي •  أطباق شاورما •  أدنّا عالجمر •  أسياخ شيش طاووق •  أطباق فلافل •  توصيل سريع في سوسة • ",
       ticker_dine: "على عين المكان وتيك أواي",
-      ticker_wraps: "شاورما حارة",
+      ticker_wraps: "أطباق شاورما",
       ticker_adana: "أدنّا عالجمر",
-      ticker_fries: "بطاطا بالتشيدر",
-      ticker_hummus: "حمص فريشك",
+      ticker_fries: "أسياخ شيش طاووق",
+      ticker_hummus: "أطباق فلافل",
       ticker_delivery: "توصيل سريع في سوسة",
       
       menu_section_title: "اختار شهوتك توا",
       menu_section_subtitle: "محضر بأصول شرقية ومشوي على الجمر الأحمر الحامي.",
-      tab_wraps: "سندويشات",
-      tab_plates: "أطباق مشوية",
-      tab_mezze: "مقبلات و غطوس",
-      tab_specialties: "العروض الخاصة",
+      tab_plats: "أطباق",
+      tab_enfant: "منيو الأطفال",
       
       about_fresh: "100% فريشك كل يوم",
       about_fresh_desc: "خضرة مقصوصة وثومية مخفوقة فريشك كل صباح.",
@@ -264,7 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       menubook_subtitle: "قلّب صفحات المنيو متاعنا. انزل على أي ماكلة باش تزيدها للكوموند.",
       menubook_cta: "قلّب الكرّاس",
       wheel_title: "رودة بابكي",
-      wheel_subtitle: "جرّب زهرك بلاش: مقبلات، شاورما ولا طوابع زايدة. الجمر هو اللي يقرّر.",
+      wheel_subtitle: "جرّب زهرك بلاش: أطباق مشوية عالجمر، شاورما ولا طوابع زايدة. الجمر هو اللي يقرّر.",
       loyalty_title: "كل كوموند تخلّي طابعها",
       loyalty_subtitle: "طابع مع كل كوموند و ماكلة بلاش في الآخر. الكارت متاعك ديما في تليفونك."
     }
@@ -367,10 +363,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       ".menu-section .section-title": "menu_section_title",
       ".menu-section .section-subtitle": "menu_section_subtitle",
-      ".menu-tab[data-category='wraps'] .tab-label": "tab_wraps",
-      ".menu-tab[data-category='plates'] .tab-label": "tab_plates",
-      ".menu-tab[data-category='mezze'] .tab-label": "tab_mezze",
-      ".menu-tab[data-category='specialties'] .tab-label": "tab_specialties",
+      ".menu-tab[data-category='plats'] .tab-label": "tab_plats",
+      ".menu-tab[data-category='enfant'] .tab-label": "tab_enfant",
       
       ".about-section .hero-badge span": "about_heritage",
       ".about-section .section-title": "about_section_title",

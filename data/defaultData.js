@@ -5,271 +5,485 @@
 const DEFAULT_DATA = {
   menu: [
     {
-      id: "item-0",
-      category: "wraps",
-      price: 12.5,
-      image: "assets/shawarma_wrap.jpg",
-      fallbackImage: "https://images.unsplash.com/photo-1561651823-34feb02250e4?w=600&auto=format&fit=crop&q=80",
-      title: {
-        en: "Chicken Shawarma Wrap",
-        fr: "Chawarma Poulet Classique",
-        tn: "لفّة شاورما دجاج"
-      },
-      description: {
-        en: "Slow-roasted vertical spit chicken shawarma, homemade Lebanese garlic paste (toum), tangy cucumber pickles, French fries wrapped in thin flatbread and toasted to crispy gold.",
-        fr: "Chawarma de poulet rôti lentement à la broche, crème d'ail libanaise maison (toum), cornichons croquants, frites enroulées dans un pain plat et grillées.",
-        tn: "شاورما دجاج محضرة عالسيخ المشوي، ثومية شرقية بنينة محضرينها في المحل، خيار مخلل، وبطاطا مقلية ملفوفة في خبز رقيق ومحمرة للبنة الكاملة."
-      },
-      tags: {
-        en: ["Meilleur Chawarma 2025", "Spicy Option", "Best Seller"],
-        fr: ["Meilleur Chawarma 2025", "Option Épicé", "Best-Seller"],
-        tn: ["أحسن شاورما 2025", "محرحر", "الأكثر طلبًا"]
-      }
-    },
-    {
-      id: "item-1",
-      category: "wraps",
-      price: 16.0,
-      image: "assets/two_viandes.jpg",
-      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
-      title: {
-        en: "Babke \"2 Viandes\" Wrap",
-        fr: "Wrap Babke \"2 Viandes\"",
-        tn: "لفّة بَبكي \"2 لحوم\""
-      },
-      description: {
-        en: "The ultimate meat union. Toasted wrap filled with slow-cooked chicken shawarma AND tender minced beef kebab, rich garlic whip, hummus layer, fresh onions, tomatoes, and sumac.",
-        fr: "L'union parfaite des viandes. Wrap grillé fourré au chawarma de poulet ET kebab de bœuf tendre, crème d'ail, lit de houmous, oignons frais, tomates et sumac.",
-        tn: "البنة الدوبل! خبز ملفوف ومحمر معبي بشاورما الدجاج المشوي وكباب اللحم المفروم المتبل، ثومية، حمص، بصل فريشك، طماطم وسماق."
-      },
-      tags: {
-        en: ["Signature"],
-        fr: ["Signature"],
-        tn: ["خاص بالمحل"]
-      }
-    },
-    {
-      id: "item-2",
-      category: "wraps",
-      price: 14.0,
-      image: "assets/cheddarli_taouk.jpg",
-      fallbackImage: "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80",
-      title: {
-        en: "Cheddarli Taouk",
-        fr: "Cheddarli Taouk",
-        tn: "شيش طاووق بالتشيدر"
-      },
-      description: {
-        en: "Skewered cubes of marinated breast chicken (Chich Taouk) grilled over open charcoal, rolled in flatbread and flooded with rich, warm liquid cheddar cheese sauce.",
-        fr: "Cubes de blanc de poulet mariné (Chich Taouk) grillés au charbon, roulés dans un pain plat et inondés d'une sauce cheddar chaude et coulante.",
-        tn: "طروف صدر دجاج متبل ومشوين عالجمر الحقيقي، ملفوفين في خبز رقيق وغارقين بصلصة جبن التشيدر الدافية والذايبة."
-      },
-      tags: {
-        en: ["Extra Cheesy"],
-        fr: ["Extra Fromage"],
-        tn: ["جبن إضافي"]
-      }
-    },
-    {
-      id: "item-3",
-      category: "wraps",
-      price: 9.5,
-      image: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80",
-      fallbackImage: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80",
-      title: {
-        en: "Crispy Falafel Wrap",
-        fr: "Falafel Wrap Croustillant",
-        tn: "لفّة فلافل مقرمشة"
-      },
-      description: {
-        en: "Vibrant homemade falafel discs fried to absolute crispiness, loaded with nutty sesame tahini sauce, fresh mint leaves, pickled turnips, tomatoes, radishes, and sliced cucumber.",
-        fr: "Falafels maison ultra-croustillants, sauce tahini au sésame, menthe fraîche, navets marinés, tomates, radis et concombre.",
-        tn: "أقراص فلافل فريشك مقرمشة ومقلية كما يحب الخاطر، معبية بصلصة الطحينة بالجلجلان، نعناع، لفت مخلل، طماطم، فجل وخيار."
-      },
-      tags: {
-        en: ["Vegan"],
-        fr: ["Végan"],
-        tn: ["نباتي"]
-      }
-    },
-    {
-      id: "item-4",
-      category: "plates",
-      price: 34.0,
-      image: "assets/plat_royal.jpg",
-      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
-      title: {
-        en: "Plat Royal Babke",
-        fr: "Plat Royal Babke",
-        tn: "طبق ملكي بَبكي"
-      },
-      description: {
-        en: "The king of the grill. A massive platter showcasing two skewers of charcoal Adana kebab, one skewer of Chich Taouk, chicken shawarma carvings, served with creamy hummus, garlic whip, fries, and warm pita.",
-        fr: "Le roi de la grillade. Un grand plateau composé de deux brochettes d'Adana de bœuf au charbon, une brochette de Chich Taouk, chawarma de poulet, servi avec houmous, crème d'ail, frites et pain pita chaud.",
-        tn: "سلطان الطاولة! طبق كبير معبي بزوز شواش كباب أدنّا عالجمر، شيش طاووق، شاورما دجاج، حمص فريشك، ثومية، بطاطا مقلية وخبز بيتا سخون."
-      },
-      tags: {
-        en: ["Royal Feast"],
-        fr: ["Festin Royal"],
-        tn: ["وليمة ملكية"]
-      }
-    },
-    {
-      id: "item-5",
-      category: "plates",
-      price: 22.0,
-      image: "assets/plat_adana.jpg",
-      fallbackImage: "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80",
-      title: {
-        en: "Plat Kebab Adana",
-        fr: "Plat Kebab Adana",
-        tn: "طبق كباب أدنّا"
-      },
-      description: {
-        en: "Traditional hand-minced beef and lamb shoulder kebab mixed with red bell peppers, authentic spices, grilled over red-hot charcoal. Served on flatbread with chargrilled tomatoes and sumac-onion salad.",
-        fr: "Kebab traditionnel de bœuf et d'agneau haché maison aux poivrons rouges et épices, grillé au charbon de bois. Servi sur pain plat avec tomates grillées et salade d'oignons au sumac.",
-        tn: "كباب لحم مفروم بأصول تركية مشوي عالجمر مع فلفل أحمر وبهارات خاصة. يقدم مع خبز رقيق، طماطم مشوية وسلطة بصل بالسماق."
-      },
-      tags: {
-        en: ["Medium Heat"],
-        fr: ["Épicé Moyen"],
-        tn: ["حرورية متوسطة"]
-      }
-    },
-    {
-      id: "item-6",
-      category: "plates",
-      price: 18.5,
+      id: "plat-chawarma",
+      category: "plats",
+      price: 26,
       image: "assets/plat_chawarma.jpg",
       fallbackImage: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80",
       title: {
-        en: "Plat Chawarma",
+        en: "Chawarma Platter",
         fr: "Plat Chawarma",
         tn: "طبق شاورما"
       },
       description: {
-        en: "A mountain of vertical-spit carved chicken shawarma, drizzled with Lebanese garlic whip, served with fresh house tabbouleh salad, crisp French fries, pickles, and grilled flatbread.",
-        fr: "Une montagne de chawarma de poulet rôti à la broche verticale, nappé de crème d'ail libanaise, servi avec taboulé maison frais, frites croustillantes, cornichons et pain plat grillé.",
-        tn: "جبل من شاورما الدجاج المقصوصة مالسيخ المشوي، ثومية، يقدم مع تبولة فريشك محضرينها بيدينا، بطاطا مقلية مقرمشة، خيار مخلل وخبز سخون."
+        en: "3 Babke sauces, homemade bread, rice, 3 salads, fries, 200g chawarma",
+        fr: "3 sauces Babke, pain maison, riz, 3 salades, frites, 200g chawarma",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، 3 سلطات، بطاطا مقلية، 200غ شاورما"
       },
       tags: {
-        en: [],
-        fr: [],
-        tn: []
+        en: ["200g chawarma", "rice", "fries"],
+        fr: ["200g chawarma", "riz", "frites"],
+        tn: ["200غ شاورما", "روز", "بطاطا"]
       }
     },
     {
-      id: "item-7",
-      category: "mezze",
-      price: 11.0,
+      id: "plat-chich-taouk",
+      category: "plats",
+      price: 26,
+      image: "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Chich Taouk Platter",
+        fr: "Plat Chich Taouk",
+        tn: "طبق شيش طاووق"
+      },
+      description: {
+        en: "3 Babke sauces, homemade bread, rice, 3 salads, fries, 2 chich taouk skewers",
+        fr: "3 sauces Babke, pain maison, riz, 3 salades, frites, 2 brochettes chich taouk",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، 3 سلطات، بطاطا مقلية، سيخين شيش طاووق"
+      },
+      tags: {
+        en: ["2 skewers", "rice", "fries"],
+        fr: ["2 brochettes", "riz", "frites"],
+        tn: ["سيخين", "روز", "بطاطا"]
+      }
+    },
+    {
+      id: "plat-chich-kebab",
+      category: "plats",
+      price: 27,
+      image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Chich Kebab Platter",
+        fr: "Plat Chich Kebab",
+        tn: "طبق شيش كباب"
+      },
+      description: {
+        en: "3 Babke sauces, homemade bread, rice, 3 salads, fries, 1 chich taouk skewer, 1 chich kebab skewer",
+        fr: "3 sauces Babke, pain maison, riz, 3 salades, frites, 1 brochette chich taouk, 1 brochette chich kebab",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، 3 سلطات، بطاطا مقلية، سيخ شيش طاووق، سيخ شيش كباب"
+      },
+      tags: {
+        en: ["chich taouk", "chich kebab", "rice"],
+        fr: ["chich taouk", "chich kebab", "riz"],
+        tn: ["شيش طاووق", "شيش كباب", "روز"]
+      }
+    },
+    {
+      id: "plat-falafel",
+      category: "plats",
+      price: 15,
       image: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80",
       fallbackImage: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80",
       title: {
-        en: "Hummus & Shawarma Dip",
-        fr: "Hummus & Chawarma",
-        tn: "حمص بالشاورما"
+        en: "Falafel Platter",
+        fr: "Plat Falafel",
+        tn: "طبق فلافل"
       },
       description: {
-        en: "Smooth, rich chickpea purée blended with premium sesame tahini, fresh lemon juice, garlic, topped with warm, juicy chicken shawarma carvings, toasted pine nuts, sumac, and olive oil.",
-        fr: "Purée de pois chiches crémeuse au tahini, jus de citron frais et ail, surmontée de chawarma de poulet chaud, pignons de pin grillés, sumac et huile d'olive vierge extra.",
-        tn: "حمص مرحي فريشك بالليمون والطحينة وزيت الزيتون، فوقو شاورما دجاج سخونة، فاكهة مقلية، سماق وزيت زيتونة بكر أصلي."
+        en: "Sliced falafel sandwich, 3 falafel pieces, falafel sauce, fries, 3 salads",
+        fr: "Sandwich falafel découpé, 3 pièces falafel, sauce falafel, frites, 3 salades",
+        tn: "سندويتش فلافل مقطّع، 3 قطع فلافل، صلصة الفلافل، بطاطا مقلية، 3 سلطات"
       },
       tags: {
-        en: ["Popular"],
-        fr: ["Populaire"],
-        tn: ["محبوب الكل"]
+        en: ["3 falafel pieces", "falafel sauce", "fries"],
+        fr: ["3 pièces falafel", "sauce falafel", "frites"],
+        tn: ["3 قطع فلافل", "صلصة فلافل", "بطاطا"]
       }
     },
     {
-      id: "item-8",
-      category: "mezze",
-      price: 8.5,
-      image: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80",
-      fallbackImage: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80",
+      id: "plat-chawarma-special",
+      category: "plats",
+      price: 22,
+      image: "https://images.unsplash.com/photo-1561651823-34feb02250e4?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1561651823-34feb02250e4?w=600&auto=format&fit=crop&q=80",
       title: {
-        en: "Smoky Baba Ghanoush",
-        fr: "Smoky Baba Ghanoush",
-        tn: "بابا غنوج مدخن"
+        en: "Special Chawarma Platter",
+        fr: "Plat Chawarma Spécial",
+        tn: "طبق شاورما سبيسيال"
       },
       description: {
-        en: "Charcoal-roasted eggplant mashed with sesame tahini, garlic, lemon juice, sumac, and extra virgin olive oil, crowned with fresh pomegranate seeds for a sweet burst.",
-        fr: "Aubergines grillées au charbon de bois et écrasées avec du tahini, ail, citron, sumac et huile d'olive, garnies de graines de grenade fraîches.",
-        tn: "بيتنجان مشوي عالجمر ومرحي مع الطحينة، ثوم، قارص، سماق وزيت زيتونة، مزين بحبات الرمان الفريشك للبنة الحلوة."
+        en: "Sliced chawarma sandwich, 50g chawarma, garlic sauce, fries, 3 salads",
+        fr: "Sandwich chawarma découpé, 50g chawarma, sauce à l'ail, frites, 3 salades",
+        tn: "سندويتش شاورما مقطّع، 50غ شاورما، صلصة ثوم، بطاطا مقلية، 3 سلطات"
       },
       tags: {
-        en: ["Vegan"],
-        fr: ["Végan"],
-        tn: ["نباتي"]
+        en: ["sliced sandwich", "50g chawarma", "garlic sauce"],
+        fr: ["sandwich découpé", "50g chawarma", "sauce à l'ail"],
+        tn: ["سندويتش مقطّع", "50غ شاورما", "صلصة ثوم"]
       }
     },
     {
-      id: "item-9",
-      category: "mezze",
-      price: 7.5,
-      image: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80",
-      fallbackImage: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=600&auto=format&fit=crop&q=80",
+      id: "plat-poulet-grille",
+      category: "plats",
+      price: 26,
+      image: "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80",
       title: {
-        en: "Vibrant Lebanese Tabbouleh",
-        fr: "Taboulé Libanais Frais",
-        tn: "تبولة شرقية"
+        en: "Grilled Chicken Platter",
+        fr: "Plat Poulet Grillé",
+        tn: "طبق دجاج مشوي"
       },
       description: {
-        en: "Super finely hand-chopped flat-leaf parsley, fresh mint, red ripe tomatoes, green onions, and fine bulgur wheat, tossed in a zesty freshly squeezed lemon juice and cold olive oil dressing.",
-        fr: "Persil plat finement haché à la main, menthe fraîche, tomates mûres, oignons verts et boulgour fin, assaisonnés de jus de citron pressé et d'huile d'olive.",
-        tn: "معدنوس مقصوص جويد باليد، نعناع فريشك، طماطم حمراء، بصل أخضر وبرغل جويد، متبلين بالقارص المعصور وزيت الزيتونة الفريشك."
+        en: "3 Babke sauces, homemade bread, rice, 3 salads, fries, 200g grilled chicken",
+        fr: "3 sauces Babke, pain maison, riz, 3 salades, frites, 200g poulet grillé",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، 3 سلطات، بطاطا مقلية، 200غ دجاج مشوي"
       },
       tags: {
-        en: ["Vegan"],
-        fr: ["Végan"],
-        tn: ["نباتي"]
+        en: ["200g grilled chicken", "rice", "fries"],
+        fr: ["200g poulet grillé", "riz", "frites"],
+        tn: ["200غ دجاج مشوي", "روز", "بطاطا"]
       }
     },
     {
-      id: "item-10",
-      category: "specialties",
-      price: 14.5,
-      image: "assets/loaded_fries.jpg",
-      fallbackImage: "https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=600&auto=format&fit=crop&q=80",
+      id: "plat-poulet-crispy",
+      category: "plats",
+      price: 26,
+      image: "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80",
       title: {
-        en: "Spicy Loaded Babke Fries",
-        fr: "Frites Loaded Épicées",
-        tn: "بطاطا بَبكي المحرحرة"
+        en: "Crispy Chicken Platter",
+        fr: "Plat Poulet Crispy",
+        tn: "طبق دجاج كريسبي"
       },
       description: {
-        en: "A mountain of house-cut golden fries loaded with slow-roasted chicken shawarma strips, flooded with warm cheddar cheese sauce, garlic whip, and a fiery drizzle of Tunisian harissa-mayo.",
-        fr: "Une montagne de frites dorées surmontée d'émincé de chawarma de poulet, nappée de sauce cheddar chaude, crème d'ail et d'un filet de harissa-mayo maison.",
-        tn: "صحفة كبيرة معبية بالبطاطا المقلية المقرمشة وفوقها طروف شاورما دجاج سخونة، صوص جبن تشيدر دايبة، ثومية، ورشة مايونيز بالهريسة التونسية المحرحرة."
+        en: "3 Babke sauces, homemade bread, rice, 3 salads, fries, 200g crispy chicken",
+        fr: "3 sauces Babke, pain maison, riz, 3 salades, frites, 200g poulet crispy",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، 3 سلطات، بطاطا مقلية، 200غ دجاج كريسبي"
       },
       tags: {
-        en: ["Cheat Meal Dream"],
-        fr: ["Plaisir Coupable"],
-        tn: ["شيخة الماكلة"]
+        en: ["200g crispy chicken", "rice", "fries"],
+        fr: ["200g poulet crispy", "riz", "frites"],
+        tn: ["200غ دجاج كريسبي", "روز", "بطاطا"]
       }
     },
     {
-      id: "item-11",
-      category: "specialties",
-      price: 17.5,
+      id: "plat-babke",
+      category: "plats",
+      price: 40,
+      image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Babke Platter",
+        fr: "Plat Babke",
+        tn: "طبق بَبكي"
+      },
+      description: {
+        en: "3 Babke sauces, homemade bread, rice, 3 salads, fries, 1 slice of grilled chicken, chawarma, 1 meat kebab, 1 chich taouk, 1 crispy, 2 falafel pieces",
+        fr: "3 sauces Babke, pain maison, riz, 3 salades, frites, 1 tranche poulet grillé, chawarma, 1 kebab viande, 1 chich taouk, 1 crispy, 2 pièces falafel",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، 3 سلطات، بطاطا مقلية، شريحة دجاج مشوي، شاورما، كباب لحم، شيش طاووق، كريسبي، 2 قطع فلافل"
+      },
+      tags: {
+        en: ["chawarma", "kebab", "chich taouk"],
+        fr: ["chawarma", "kebab", "chich taouk"],
+        tn: ["شاورما", "كباب", "شيش طاووق"]
+      }
+    },
+    {
+      id: "plat-6-brochettes",
+      category: "plats",
+      price: 40,
+      image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "6 Skewers Platter",
+        fr: "Plat 6 Brochettes",
+        tn: "طبق 6 شواش"
+      },
+      description: {
+        en: "3 Babke sauces, homemade bread, rice, 3 salads, fries, 2 chich taouk skewers, 2 meat kebab skewers, 2 chicken kebab skewers",
+        fr: "3 sauces Babke, pain maison, riz, 3 salades, frites, 2 brochettes chich taouk, 2 brochettes kebab viande, 2 brochettes kebab poulet",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، 3 سلطات، بطاطا مقلية، سيخين شيش طاووق، سيخين كباب لحم، سيخين كباب دجاج"
+      },
+      tags: {
+        en: ["6 skewers", "rice", "fries"],
+        fr: ["6 brochettes", "riz", "frites"],
+        tn: ["6 أسياخ", "روز", "بطاطا"]
+      }
+    },
+    {
+      id: "plat-brochettes-tikka",
+      category: "plats",
+      price: 38,
+      image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Tikka Skewers Platter",
+        fr: "Plat Brochettes Tikka",
+        tn: "طبق شواش تيكا"
+      },
+      description: {
+        en: "2 skewers, 3 salads, 3 sauces, homemade bread, rice, fries",
+        fr: "2 brochettes, 3 salades, 3 sauces, pain maison, riz, frites",
+        tn: "سيخين، 3 سلطات، 3 صلصات، خبز الدار، روز، بطاطا مقلية"
+      },
+      tags: {
+        en: ["2 skewers", "rice", "fries"],
+        fr: ["2 brochettes", "riz", "frites"],
+        tn: ["سيخين", "روز", "بطاطا"]
+      }
+    },
+    {
+      id: "plat-chawarma-kebab",
+      category: "plats",
+      price: 28,
+      image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Chawarma & Kebab Platter",
+        fr: "Plat Chawarma Kebab",
+        tn: "طبق شاورما كباب"
+      },
+      description: {
+        en: "3 Babke sauces, homemade bread, rice, 3 salads, fries, 1 meat kebab skewer, 100g chawarma",
+        fr: "3 sauces Babke, pain maison, riz, 3 salades, frites, 1 brochette kebab viande, 100g chawarma",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، 3 سلطات، بطاطا مقلية، سيخ كباب لحم، 100غ شاورما"
+      },
+      tags: {
+        en: ["meat kebab", "100g chawarma", "rice"],
+        fr: ["kebab viande", "100g chawarma", "riz"],
+        tn: ["كباب لحم", "100غ شاورما", "روز"]
+      }
+    },
+    {
+      id: "plat-chich-chawarma",
+      category: "plats",
+      price: 26,
+      image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Chich & Chawarma Platter",
+        fr: "Plat Chich Chawarma",
+        tn: "طبق شيش شاورما"
+      },
+      description: {
+        en: "3 Babke sauces, homemade bread, rice, 3 salads, fries, 1 chich taouk skewer, 100g chawarma",
+        fr: "3 sauces Babke, pain maison, riz, 3 salades, frites, 1 brochette chich taouk, 100g chawarma",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، 3 سلطات، بطاطا مقلية، سيخ شيش طاووق، 100غ شاورما"
+      },
+      tags: {
+        en: ["chich taouk", "100g chawarma", "rice"],
+        fr: ["chich taouk", "100g chawarma", "riz"],
+        tn: ["شيش طاووق", "100غ شاورما", "روز"]
+      }
+    },
+    {
+      id: "plat-kebab-poulet",
+      category: "plats",
+      price: 25,
+      image: "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Chicken Kebab Platter",
+        fr: "Plat Kebab Poulet",
+        tn: "طبق كباب دجاج"
+      },
+      description: {
+        en: "3 Babke sauces, homemade bread, rice, 3 salads, fries, 3 chicken kebab skewers",
+        fr: "3 sauces Babke, pain maison, riz, 3 salades, frites, 3 brochettes kebab poulet",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، 3 سلطات، بطاطا مقلية، 3 أسياخ كباب دجاج"
+      },
+      tags: {
+        en: ["3 skewers", "chicken kebab", "fries"],
+        fr: ["3 brochettes", "kebab poulet", "frites"],
+        tn: ["3 أسياخ", "كباب دجاج", "بطاطا"]
+      }
+    },
+    {
+      id: "plat-kebab-mixte",
+      category: "plats",
+      price: 28,
+      image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Mixed Kebab Platter",
+        fr: "Plat Kebab Mixte",
+        tn: "طبق كباب مكس"
+      },
+      description: {
+        en: "3 Babke sauces, homemade bread, rice, fries, 3 salads, 2 chicken kebab skewers, 1 kebab halabi skewer",
+        fr: "3 sauces Babke, pain maison, riz, frites, 3 salades, 2 brochettes kebab poulet, 1 brochette kebab halabi",
+        tn: "3 صلصات بَبكي، خبز الدار، روز، بطاطا مقلية، 3 سلطات، سيخين كباب دجاج، سيخ كباب حلبي"
+      },
+      tags: {
+        en: ["chicken kebab", "kebab halabi", "rice"],
+        fr: ["kebab poulet", "kebab halabi", "riz"],
+        tn: ["كباب دجاج", "كباب حلبي", "روز"]
+      }
+    },
+    {
+      id: "plat-kebab-halabi",
+      category: "plats",
+      price: 30,
+      image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Kebab Halabi Platter",
+        fr: "Plat Kebab Halabi",
+        tn: "طبق كباب حلبي"
+      },
+      description: {
+        en: "3 skewers, 3 salads, 3 sauces, homemade bread, rice, fries",
+        fr: "3 brochettes, 3 salades, 3 sauces, pain maison, riz, frites",
+        tn: "3 أسياخ، 3 سلطات، 3 صلصات، خبز الدار، روز، بطاطا مقلية"
+      },
+      tags: {
+        en: ["3 skewers", "rice", "fries"],
+        fr: ["3 brochettes", "riz", "frites"],
+        tn: ["3 أسياخ", "روز", "بطاطا"]
+      }
+    },
+    {
+      id: "plat-kebab-adana",
+      category: "plats",
+      price: 32,
+      image: "assets/plat_adana.jpg",
+      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Kebab Adana Platter",
+        fr: "Plat Kebab Adana",
+        tn: "طبق كباب أدنّا"
+      },
+      description: {
+        en: "(Turkish) 3 skewers, 3 salads, 3 sauces, homemade bread, rice, fries",
+        fr: "(turc) 3 brochettes, 3 salades, 3 sauces, pain maison, riz, frites",
+        tn: "(تركي) 3 أسياخ، 3 سلطات، 3 صلصات، خبز الدار، روز، بطاطا مقلية"
+      },
+      tags: {
+        en: ["turkish", "3 skewers", "rice"],
+        fr: ["turc", "3 brochettes", "riz"],
+        tn: ["تركي", "3 أسياخ", "روز"]
+      }
+    },
+    {
+      id: "plat-kebab-azmarli",
+      category: "plats",
+      price: 34,
+      image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Kebab Azmarli Platter",
+        fr: "Plat Kebab Azmarli",
+        tn: "طبق كباب أزمرلي"
+      },
+      description: {
+        en: "(kebab, cheese) 3 skewers, 3 salads, 3 sauces, homemade bread, rice, fries",
+        fr: "(kebab, fromage) 3 brochettes, 3 salades, 3 sauces, pain maison, riz, frites",
+        tn: "(كباب، جبن) 3 أسياخ، 3 سلطات، 3 صلصات، خبز الدار، روز، بطاطا مقلية"
+      },
+      tags: {
+        en: ["kebab", "cheese", "3 skewers"],
+        fr: ["kebab", "fromage", "3 brochettes"],
+        tn: ["كباب", "جبن", "3 أسياخ"]
+      }
+    },
+    {
+      id: "plat-kebab-royal",
+      category: "plats",
+      price: 36,
+      image: "assets/plat_royal.jpg",
+      fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Kebab Royal Platter",
+        fr: "Plat Kebab Royal",
+        tn: "طبق كباب رويال"
+      },
+      description: {
+        en: "(kebab, cheese, nuts) 3 skewers, 3 salads, 3 sauces, homemade bread, rice, fries",
+        fr: "(kebab, fromage, fruits secs) 3 brochettes, 3 salades, 3 sauces, pain maison, riz, frites",
+        tn: "(كباب، جبن، فواكه جافة) 3 أسياخ، 3 سلطات، 3 صلصات، خبز الدار، روز، بطاطا مقلية"
+      },
+      tags: {
+        en: ["kebab", "cheese", "nuts"],
+        fr: ["kebab", "fromage", "fruits secs"],
+        tn: ["كباب", "جبن", "فواكه جافة"]
+      }
+    },
+    {
+      id: "mfattet-chawarma",
+      category: "plats",
+      price: 18,
       image: "assets/fattet_chawarma.jpg",
       fallbackImage: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&auto=format&fit=crop&q=80",
       title: {
-        en: "Fattet Chawarma",
-        fr: "Fattet Chawarma",
-        tn: "فتة شاورما دجاج"
+        en: "Mfattet Chawarma",
+        fr: "Mfattet Chawarma",
+        tn: "مفتّت شاورما"
       },
       description: {
-        en: "An incredible Levantine comfort dish. Layers of crispy toasted pita bread chips, spiced basmati rice, slow-cooked chicken shawarma, bathed in a warm garlic-tahini yogurt sauce, and sprinkled with fried pine nuts.",
-        fr: "Un plat de confort ultime du Levant. Couches de pain pita croustillant, riz basmati épicé, chawarma de poulet, nappés d'une sauce yaourt au tahini et à l'ail, saupoudrés de pignons grillés.",
-        tn: "أقوى ماكلة شامية تدفيك! طبقات من خبز البيتا المقرمش، روز بسمتي متبل، شاورما دجاج، صوص ياغورت بالطحينة والثوم السخونة، ومرشوش بالفاكهة المقلية."
+        en: "Garlic sauce, fried bread, rice, 150g chawarma",
+        fr: "Sauce à l'ail, pain frit, riz, 150g chawarma",
+        tn: "صلصة ثوم، خبز مقلي، روز، 150غ شاورما"
       },
       tags: {
-        en: ["Chef Special"],
-        fr: ["Spécial Chef"],
-        tn: ["شيف خاص"]
+        en: ["fried bread", "rice", "150g chawarma"],
+        fr: ["pain frit", "riz", "150g chawarma"],
+        tn: ["خبز مقلي", "روز", "150غ شاورما"]
+      }
+    },
+    {
+      id: "mfattet-chich-taouk",
+      category: "plats",
+      price: 18,
+      image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Mfattet Chich Taouk",
+        fr: "Mfattet Chich Taouk",
+        tn: "مفتّت شيش طاووق"
+      },
+      description: {
+        en: "Spicy toum sauce, fried bread, rice, 150g chich taouk",
+        fr: "Sauce spicy thoum, pain frit, riz, 150g chich taouk",
+        tn: "صلصة ثومية حارة، خبز مقلي، روز، 150غ شيش طاووق"
+      },
+      tags: {
+        en: ["fried bread", "rice", "150g chich taouk"],
+        fr: ["pain frit", "riz", "150g chich taouk"],
+        tn: ["خبز مقلي", "روز", "150غ شيش طاووق"]
+      }
+    },
+    {
+      id: "menu-enfant",
+      category: "enfant",
+      price: 15,
+      image: "https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=600&auto=format&fit=crop&q=80",
+      fallbackImage: "https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=600&auto=format&fit=crop&q=80",
+      title: {
+        en: "Kids Menu",
+        fr: "Menu Enfant",
+        tn: "منيو الأطفال"
+      },
+      description: {
+        en: "3 crispy chicken pieces, coleslaw, fries, drink",
+        fr: "3 pièces poulet crispy, coleslaw, frites, boisson",
+        tn: "3 قطع دجاج كريسبي، كولسلو، بطاطا مقلية، مشروب"
+      },
+      tags: {
+        en: ["crispy chicken", "fries", "drink"],
+        fr: ["poulet crispy", "frites", "boisson"],
+        tn: ["دجاج كريسبي", "بطاطا", "مشروب"]
       }
     }
   ],
   content: {
+    // Paid add-ons ("Suppléments") from the printed menu. Priced per unit,
+    // added on top of a dish in the cart — they are NOT menu items.
+    supplements: [
+      { id: "sup-chawarma-100g", label: { en: "Chawarma (100g)", fr: "Chawarma (100g)", tn: "شاورما (100غ)" }, price: 6 },
+      { id: "sup-pain", label: { en: "Bread", fr: "Pain", tn: "خبز" }, price: 1 },
+      { id: "sup-mozzarella", label: { en: "Mozzarella", fr: "Mozzarella", tn: "موزاريلا" }, price: 5 },
+      { id: "sup-chich-taouk", label: { en: "Chich taouk", fr: "Chich taouk", tn: "شيش طاووق" }, price: 7 },
+      { id: "sup-poulet-grille-100g", label: { en: "Grilled chicken (100g)", fr: "Poulet grillé (100g)", tn: "دجاج مشوي (100غ)" }, price: 7 },
+      { id: "sup-kebab-halabi", label: { en: "Kebab halabi", fr: "Kebab halabi", tn: "كباب حلبي" }, price: 8 },
+      { id: "sup-portion-frites", label: { en: "Portion of fries", fr: "Portion de frites", tn: "بطاطا مقلية" }, price: 6 },
+      { id: "sup-falafel-1-piece", label: { en: "Falafel (1 piece)", fr: "Falafel (1 pièce)", tn: "فلافل (قطعة)" }, price: 2 },
+      { id: "sup-kebab-adana", label: { en: "Kebab adana", fr: "Kebab adana", tn: "كباب أدنّا" }, price: 8.5 },
+      { id: "sup-kebab-azmarli", label: { en: "Kebab azmarli", fr: "Kebab azmarli", tn: "كباب أزمرلي" }, price: 10 },
+      { id: "sup-kebab-royal", label: { en: "Kebab royal", fr: "Kebab royal", tn: "كباب رويال" }, price: 10 },
+      { id: "sup-assiette-riz", label: { en: "Plate of rice", fr: "Assiette de riz", tn: "صحن روز" }, price: 8 }
+    ],
     customizationPrices: {
       cheddarPrice: 2.0,
       mozzarellaPrice: 5.0,
@@ -292,9 +506,11 @@ const DEFAULT_DATA = {
         tn: "شوارع <span class=\"highlight\">سوسة</span> توا ولا فيها البنة."
       },
       desc: {
-        en: "Charcoal-grilled Turkish Adana, toasted Lebanese-style chicken shawarma, and loaded crispy fries dripping with our signature garlic whip and spices. Hand-carved daily, served fresh.",
-        fr: "Adana turc grillé au charbon de bois, chawarma de poulet libanais grillé, et frites croustillantes loaded nappées de notre crème d'ail signature et d'épices du Levant. Préparé frais tous les jours.",
-        tn: "أدنّا تركي مشوي على الجمر، شاورما دجاج شرقية محمصة، وبطاطا مقلية مقرمشة غارقة بالتشيدر والثومية الخاصة. مقصوصة فريشك كل يوم."
+        // Only dishes from the printed menu. Kept identical to hero_desc in
+        // scripts/translations.js (the static fallback).
+        en: "Charcoal-grilled Adana and halabi kebabs, chich taouk skewers and chawarma sliced to order. Every platter comes with rice, fries, three salads, three Babke sauces and our homemade bread.",
+        fr: "Kebabs adana et halabi grillés au charbon de bois, brochettes de chich taouk et chawarma découpé à la commande. Chaque plat est servi avec riz, frites, 3 salades, 3 sauces Babke et notre pain maison.",
+        tn: "كباب أدنّا وحلبي مشوي عالجمر، أسياخ شيش طاووق وشاورما مقصوصة في الحين. كل طبق يجي معاه روز، بطاطا مقلية، 3 سلطات، 3 صلصات بَبكي وخبز الدار."
       }
     },
     story: {
@@ -320,7 +536,7 @@ const DEFAULT_DATA = {
       },
       p3: {
         en: "Located in the heart of Hammam Sousse, we blend authentic spices from the Levant with Sousse’s modern, trendy dining vibe. We invite you to sit back, watch the charcoal flame rise, and enjoy street-food the way it was meant to be made.",
-        fr: "Situés au cœur de Hammam Sousse, we marions les épices authentiques du Levant avec l'ambiance moderne et branchée de Sousse. Nous vous invitons à vous installer confortablement, à regarder les braises s'enflammer et à savourer la street-food telle qu'elle doit être faite.",
+        fr: "Situés au cœur de Hammam Sousse, nous marions les épices authentiques du Levant avec l'ambiance moderne et branchée de Sousse. Nous vous invitons à vous installer confortablement, à regarder les braises s'enflammer et à savourer la street-food telle qu'elle doit être faite.",
         tn: "في قلب حمام سوسة، نخلطوا بهارات الشام الأصلية مع الجو العصري والمزيان متع سوسة. ندعيوكم باش تقعدوا شيخين، وتتفرجوا على لهيب الجمر وتذوقوا الماكلة الشعبية بأصولها الحقيقية."
       }
     },
@@ -383,7 +599,7 @@ const DEFAULT_DATA = {
       id: "rev-1",
       stars: 5,
       date: "Google Review",
-      text: "Terrific service and cozy, friendly atmosphere! If you haven't ordered the loaded Babke Fries or the Cheddarli Taouk, you are missing out on life. Generous portions and very fair prices.",
+      text: "Terrific service and cozy, friendly atmosphere! If you haven't ordered the Kebab Halabi platter or the Mfattet Chich Taouk, you are missing out on life. Generous portions and very fair prices.",
       author: "Mariem Guedouar",
       role: "Local Guide • Hammam Sousse",
       avatar: "M",
@@ -394,7 +610,7 @@ const DEFAULT_DATA = {
       id: "rev-2",
       stars: 5,
       date: "Google Review",
-      text: "The Kebab Adana has an incredible charcoal smokiness. You can tell they use proper wood embers instead of standard electric grills. Hummus is velvety and has authentic olive oil on top.",
+      text: "The Kebab Adana has an incredible charcoal smokiness. You can tell they use proper wood embers instead of standard electric grills. With the rice, fries and three salads on the side it is a proper full meal.",
       author: "Karim Jellouli",
       role: "Food Enthusiast",
       avatar: "K",
@@ -403,12 +619,13 @@ const DEFAULT_DATA = {
     }
   ],
   gallery: [
-    { id: "gal-0", image: "assets/insta_1.jpg", alt: "Babke Charcoal Kebabs skewers on fire", likes: "1.2k", link: "https://www.instagram.com/p/C-kebab1/" },
-    { id: "gal-1", image: "assets/insta_2.jpg", alt: "Toasted Chicken Shawarma Wraps dripping garlic whip", likes: "954", link: "https://www.instagram.com/p/C-shawarma2/" },
-    { id: "gal-2", image: "assets/insta_3.jpg", alt: "Beautiful Middle Eastern Mezze Platters with fresh hummus and pita", likes: "821", link: "https://www.instagram.com/p/C-mezze3/" },
-    { id: "gal-3", image: "assets/insta_4.jpg", alt: "Mouthwatering street food visual", likes: "1.5k", link: "https://www.instagram.com/p/C-street4/" },
-    { id: "gal-4", image: "assets/insta_5.jpg", alt: "Grilling skewers under flames", likes: "1.1k", link: "https://www.instagram.com/p/C-grill5/" },
-    { id: "gal-5", image: "assets/insta_6.jpg", alt: "Delicious chicken platter close-up", likes: "998", link: "https://www.instagram.com/p/C-chicken6/" }
+    // Alt text describes what each photo actually shows, using menu dish names.
+    { id: "gal-0", image: "assets/insta_1.jpg", alt: "Assorted charcoal-grilled kebab and chich taouk skewers on a platter", likes: "1.2k", link: "https://www.instagram.com/p/C-kebab1/" },
+    { id: "gal-1", image: "assets/insta_2.jpg", alt: "Kebab skewers platter with rice, fries and salad", likes: "954", link: "https://www.instagram.com/p/C-shawarma2/" },
+    { id: "gal-2", image: "assets/insta_3.jpg", alt: "Grilled kebab skewers served with rice, fries and salad", likes: "821", link: "https://www.instagram.com/p/C-mezze3/" },
+    { id: "gal-3", image: "assets/insta_4.jpg", alt: "Sliced sandwich pieces and fries shared at the table", likes: "1.5k", link: "https://www.instagram.com/p/C-street4/" },
+    { id: "gal-4", image: "assets/insta_5.jpg", alt: "Kids menu tray with crispy chicken, fries, coleslaw and a drink", likes: "1.1k", link: "https://www.instagram.com/p/C-grill5/" },
+    { id: "gal-5", image: "assets/insta_6.jpg", alt: "A young guest enjoying crispy chicken and fries", likes: "998", link: "https://www.instagram.com/p/C-chicken6/" }
   ],
   events: [
     {
@@ -432,9 +649,9 @@ const DEFAULT_DATA = {
         tn: "القرية، حمام سوسة"
       },
       description: {
-        en: "Come visit our live charcoal grilling stand! Serving Sousse's best shawarma wraps, loaded cheddar fries, and smoky Adana skewers all night long.",
-        fr: "Venez visiter notre stand de grillades au charbon ! Nous servons les meilleurs wraps chawarma, frites cheddar et brochettes Adana fumées.",
-        tn: "زورونا في الكشك متعنا بالبنة المعهودة! شاورما سخونة على السيخ، بطاطا بالجبن، وكباب أدنّا مشوي على جمر الغابة الأصلي ليل كامل."
+        en: "Come visit our live charcoal grilling stand! Serving chawarma platters, chich taouk skewers and smoky Adana kebabs all night long.",
+        fr: "Venez visiter notre stand de grillades au charbon ! Nous servons plats chawarma, brochettes chich taouk et kebabs Adana fumés toute la soirée.",
+        tn: "زورونا في الكشك متعنا بالبنة المعهودة! أطباق شاورما، أسياخ شيش طاووق، وكباب أدنّا مشوي عالجمر ليل كامل."
       },
       status: "published"
     },
@@ -459,9 +676,9 @@ const DEFAULT_DATA = {
         tn: "نادي البادل، ميناء القنطاوي"
       },
       description: {
-        en: "Grab a bite between matches! We are setting up a specialized wrap stand right next to the court to refuel players and fans.",
-        fr: "Prenez une bouchée entre deux matchs ! Nous installons un stand de wraps juste à côté du court pour recharger les joueurs et spectateurs.",
-        tn: "كول بنة تشحذك في اللعب! تلقانا بحذا الملعب ديراكت كشك خاص بالسندويشات باش تشيخ وتكمل تتفرج والا تلعب."
+        en: "Grab a bite between matches! We are setting up a charcoal grill stand right next to the court to refuel players and fans.",
+        fr: "Prenez une bouchée entre deux matchs ! Nous installons un stand de grillades au charbon juste à côté du court pour recharger les joueurs et spectateurs.",
+        tn: "كول بنة تشحذك في اللعب! تلقانا بحذا الملعب ديراكت كشك مشاوي عالجمر باش تشيخ وتكمل تتفرج والا تلعب."
       },
       status: "published"
     }
@@ -679,8 +896,8 @@ const DEFAULT_DATA = {
     stampRule: { fr: "1 sceau par commande dès 10 DT", en: "1 seal per order from 10 DT", tn: "طابع على كل كوموند من 10 دينار" },
     stampGoal: 10, welcomeBonus: 1, maxStampsPerDay: 3,
     tiers: [
-      { id: "tier-5",  stamps: 5,  active: true, reward: { fr: "Taboulé Libanais offert (7,5 DT)", en: "Free Lebanese Tabbouleh (7.5 DT)", tn: "تبولة لبنانية بلاش (7.5 د)" } },
-      { id: "tier-10", stamps: 10, active: true, reward: { fr: "Chawarma Poulet Classique offert (12,5 DT)", en: "Free Classic Chicken Shawarma (12.5 DT)", tn: "شاورما دجاج كلاسيك بلاش (12.5 د)" } }
+      { id: "tier-5",  stamps: 5,  active: true, reward: { fr: "Portion de frites offerte (6 DT)", en: "Free portion of fries (6 DT)", tn: "حصة بطاطا بلاش (6 د)" } },
+      { id: "tier-10", stamps: 10, active: true, reward: { fr: "Plat Falafel offert (15 DT)", en: "Free Falafel platter (15 DT)", tn: "طبق فلافل بلاش (15 د)" } }
     ]
   },
   // 3D menu book ("Le Carnet") defaults.
@@ -691,11 +908,12 @@ const DEFAULT_DATA = {
       title:    { fr: "La Carte", en: "The Menu", tn: "المنيو" },
       subtitle: { fr: "Grillades au charbon · Hammam Sousse", en: "Charcoal grill · Hammam Sousse", tn: "مشاوي عالفحم · حمام سوسة" }
     },
+    // Mirrors the two categories of the printed menu. The old wraps / plates /
+    // mezze / specialties pages no longer exist: no sandwich or drinks page was
+    // photographed, so nothing is invented for them here.
     categories: [
-      { id: "wraps", visible: true, title: { fr: "Wraps & Sandwichs", en: "Wraps & Sandwiches", tn: "سندويشات" }, kicker: { fr: "Roulés minute, dorés au charbon", en: "Rolled to order, charcoal-toasted", tn: "ملفوفة في الحين و محمّرة عالفحم" } },
-      { id: "plates", visible: true, title: { fr: "Plats Grillades", en: "Feast Platters", tn: "أطباق مشوية" }, kicker: { fr: "Pour les grandes faims", en: "For the big appetites", tn: "للجوع الكبير" } },
-      { id: "mezze", visible: true, title: { fr: "Mezzés & Entrées", en: "Mezze & Dips", tn: "مقبلات و غطوس" }, kicker: { fr: "À partager au centre de la table", en: "To share across the table", tn: "للقسمة في وسط الطاولة" } },
-      { id: "specialties", visible: true, title: { fr: "Spécialités", en: "Specialties", tn: "العروض الخاصة" }, kicker: { fr: "Les recettes de la maison", en: "House recipes", tn: "وصفات الدار" } }
+      { id: "plats", visible: true, title: { fr: "Plats", en: "Platters", tn: "أطباق" }, kicker: { fr: "Servis avec riz, frites et 3 salades", en: "Served with rice, fries and 3 salads", tn: "تتقدم بالروز، البطاطا و3 سلطات" } },
+      { id: "enfant", visible: true, title: { fr: "Menu Enfant", en: "Kids Menu", tn: "منيو الأطفال" }, kicker: { fr: "Pour les plus petits", en: "For the little ones", tn: "للصغار" } }
     ],
     housePage: {
       title: { fr: "La Maison", en: "The House", tn: "الدار" },

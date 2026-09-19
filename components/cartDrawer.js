@@ -6,6 +6,72 @@
   window.BabkeComponents = window.BabkeComponents || {};
   const bc = window.BabkeComponents;
 
+  /* ---------------------------------------------------------------------
+     Shared helpers (also consumed by scripts/cart.js so the add-on list has
+     exactly one source of truth for ids, labels and prices).
+     --------------------------------------------------------------------- */
+
+  // Every data-derived string is escaped before it is interpolated into HTML.
+  bc.escapeHtml = function(value) {
+    if (value === undefined || value === null) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
+  // Legacy prices, used only when content.supplements is missing/empty.
+  bc.LEGACY_ADDON_PRICE_DEFAULTS = {
+    cheddarPrice: 2.0,
+    mozzarellaPrice: 5.0,
+    friesPrice: 2.0
+  };
+
+  // Supplement labels live in the database ({ en, fr, tn }), never in translations.js.
+  bc.pickSupplementLabel = function(label, lang) {
+    if (typeof label === 'string') return label.trim();
+    if (!label || typeof label !== 'object') return '';
+    const order = [lang, 'fr', 'en', 'tn'];
+    for (let i = 0; i < order.length; i++) {
+      const key = order[i];
+      if (key && typeof label[key] === 'string' && label[key].trim()) return label[key].trim();
+    }
+    const keys = Object.keys(label);
+    for (let i = 0; i < keys.length; i++) {
+      const val = label[keys[i]];
+      if (typeof val === 'string' && val.trim()) return val.trim();
+    }
+    return '';
+  };
+
+  /**
+   * Normalise BabkeDB.getContent().supplements into a render/price-safe list.
+   * Shape in: [{ id, label: { en, fr, tn }, price }]
+   * Shape out: [{ id, label: "<resolved for lang>", price: <number> }]
+   * Bad rows are dropped rather than rendered with a broken price.
+   */
+  bc.normalizeSupplements = function(raw, lang) {
+    if (!Array.isArray(raw)) return [];
+    const seen = Object.create(null);
+    const list = [];
+    raw.forEach((entry, index) => {
+      if (!entry || typeof entry !== 'object') return;
+      if (entry.available === false) return;
+      const price = Number(entry.price);
+      if (!isFinite(price) || price < 0) return;
+      const label = bc.pickSupplementLabel(entry.label !== undefined ? entry.label : entry.name, lang);
+      if (!label) return;
+      let id = (entry.id === undefined || entry.id === null) ? '' : String(entry.id).trim();
+      if (!id) id = 'sup-' + index;
+      if (seen[id]) return;
+      seen[id] = true;
+      list.push({ id: id, label: label, price: price });
+    });
+    return list;
+  };
+
   bc.getCartDrawerHTML = function(txt) {
   return `
     <div class="cart-drawer-overlay" id="cart-drawer-overlay"></div>
@@ -118,11 +184,77 @@
   `;
 };
 
-  bc.getCustomizationModalHTML = function(txt, prices) {
+  /**
+   * @param txt          cart translation strings (trusted, may contain markup)
+   * @param prices       content.customizationPrices — legacy fallback only
+   * @param supplements  normalised paid add-ons (see bc.normalizeSupplements)
+   * @param lang         'en' | 'fr' | 'tn'
+   */
+  bc.getCustomizationModalHTML = function(txt, prices, supplements, lang) {
     prices = prices || {};
-    const cheddarPrice = prices.cheddarPrice !== undefined ? Number(prices.cheddarPrice) : 2.0;
-    const mozzarellaPrice = prices.mozzarellaPrice !== undefined ? Number(prices.mozzarellaPrice) : 5.0;
-    const friesPrice = prices.friesPrice !== undefined ? Number(prices.friesPrice) : 2.0;
+    const esc = bc.escapeHtml;
+    const defaults = bc.LEGACY_ADDON_PRICE_DEFAULTS;
+    const legacyPrice = (key) => {
+      const raw = Number(prices[key]);
+      return (isFinite(raw) && raw >= 0) ? raw : defaults[key];
+    };
+    const cheddarPrice = legacyPrice('cheddarPrice');
+    const mozzarellaPrice = legacyPrice('mozzarellaPrice');
+    const friesPrice = legacyPrice('friesPrice');
+
+    // Data-driven add-ons. Falls back to the historical cheddar/mozzarella/fries
+    // trio so an older database (no content.supplements) still works.
+    const addons = Array.isArray(supplements)
+      ? supplements
+      : bc.normalizeSupplements(supplements, lang);
+    const hasAddonData = addons.length > 0;
+
+    const addonRows = addons.map((addon) => `
+              <label class="checkbox-option">
+                <input type="checkbox" name="addition" data-addon-id="${esc(addon.id)}" data-price="${Number(addon.price)}" value="${esc(addon.label)}">
+                <span class="option-name-label">${esc(addon.label)}</span>
+                ${addon.price > 0 ? `<span class="option-price-label" style="margin-inline-start:10px; white-space:nowrap;">+${Number(addon.price).toFixed(1)} TND</span>` : ''}
+              </label>`).join('');
+
+    // The list can hold a dozen rows: cap it and let it scroll on its own so the
+    // modal never overflows on a 390px viewport. No animation is introduced, so
+    // prefers-reduced-motion is unaffected.
+    const addonsSection = hasAddonData
+      ? `<div class="additions-list additions-list-scroll" style="max-height:240px; overflow-y:auto; overscroll-behavior:contain; padding-inline-end:4px;">${addonRows}
+            </div>`
+      : `<div class="additions-list">
+              <label class="checkbox-option">
+                <input type="checkbox" name="addition" data-price-key="friesPrice" data-price="${friesPrice}" value="Extra Fries">
+                <span class="option-name-label">${txt.add_fries}</span>
+                <span class="option-price-label">+${friesPrice.toFixed(1)} TND</span>
+              </label>
+            </div>`;
+
+    // The paid cheese radios were two of the three hardcoded extras; when real
+    // supplement data exists they live in the add-on list instead.
+    const cheeseSection = hasAddonData ? '' : `
+          <!-- SECTION 4: Garniture — Fromage (radio: one or none) -->
+          <div class="modifier-group">
+            <h4 class="modifier-group-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13c0-1.1.9-2 2-2h12l2 8H2z"/><path d="M20 11 4.12 4.23"/><path d="M4 13V7.37"/></svg>
+              ${txt.modal_cheese_title}
+            </h4>
+            <div class="garniture-chip-grid cheese-choice">
+              <label class="garniture-chip cheese-chip">
+                <input type="radio" name="cheese" value="none" data-price="0" checked>
+                <span>${txt.garni_no_cheese}</span>
+              </label>
+              <label class="garniture-chip cheese-chip">
+                <input type="radio" name="cheese" value="${esc(txt.garni_cheddar_val)}" data-price-key="cheddarPrice" data-price="${cheddarPrice}">
+                <span>${txt.garni_cheddar} ${cheddarPrice > 0 ? `(+${cheddarPrice.toFixed(1)} TND)` : ''}</span>
+              </label>
+              <label class="garniture-chip cheese-chip">
+                <input type="radio" name="cheese" value="${esc(txt.garni_mozza_val)}" data-price-key="mozzarellaPrice" data-price="${mozzarellaPrice}">
+                <span>${txt.garni_mozza} ${mozzarellaPrice > 0 ? `(+${mozzarellaPrice.toFixed(1)} TND)` : ''}</span>
+              </label>
+            </div>
+          </div>
+`;
 
   return `
     <div class="customization-modal-overlay" id="customization-modal-overlay">
@@ -212,41 +344,14 @@
             </div>
           </div>
 
-          <!-- SECTION 4: Garniture — Fromage (radio: one or none) -->
-          <div class="modifier-group">
-            <h4 class="modifier-group-title">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13c0-1.1.9-2 2-2h12l2 8H2z"/><path d="M20 11 4.12 4.23"/><path d="M4 13V7.37"/></svg>
-              ${txt.modal_cheese_title}
-            </h4>
-            <div class="garniture-chip-grid cheese-choice">
-              <label class="garniture-chip cheese-chip">
-                <input type="radio" name="cheese" value="none" data-price="0" checked>
-                <span>${txt.garni_no_cheese}</span>
-              </label>
-              <label class="garniture-chip cheese-chip">
-                <input type="radio" name="cheese" value="${txt.garni_cheddar_val}" data-price="${cheddarPrice}">
-                <span>${txt.garni_cheddar} ${cheddarPrice > 0 ? `(+${cheddarPrice.toFixed(1)} TND)` : ''}</span>
-              </label>
-              <label class="garniture-chip cheese-chip">
-                <input type="radio" name="cheese" value="${txt.garni_mozza_val}" data-price="${mozzarellaPrice}">
-                <span>${txt.garni_mozza} ${mozzarellaPrice > 0 ? `(+${mozzarellaPrice.toFixed(1)} TND)` : ''}</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- SECTION 5: Extra Additions (paid) -->
+${cheeseSection}
+          <!-- SECTION 5: Extra Additions (paid, data-driven from content.supplements) -->
           <div class="modifier-group">
             <h4 class="modifier-group-title">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
               ${txt.modal_add_title}
             </h4>
-            <div class="additions-list">
-              <label class="checkbox-option">
-                <input type="checkbox" name="addition" value="Extra Fries" data-price="${friesPrice}">
-                <span class="option-name-label">${txt.add_fries}</span>
-                <span class="option-price-label">+${friesPrice.toFixed(1)} TND</span>
-              </label>
-            </div>
+            ${addonsSection}
           </div>
 
           <!-- SECTION 6: Special Notes -->

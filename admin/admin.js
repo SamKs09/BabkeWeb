@@ -11,6 +11,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
   
+  // 0a. HTML escaping for anything stored that gets rendered as markup.
+  // A function declaration, not a const, so it is hoisted and usable by every
+  // render below regardless of where it sits in this file.
+  // The audit timeline renders AuditLog.details, which now carries admin-typed
+  // text (wheel prize labels, loyalty reward names, void reasons). Unescaped,
+  // markup stored there executes in the session of every staff member who can
+  // see the timeline, including the accountant.
+  function admEsc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
   // 0. Image source path resolver helper for relative URLs in admin subdirectory
   const getAdminImageSrc = (src) => {
     if (!src) return '';
@@ -24,6 +37,94 @@ document.addEventListener('DOMContentLoaded', async () => {
       return '../' + src;
     }
     return src;
+  };
+
+  // 0b. CARTE IMPRIMÉE — catégories réelles du menu.
+  // La carte photographiée par le propriétaire ne contient que deux catégories.
+  // Les anciens identifiants (wraps / plates / mezze / specialties, et les
+  // kebab / plate / side / dessert / drink du filtre) n'existent plus.
+  // Source unique : le <select> de la fiche plat et le filtre du catalogue sont
+  // tous les deux rendus à partir de cette liste.
+  const MENU_CATEGORIES = [
+    { id: 'plats', label: 'Plats' },
+    { id: 'enfant', label: 'Menu Enfant' }
+  ];
+
+  const menuCategoryLabel = (id) => {
+    const found = MENU_CATEGORIES.find((c) => c.id === id);
+    return found ? found.label : String(id == null ? '—' : id);
+  };
+
+  // Rebuild the menu-item form <select> from MENU_CATEGORIES. `keepId` lets an
+  // item whose category predates the new carte keep its value instead of being
+  // silently re-filed under the first option when the modal opens.
+  const syncMenuCategoryOptions = (keepId) => {
+    const sel = document.getElementById('menu-form-category');
+    if (!sel) return;
+    const known = MENU_CATEGORIES.some((c) => c.id === keepId);
+    const legacy = (keepId && !known)
+      ? `<option value="${admEsc(keepId)}">⚠ ${admEsc(keepId)} (catégorie retirée de la carte)</option>`
+      : '';
+    sel.innerHTML = legacy + MENU_CATEGORIES
+      .map((c) => `<option value="${admEsc(c.id)}">${admEsc(c.label)}</option>`)
+      .join('');
+  };
+
+  // 0c. SUPPLÉMENTS (add-ons payants du panier).
+  // Stored on content.supplements and saved through the existing
+  // PUT /api/content endpoint. The ONE row shape, identical to the seed in
+  // data/defaultData.js and to what the storefront cart reads
+  // (components/cartDrawer.js → bc.normalizeSupplements):
+  //   { id: String, label: { en, fr, tn }, price: Number }
+  // This editor reads that shape and writes exactly that shape back — no
+  // `name`, no `title` mirror. (An earlier version read `name`, so all 36
+  // label inputs came up empty and a save would have wiped every label.)
+  //
+  // "Restaurer la carte" defaults come from the seed itself (DEFAULT_DATA is
+  // loaded by admin/index.html before this file), so the restore list can
+  // never drift from what a fresh database is seeded with.
+  const printedSupplementDefaults = () => {
+    try {
+      const src = (typeof DEFAULT_DATA !== 'undefined' && DEFAULT_DATA && DEFAULT_DATA.content)
+        ? DEFAULT_DATA.content.supplements
+        : null;
+      return Array.isArray(src) ? src : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const supplementSlug = (fr) => {
+    const base = String(fr || '')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return 'sup-' + (base || 'item');
+  };
+
+  // Read content.supplements into editor rows of the canonical shape.
+  // `label` is the field. A legacy row that only carries `name` (the shape an
+  // earlier build of this editor wrote) is still read so nothing is lost, and
+  // is rewritten as `label` on the next save.
+  const normalizeSupplements = (raw) => {
+    if (!Array.isArray(raw)) return [];
+    const str = (v) => (v == null ? '' : String(v)).trim();
+    return raw.map((row) => {
+      const r = (row && typeof row === 'object') ? row : {};
+      let src = r.label;
+      if (src == null || src === '') src = r.name;
+      const loc = (src && typeof src === 'object') ? src : {};
+      const flat = (typeof src === 'string') ? src : '';
+      const price = (r.price === '' || r.price == null) ? NaN : Number(r.price);
+      return {
+        id: str(r.id),
+        price: Number.isFinite(price) ? price : NaN,
+        label: {
+          en: str(loc.en != null ? loc.en : flat),
+          fr: str(loc.fr != null ? loc.fr : flat),
+          tn: str(loc.tn)
+        }
+      };
+    });
   };
 
   // Immersive Glassmorphic Toast Notification utility
@@ -178,7 +279,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const order = JSON.parse(e.data);
         addActivityLog(`New Order received: ${order.id}`);
-        showToast(`New Order from ${order.customer.name}!`);
+        // showToast() renders its message as HTML and the order comes from the
+        // public, unauthenticated POST /api/orders: escape it.
+        showToast(`New Order from ${admEsc((order.customer || {}).name)}!`);
         
         // Trigger live alert indicator & audio chime (UX Upgrade)
         unreadNotificationCount++;
@@ -198,7 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const reservation = JSON.parse(e.data);
         addActivityLog(`New Reservation booked: ${reservation.id}`);
-        showToast(`New Reservation for ${reservation.guests} guests!`);
+        showToast(`New Reservation for ${admEsc(reservation.guests)} guests!`);
         
         // Trigger live alert indicator & audio chime (UX Upgrade)
         unreadNotificationCount++;
@@ -832,13 +935,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div style="text-align: center; padding: 24px; color: var(--text-admin-muted);">Aucune action enregistrée pour le moment.</div>
     ` : auditLogs.slice(0, 15).map(log => `
       <div class="audit-item">
-        <span class="audit-role-badge ${log.userRole.toLowerCase()}">${log.userRole}</span>
+        <span class="audit-role-badge ${admEsc(String(log.userRole || '').toLowerCase())}">${admEsc(log.userRole)}</span>
         <div class="audit-content">
           <div class="audit-header">
-            <span class="audit-username">${log.username} (${log.actionType})</span>
-            <span class="audit-timestamp">🕒 ${log.timestamp}</span>
+            <span class="audit-username">${admEsc(log.username)} (${admEsc(log.actionType)})</span>
+            <span class="audit-timestamp">🕒 ${admEsc(log.timestamp)}</span>
           </div>
-          <div class="audit-details">${log.details}</div>
+          <div class="audit-details">${admEsc(log.details)}</div>
         </div>
       </div>
     `).join('');
@@ -2411,6 +2514,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const menuItems = BabkeDB.getMenu();
 
     const canEditOrDeleteMenu = (userRole === 'admin' || userRole === 'sm_manager');
+    // Suppléments are priced money settings, and PUT /api/content is
+    // ownerOnlyMiddleware on the server. Same gate here: propriétaire only.
+    const isOwner = (userRole === 'admin');
 
     contentArea.innerHTML = `
       <div class="admin-card">
@@ -2433,12 +2539,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
           <div class="filter-group" style="width: 180px;">
             <select id="menu-category-filter" class="admin-select" style="margin-bottom: 0;">
-              <option value="all">All Categories</option>
-              <option value="kebab">Kebabs</option>
-              <option value="plate">Plates & Grills</option>
-              <option value="side">Sides / Appetizers</option>
-              <option value="dessert">Desserts</option>
-              <option value="drink">Drinks</option>
+              <option value="all">Toutes les catégories</option>
+              ${MENU_CATEGORIES.map(c => `<option value="${admEsc(c.id)}">${admEsc(c.label)}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -2496,6 +2598,35 @@ document.addEventListener('DOMContentLoaded', async () => {
           </form>
         </div>
       ` : ''}
+
+      ${isOwner ? `
+        <!-- Suppléments payants du panier (content.supplements) -->
+        <section class="admin-card adm-supp-card" style="margin-top: 24px;" aria-labelledby="adm-supp-heading">
+          <div class="admin-card-header" style="margin-bottom: 12px;">
+            <h3 id="adm-supp-heading" style="display:flex; align-items:center; gap:8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Suppléments payants (panier)
+            </h3>
+            <span class="adm-muted" style="font-size:0.78rem; font-weight:700;">Propriétaire uniquement</span>
+          </div>
+          <p class="adm-supp-intro">
+            Les suppléments de la carte imprimée ne sont pas des plats : ils s'ajoutent
+            au panier par-dessus un plat. Modifiez ici le prix et le libellé FR / EN / TN,
+            ajoutez-en un ou retirez-en un. Enregistré avec le contenu du site.
+          </p>
+          <form id="supplements-form" novalidate>
+            <div class="adm-supp-list" id="adm-supp-list"></div>
+            <p class="adm-error adm-supp-error" id="adm-supp-error" role="alert" hidden></p>
+            <div class="adm-supp-footer">
+              <div class="adm-supp-footer-left">
+                <button type="button" class="btn-adm-ghost adm-btn-sm" id="btn-supp-add">+ Ajouter un supplément</button>
+                <button type="button" class="btn-adm-ghost adm-btn-sm" id="btn-supp-restore">Restaurer la liste de la carte</button>
+              </div>
+              <button type="submit" class="btn-admin-primary" id="btn-save-supplements">Enregistrer les suppléments</button>
+            </div>
+          </form>
+        </section>
+      ` : ''}
     `;
 
     const tbody = contentArea.querySelector('tbody');
@@ -2540,22 +2671,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       tbody.innerHTML = filtered.map(item => {
         const titleEn = item.title.en || 'No title';
-        const catLabel = item.category.toUpperCase();
+        const catLabel = menuCategoryLabel(item.category);
         const tagsList = item.tags.en || [];
-        const tagsBadgeHtml = tagsList.map(tag => `<span class="status-badge" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-admin); font-size:0.65rem; margin-right:4px;">${tag}</span>`).join('');
+        const tagsBadgeHtml = tagsList.map(tag => `<span class="status-badge" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-admin); font-size:0.65rem; margin-right:4px;">${admEsc(tag)}</span>`).join('');
         const isAvail = item.available !== false;
 
-        const availBadge = isAvail 
-          ? `<button class="btn-toggle-availability" data-id="${item.id}" data-available="true" title="Cliquer pour marquer Indisponible / Épuisé" style="background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.3); padding:6px 14px; border-radius:20px; font-weight:800; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:transform 0.15s ease;"><span>🟢 Disponible</span></button>`
-          : `<button class="btn-toggle-availability" data-id="${item.id}" data-available="false" title="Cliquer pour réactiver (Disponible)" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); padding:6px 14px; border-radius:20px; font-weight:800; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:transform 0.15s ease;"><span>🔴 Indisponible (Épuisé)</span></button>`;
+        const availBadge = isAvail
+          ? `<button class="btn-toggle-availability" data-id="${admEsc(item.id)}" data-available="true" title="Cliquer pour marquer Indisponible / Épuisé" style="background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.3); padding:6px 14px; border-radius:20px; font-weight:800; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:transform 0.15s ease;"><span>🟢 Disponible</span></button>`
+          : `<button class="btn-toggle-availability" data-id="${admEsc(item.id)}" data-available="false" title="Cliquer pour réactiver (Disponible)" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); padding:6px 14px; border-radius:20px; font-weight:800; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:transform 0.15s ease;"><span>🔴 Indisponible (Épuisé)</span></button>`;
 
         const actionColHtml = canEditOrDeleteMenu ? `
           <td>
             <div class="btn-action-row">
-              <button class="btn-admin-action btn-edit-menu-item" data-id="${item.id}" title="Edit Item" style="display:flex; align-items:center; justify-content:center;">
+              <button class="btn-admin-action btn-edit-menu-item" data-id="${admEsc(item.id)}" title="Edit Item" style="display:flex; align-items:center; justify-content:center;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
-              <button class="btn-admin-action delete btn-delete-menu-item" data-id="${item.id}" title="Delete Item" style="display:flex; align-items:center; justify-content:center;">
+              <button class="btn-admin-action delete btn-delete-menu-item" data-id="${admEsc(item.id)}" title="Delete Item" style="display:flex; align-items:center; justify-content:center;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               </button>
             </div>
@@ -2565,13 +2696,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `
           <tr>
             <td>
-              <img class="table-img" src="${getAdminImageSrc(item.image)}" onerror="this.onerror=null; this.src='${getAdminImageSrc(item.fallbackImage)}';" alt="${titleEn}">
+              <img class="table-img" src="${admEsc(getAdminImageSrc(item.image))}" data-fallback="${admEsc(getAdminImageSrc(item.fallbackImage))}" alt="${admEsc(titleEn)}">
             </td>
             <td>
-              <strong style="display:block; font-size:0.95rem; color:var(--text-admin-primary);">${titleEn}</strong>
-              <span style="color:var(--text-admin-muted); font-size:0.75rem;">${item.id}</span>
+              <strong style="display:block; font-size:0.95rem; color:var(--text-admin-primary);">${admEsc(titleEn)}</strong>
+              <span style="color:var(--text-admin-muted); font-size:0.75rem;">${admEsc(item.id)}</span>
             </td>
-            <td><span class="status-badge info">${catLabel}</span></td>
+            <td><span class="status-badge info">${admEsc(catLabel)}</span></td>
             <td><strong style="color:var(--accent-admin); font-weight:800;">${item.price.toFixed(1)} TND</strong></td>
             <td>${availBadge}</td>
             <td>${tagsBadgeHtml}</td>
@@ -2579,6 +2710,18 @@ document.addEventListener('DOMContentLoaded', async () => {
           </tr>
         `;
       }).join('');
+
+      // Fallback image handling, bound rather than written as an inline
+      // onerror="…" — the stored URL would otherwise land inside a JS string
+      // inside an HTML attribute, a context HTML-escaping alone does not make
+      // safe (&#39; decodes back to a quote before the handler is compiled).
+      tbody.querySelectorAll('img.table-img[data-fallback]').forEach(img => {
+        img.addEventListener('error', function onImgError() {
+          this.removeEventListener('error', onImgError);
+          const fb = this.dataset.fallback;
+          if (fb && this.src !== fb) this.src = fb;
+        });
+      });
 
       // Bind availability toggle actions
       tbody.querySelectorAll('.btn-toggle-availability').forEach(btn => {
@@ -2666,6 +2809,279 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
     }
+
+    if (isOwner) bindSupplementsEditor();
+  }
+
+  // ---- Suppléments editor (content.supplements, owner only) ----------------
+  // Reads and writes exactly { id, label: { en, fr, tn }, price } — see 0c.
+  // Every label rendered below goes through admEsc(). The rows are admin-typed
+  // free text that reaches innerHTML, so a stored "<img onerror=…>" would
+  // otherwise run in the session of whoever opens the menu panel next.
+  function bindSupplementsEditor() {
+    const form = document.getElementById('supplements-form');
+    const listEl = document.getElementById('adm-supp-list');
+    if (!form || !listEl) return;
+
+    const errEl = document.getElementById('adm-supp-error');
+    const addBtn = document.getElementById('btn-supp-add');
+    const restoreBtn = document.getElementById('btn-supp-restore');
+    const saveBtn = document.getElementById('btn-save-supplements');
+
+    let rows = normalizeSupplements((BabkeDB.getContent() || {}).supplements);
+
+    const showError = (msg) => {
+      if (!errEl) return;
+      if (!msg) { errEl.hidden = true; errEl.textContent = ''; return; }
+      errEl.textContent = msg;
+      errEl.hidden = false;
+    };
+
+    const priceForInput = (p) => (Number.isFinite(p) ? String(p) : '');
+
+    const draw = () => {
+      if (!rows.length) {
+        listEl.innerHTML = `
+          <p class="adm-supp-empty">
+            Aucun supplément enregistré. Utilisez « Restaurer la liste de la carte »
+            pour repartir de la carte imprimée, ou ajoutez-en un.
+          </p>`;
+        return;
+      }
+
+      listEl.innerHTML = rows.map((r, i) => {
+        const uid = `supp-${i}`;
+        const rowName = r.label.fr || r.label.en || `ligne ${i + 1}`;
+        return `
+          <div class="adm-supp-row" data-i="${i}">
+            <div class="adm-supp-row-head">
+              <span class="adm-supp-index" aria-hidden="true">${i + 1}</span>
+              ${r.id
+                ? `<code class="adm-supp-id">${admEsc(r.id)}</code>`
+                : `<span class="adm-supp-id adm-supp-id-new">Nouveau : identifiant créé à l'enregistrement</span>`}
+              <button type="button" class="btn-adm-ghost adm-btn-xs adm-btn-danger adm-supp-del"
+                      data-i="${i}" aria-label="Retirer le supplément ${admEsc(rowName)}">Retirer</button>
+            </div>
+            <div class="adm-supp-fields">
+              <div class="form-group-admin">
+                <label for="${uid}-fr">Libellé FR *</label>
+                <input type="text" class="admin-input adm-supp-fr" id="${uid}-fr"
+                       maxlength="60" dir="ltr" lang="fr" autocomplete="off"
+                       value="${admEsc(r.label.fr)}" aria-required="true">
+              </div>
+              <div class="form-group-admin">
+                <label for="${uid}-en">Libellé EN</label>
+                <input type="text" class="admin-input adm-supp-en" id="${uid}-en"
+                       maxlength="60" dir="ltr" lang="en" autocomplete="off"
+                       value="${admEsc(r.label.en)}">
+              </div>
+              <div class="form-group-admin adm-supp-tn-field">
+                <label for="${uid}-tn">Libellé TN (عربي)</label>
+                <input type="text" class="admin-input adm-supp-tn" id="${uid}-tn"
+                       maxlength="60" dir="rtl" lang="ar" autocomplete="off"
+                       value="${admEsc(r.label.tn)}">
+              </div>
+              <div class="form-group-admin adm-supp-price-field">
+                <label for="${uid}-price">Prix (TND) *</label>
+                <input type="number" class="admin-input adm-supp-price" id="${uid}-price"
+                       step="0.5" min="0" inputmode="decimal"
+                       value="${admEsc(priceForInput(r.price))}" aria-required="true">
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+
+      listEl.querySelectorAll('.adm-supp-del').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const at = Number(btn.dataset.i);
+          collect();
+          rows.splice(at, 1);
+          showError('');
+          draw();
+          // Keep keyboard focus in the list instead of dropping it on <body>.
+          const dels = listEl.querySelectorAll('.adm-supp-del');
+          const next = dels[Math.min(at, dels.length - 1)] || addBtn;
+          if (next) next.focus();
+        });
+      });
+    };
+
+    // Pull the current DOM values back into `rows` so redraws (add / remove)
+    // never throw away what the owner has typed but not yet saved.
+    const collect = () => {
+      const rowEls = listEl.querySelectorAll('.adm-supp-row');
+      rows = Array.from(rowEls).map((el, i) => {
+        const val = (sel) => {
+          const node = el.querySelector(sel);
+          return node ? node.value.trim() : '';
+        };
+        // <input type="number"> reports '' for anything that is not a number,
+        // and Number('') is 0 — so an emptied or garbage price must be caught
+        // here, not silently saved as a free supplement.
+        const priceRaw = val('.adm-supp-price');
+        const price = priceRaw === '' ? NaN : Number(priceRaw);
+        const existing = rows[i] || {};
+        return {
+          id: existing.id || '',
+          price: Number.isFinite(price) ? price : NaN,
+          label: { en: val('.adm-supp-en'), fr: val('.adm-supp-fr'), tn: val('.adm-supp-tn') }
+        };
+      });
+      return rows;
+    };
+
+    const clearInvalid = () => {
+      listEl.querySelectorAll('[aria-invalid="true"]').forEach((n) => n.removeAttribute('aria-invalid'));
+    };
+
+    const flagInvalid = (rowIndex, selector, msg) => {
+      const rowEl = listEl.querySelectorAll('.adm-supp-row')[rowIndex];
+      const input = rowEl ? rowEl.querySelector(selector) : null;
+      if (input) {
+        input.setAttribute('aria-invalid', 'true');
+        if (errEl) input.setAttribute('aria-describedby', errEl.id);
+        input.focus();
+      }
+      showError(msg);
+    };
+
+    // New rows get their id from the French label at save time, suffixed if
+    // it would collide with a row that already exists.
+    const assignMissingIds = () => {
+      const taken = new Set(rows.filter((r) => r.id).map((r) => r.id));
+      rows.forEach((r) => {
+        if (r.id) return;
+        const base = supplementSlug(r.label.fr);
+        let id = base;
+        let n = 2;
+        while (taken.has(id)) id = `${base}-${n++}`;
+        r.id = id;
+        taken.add(id);
+      });
+    };
+
+    const fetchServerContent = async () => {
+      try {
+        const res = await fetch('/api/content', { cache: 'no-store', credentials: 'same-origin' });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return (data && typeof data === 'object' && !Array.isArray(data) && !data.error) ? data : null;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        collect();
+        rows.push({ id: '', price: NaN, label: { en: '', fr: '', tn: '' } });
+        showError('');
+        draw();
+        const last = listEl.querySelector('.adm-supp-row:last-child .adm-supp-fr');
+        if (last) last.focus();
+      });
+    }
+
+    if (restoreBtn) {
+      restoreBtn.addEventListener('click', () => {
+        const defaults = normalizeSupplements(printedSupplementDefaults());
+        if (!defaults.length) {
+          showError("Liste de la carte introuvable (data/defaultData.js non chargé). Rechargez la page.");
+          return;
+        }
+        if (!confirm(`Remplacer la liste affichée par les ${defaults.length} suppléments de la carte imprimée ?\n(Rien n'est enregistré tant que vous ne cliquez pas sur Enregistrer.)`)) return;
+        rows = defaults;
+        showError('');
+        draw();
+      });
+    }
+
+    listEl.addEventListener('input', (e) => {
+      if (e.target && e.target.getAttribute('aria-invalid') === 'true') {
+        e.target.removeAttribute('aria-invalid');
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      collect();
+      clearInvalid();
+
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r.label.fr) {
+          flagInvalid(i, '.adm-supp-fr', `Ligne ${i + 1} : le libellé français est obligatoire.`);
+          return;
+        }
+        if (!Number.isFinite(r.price) || r.price < 0) {
+          flagInvalid(i, '.adm-supp-price', `Ligne ${i + 1} (${r.label.fr}) : le prix doit être un nombre supérieur ou égal à 0.`);
+          return;
+        }
+      }
+      const ids = rows.filter((r) => r.id).map((r) => r.id);
+      if (new Set(ids).size !== ids.length) {
+        showError("Deux suppléments portent le même identifiant. Retirez le doublon.");
+        return;
+      }
+      assignMissingIds();
+      showError('');
+
+      // Exactly the seed / storefront shape. Nothing else is written per row.
+      const payload = rows.map((r) => ({
+        id: r.id,
+        label: { en: r.label.en, fr: r.label.fr, tn: r.label.tn },
+        price: r.price
+      }));
+
+      const previousContent = BabkeDB.getContent();
+      const origText = saveBtn.textContent;
+      saveBtn.disabled = true;
+      saveBtn.setAttribute('aria-busy', 'true');
+      saveBtn.textContent = 'Enregistrement…';
+      try {
+        // Start from what the server holds right now, not from this tab's
+        // cache, so this save only ever changes `supplements`: hero, story,
+        // contact and the rest go back exactly as they are stored.
+        const base = (await fetchServerContent()) || previousContent || {};
+        const content = Object.assign({}, base, { supplements: payload });
+
+        const res = await BabkeDB.saveContent(content);
+        if (!res) throw new Error('Serveur injoignable.');
+        if (res.error) throw new Error(String(res.error));
+
+        // Confirm the server really kept these exact rows before telling the
+        // owner it did. A Content schema that does not declare `supplements`
+        // answers 200 and silently drops the field (leaving whatever was
+        // there before), so a status code or a row count proves nothing.
+        const stored = await fetchServerContent();
+        if (stored) {
+          const sig = (list) => JSON.stringify(normalizeSupplements(list).map((r) => (
+            [r.id, r.label.en, r.label.fr, r.label.tn, r.price]
+          )));
+          if (!Array.isArray(stored.supplements) || sig(stored.supplements) !== sig(payload)) {
+            throw new Error("le serveur a répondu mais n'a pas conservé les suppléments. Rien n'a changé.");
+          }
+        }
+
+        rows = normalizeSupplements(payload);
+        draw();
+        addActivityLog(`Suppléments du panier mis à jour (${payload.length} article(s))`);
+        showToast(`${payload.length} supplément(s) enregistré(s).`, 'success');
+      } catch (err) {
+        console.error('Error saving supplements:', err);
+        // saveContent() writes the cache before the request; put back what
+        // was there so the rest of the dashboard does not show unsaved rows.
+        if (BabkeDB.cache) BabkeDB.cache.content = previousContent;
+        showError(`Échec de l'enregistrement des suppléments : ${err && err.message ? err.message : 'erreur inconnue'}`);
+        showToast("Échec de l'enregistrement des suppléments.", 'error');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.removeAttribute('aria-busy');
+        saveBtn.textContent = origText;
+      }
+    });
+
+    draw();
   }
 
   // Menu Modal controls
@@ -2688,13 +3104,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       modalTitle.textContent = "Edit Menu Item";
       const item = BabkeDB.getMenu().find(m => m.id === itemId);
       if (item) {
+        // Rebuild the options first, keeping a pre-carte category as a visible
+        // option — otherwise assigning an unknown value silently selects
+        // "Plats" and the next save would re-file the dish without asking.
+        syncMenuCategoryOptions(item.category);
         document.getElementById('menu-form-item-id').value = item.id;
         document.getElementById('menu-form-category').value = item.category;
         document.getElementById('menu-form-price').value = item.price;
         
-        // base64/image preview
+        // base64/image preview — fallback bound, never inlined into onerror.
         base64Input.value = item.image;
-        previewBox.innerHTML = `<img src="${getAdminImageSrc(item.image)}" onerror="this.onerror=null; this.src='${getAdminImageSrc(item.fallbackImage)}';">`;
+        previewBox.innerHTML = `<img src="${admEsc(getAdminImageSrc(item.image))}" alt="">`;
+        const previewImg = previewBox.querySelector('img');
+        const previewFallback = getAdminImageSrc(item.fallbackImage);
+        if (previewImg && previewFallback) {
+          previewImg.addEventListener('error', function onPreviewError() {
+            this.removeEventListener('error', onPreviewError);
+            if (this.src !== previewFallback) this.src = previewFallback;
+          });
+        }
 
         // Localized fields
         document.getElementById('menu-form-title-en').value = item.title.en || '';
@@ -2711,6 +3139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } else {
       modalTitle.textContent = "Add Menu Item";
+      syncMenuCategoryOptions(null);
       document.getElementById('menu-form-item-id').value = '';
     }
 
@@ -2733,7 +3162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const compressedBase64 = await compressImage(file, 800, 800);
         base64Input.value = compressedBase64;
-        previewBox.innerHTML = `<img src="${compressedBase64}">`;
+        previewBox.innerHTML = `<img src="${admEsc(compressedBase64)}" alt="">`;
       } catch (err) {
         console.error("Image compression failed:", err);
         showToast("Image compression failed.");
@@ -4099,23 +4528,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         tbody.innerHTML = filteredOrders.map(o => {
-          const itemsHtml = o.items.map(item => {
-            const addonsStr = (item.addons && item.addons.length > 0) ? `<br><small style="color:var(--text-admin-muted);">+ ${item.addons.join(', ')}</small>` : '';
-            return `• <strong>${item.qty}x ${item.name}</strong> (${item.spice})${addonsStr}`;
+          // Everything in an order row comes from the public POST /api/orders
+          // (and item.addons now carries the suppléments labels), so every
+          // interpolated value is escaped before it reaches innerHTML.
+          const cust = o.customer || {};
+          const itemsHtml = (Array.isArray(o.items) ? o.items : []).map(item => {
+            const addons = Array.isArray(item.addons) ? item.addons : [];
+            const addonsStr = addons.length > 0 ? `<br><small style="color:var(--text-admin-muted);">+ ${addons.map(admEsc).join(', ')}</small>` : '';
+            return `• <strong>${admEsc(item.qty)}x ${admEsc(item.name)}</strong> (${admEsc(item.spice)})${addonsStr}`;
           }).join('<br>');
 
           return `
             <tr>
-              <td><strong style="color:var(--accent-admin); font-family:'Outfit';">${o.id}</strong></td>
+              <td><strong style="color:var(--accent-admin); font-family:'Outfit';">${admEsc(o.id)}</strong></td>
               <td>
-                <strong>${o.customer.name}</strong><br>
-                <span style="font-size:0.75rem; color:var(--text-admin-muted);">${o.customer.phone}</span><br>
-                <span style="font-size:0.72rem; color:var(--text-admin-secondary);">${o.customer.address}</span>
+                <strong>${admEsc(cust.name)}</strong><br>
+                <span style="font-size:0.75rem; color:var(--text-admin-muted);">${admEsc(cust.phone)}</span><br>
+                <span style="font-size:0.72rem; color:var(--text-admin-secondary);">${admEsc(cust.address)}</span>
               </td>
               <td style="font-size:0.8rem; line-height:1.4;">${itemsHtml}</td>
-              <td><strong>${o.subtotal.toFixed(1)} TND</strong></td>
+              <td><strong>${(Number(o.subtotal) || 0).toFixed(1)} TND</strong></td>
               <td>
-                <select class="table-status-select order-status-updater" data-id="${o.id}">
+                <select class="table-status-select order-status-updater" data-id="${admEsc(o.id)}">
                   <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>Pending</option>
                   <option value="preparing" ${o.status === 'preparing' ? 'selected' : ''}>Preparing</option>
                   <option value="delivered" ${o.status === 'delivered' ? 'selected' : ''}>Delivered</option>
@@ -4197,19 +4631,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         tbody.innerHTML = filteredReservations.map(r => {
           return `
             <tr>
-              <td><strong style="color:var(--accent-info); font-family:'Outfit';">${r.id}</strong></td>
+              <td><strong style="color:var(--accent-info); font-family:'Outfit';">${admEsc(r.id)}</strong></td>
               <td>
-                <strong>${r.name}</strong><br>
-                <span style="font-size:0.75rem; color:var(--text-admin-muted);">${r.phone}</span>
+                <strong>${admEsc(r.name)}</strong><br>
+                <span style="font-size:0.75rem; color:var(--text-admin-muted);">${admEsc(r.phone)}</span>
               </td>
               <td>
-                <strong>${r.date}</strong><br>
-                <span style="color:var(--accent-info); font-weight:700;">${r.time}</span>
+                <strong>${admEsc(r.date)}</strong><br>
+                <span style="color:var(--accent-info); font-weight:700;">${admEsc(r.time)}</span>
               </td>
-              <td><span class="status-badge info" style="font-size:0.75rem; font-weight:800;">${r.guests} Guests</span></td>
-              <td style="max-width:180px; font-size:0.76rem; font-style:italic;">${r.notes ? `"${r.notes}"` : '-'}</td>
+              <td><span class="status-badge info" style="font-size:0.75rem; font-weight:800;">${admEsc(r.guests)} Guests</span></td>
+              <td style="max-width:180px; font-size:0.76rem; font-style:italic;">${r.notes ? `"${admEsc(r.notes)}"` : '-'}</td>
               <td>
-                <select class="table-status-select reservation-status-updater" data-id="${r.id}">
+                <select class="table-status-select reservation-status-updater" data-id="${admEsc(r.id)}">
                   <option value="pending" ${r.status === 'pending' ? 'selected' : ''}>Pending</option>
                   <option value="confirmed" ${r.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
                   <option value="cancelled" ${r.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>

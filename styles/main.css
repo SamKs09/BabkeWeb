@@ -5166,6 +5166,17 @@ body.light-theme .checkbox-custom-label {
 }
 @media (min-width: 769px) and (max-width: 1100px) {
   .burger-menu { display: flex; }
+  /* The cart moves into the drawer with the nav, exactly as it does at <=768px.
+     Without these two the navbar bubble stays visible while the drawer is open
+     and the drawer has no cart button at all. */
+  .cart-bubble-wrapper { display: none !important; }
+  .cart-mobile-wrapper {
+    display: block !important;
+    width: 100%;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+  }
   .nav-menu {
     position: fixed;
     top: 0;

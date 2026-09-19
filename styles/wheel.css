@@ -252,6 +252,7 @@ body.light-theme .wheel-bloom {
   color: var(--accent-warm);
 }
 .wheel-kicker svg { display: block; width: 100%; height: 100%; }
+.wheel-kicker-mark { display: block; width: 100%; height: 100%; object-fit: contain; }
 body.rtl-active .wheel-kicker { margin-right: 0; margin-left: 10px; }
 
 .wheel-panel-title {
@@ -292,7 +293,31 @@ body.rtl-active .wheel-state { text-align: center; }
 .wheel-emblem svg { width: 100%; height: 100%; display: block; }
 .wheel-state.is-ember .wheel-emblem { color: var(--accent-primary); }
 .wheel-state.is-muted .wheel-emblem { color: var(--text-muted); }
-.wheel-state[data-kind="spinning"] .wheel-emblem svg {
+
+/* The emblem is the Babke logo; the state mark rides in the corner so
+   "come back tomorrow" still looks different from "switched off". */
+.wheel-emblem { position: relative; }
+.wheel-emblem-mark {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.wheel-state.is-muted .wheel-emblem-mark { opacity: 0.55; }
+.wheel-emblem-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 26px;
+  height: 26px;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 1px currentColor;
+  color: inherit;
+}
+body.rtl-active .wheel-emblem-badge { right: auto; left: -2px; }
+.wheel-state[data-kind="spinning"] .wheel-emblem-mark {
   animation: wheelEmblemTurn 3.2s linear infinite;
 }
 @keyframes wheelEmblemTurn { to { transform: rotate(360deg); } }
@@ -804,7 +829,8 @@ body.rtl-active .wheel-result-close { right: auto; left: 12px; }
   .wheel-stage.is-loading .wheel-lamps-b { animation: none; opacity: 0.4; }
   .wheel-winner { animation: none; opacity: 1; }
   .wheel-skel-line { animation: none; background: var(--glass-border); }
-  .wheel-state[data-kind="spinning"] .wheel-emblem svg { animation: none; }
+  .wheel-state[data-kind="spinning"] .wheel-emblem svg,
+  .wheel-state[data-kind="spinning"] .wheel-emblem-mark { animation: none; }
   .wheel-result-overlay,
   .wheel-result-overlay.open { transition: none; }
 }

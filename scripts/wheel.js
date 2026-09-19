@@ -355,7 +355,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const p = (v) => 'M' + v[0] + ' ' + v[1] + 'L' + v[2] + ' ' + v[3] + 'L' + v[4] + ' ' + v[5] + 'L' + v[6] + ' ' + v[7] + 'Z';
     return p(a.map(r3)) + p(b.map(r3));
   };
-  const ICON_STAR = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 1.5l2.6 4.2 4.8-1.2-1.2 4.8 4.3 2.7-4.3 2.7 1.2 4.8-4.8-1.2L12 22.5l-2.6-4.2-4.8 1.2 1.2-4.8L1.5 12l4.3-2.7-1.2-4.8 4.8 1.2z"/></svg>';
+  // The mark leading the form title is the Babke logo, not a generic star.
+  const ICON_STAR = '<img class="wheel-kicker-mark" src="assets/BabkeLogo.png" alt="" ' +
+    'aria-hidden="true" draggable="false" decoding="async">';
   const ICON_CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>';
   const ICON_SPIN = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4.5h-4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function emblem(kind) {
@@ -366,10 +368,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       disabled: '<path d="M27 25v14M37 25v14" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>',
       error: '<path d="M32 22v12" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><circle cx="32" cy="41" r="2.2" fill="currentColor"/>'
     }[kind] || '';
-    return '<div class="wheel-emblem" aria-hidden="true"><svg viewBox="0 0 64 64" focusable="false">' +
-      '<path d="' + KHATAM_PATH(32, 32, 27) + '" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" opacity=".9"/>' +
-      '<circle cx="32" cy="32" r="15.5" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/>' +
-      inner + '</svg></div>';
+    // The emblem is the Babke logo. The per-state mark (clock, pause, error)
+    // still has to be readable, so it rides along as a small corner badge
+    // rather than being drawn inside the logo.
+    const badge = inner
+      ? '<svg class="wheel-emblem-badge" viewBox="0 0 64 64" focusable="false" aria-hidden="true">' + inner + '</svg>'
+      : '';
+    return '<div class="wheel-emblem" aria-hidden="true">' +
+      '<img class="wheel-emblem-mark" src="assets/BabkeLogo.png" alt="" draggable="false" decoding="async">' +
+      badge + '</div>';
   }
 
   function frameSvg(count) {

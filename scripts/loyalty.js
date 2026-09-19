@@ -173,10 +173,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const STEP_NUMERALS = ['١', '٢', '٣'];
 
   // Filled seal: an 8-point khatam (two squares) in white, with an ember eye.
-  const SEAL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-    '<rect x="5.5" y="5.5" width="13" height="13"/>' +
-    '<rect x="5.5" y="5.5" width="13" height="13" transform="rotate(45 12 12)"/>' +
-    '<circle cx="12" cy="12" r="2.6" fill="#e73623"/></svg>';
+  // The seal is the Babke logo itself. It sits on the ember-red stamp disc, so
+  // CSS renders it in solid white (see .loyalty-seal-mark in loyalty.css); the
+  // PNG is transparent, which is what makes that work.
+  const SEAL_SVG = '<img class="loyalty-seal-mark" src="assets/BabkeLogo.png" alt="" ' +
+    'aria-hidden="true" draggable="false" decoding="async" loading="lazy">';
   // Locked QR placeholder: khatam outline with a keyhole.
   const LOCK_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false" fill="none" ' +
     'stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">' +

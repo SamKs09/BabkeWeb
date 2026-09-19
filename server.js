@@ -280,7 +280,12 @@ const Content = mongoose.model('Content', new mongoose.Schema({
   contact: mongoose.Schema.Types.Mixed,
   socials: mongoose.Schema.Types.Mixed,
   delivery: mongoose.Schema.Types.Mixed,
-  footer: mongoose.Schema.Types.Mixed
+  footer: mongoose.Schema.Types.Mixed,
+  // This schema is strict, so any content field not declared here is silently
+  // dropped on save. Both of these were being lost: the suppléments never
+  // reached the cart, and the owner's saved add-on prices never persisted.
+  supplements: mongoose.Schema.Types.Mixed,
+  customizationPrices: mongoose.Schema.Types.Mixed
 }));
 
 const Review = mongoose.model('Review', new mongoose.Schema({
@@ -625,19 +630,19 @@ const WHEEL_SEED = {
       tn: "لعبة بلاش و ما تلزمكش تشري. مشاركة وحدة لكل نومرو كل 7 أيام. الهدية صالحة 14 يوم، تخوذها من الكونتوار متاع بابكي، شارع البرتقال، حمام سوسة، كي تورّي الكود. في حدود الكمية الموجودة و ما تتبدّلش بالفلوس. الطوابع اللي تربحها تتزاد في كارت بابكي في الكونتوار."
     },
     segments: [
-      { id: "seg-royal",    type: "prize",  stamps: null, weight: 1,  tone: "ember",    active: true, label: { fr: "Plat Royal offert",     en: "Free Royal Platter",   tn: "طبق ملكي بلاش" } },
+      { id: "seg-royal",    type: "prize",  stamps: null, weight: 1,  tone: "ember",    active: true, label: { fr: "Plat Kebab Royal",      en: "Kebab Royal platter",  tn: "طبق كباب ملكي" } },
       { id: "seg-miss-1",   type: "lose",   stamps: null, weight: 24, tone: "charcoal", active: true, label: { fr: "Pas cette fois",        en: "Not this time",        tn: "المرة الجاية" } },
       { id: "seg-seal-1",   type: "stamps", stamps: 1,    weight: 20, tone: "brass",    active: true, label: { fr: "+1 sceau",              en: "+1 seal",              tn: "+1 طابع" } },
-      { id: "seg-taboule",  type: "prize",  stamps: null, weight: 12, tone: "herb",     active: true, label: { fr: "Taboulé offert",        en: "Free Tabbouleh",       tn: "تبولة بلاش" } },
+      { id: "seg-frites",   type: "prize",  stamps: null, weight: 12, tone: "herb",     active: true, label: { fr: "Portion de frites",     en: "Portion of fries",     tn: "حصة بطاطا" } },
       { id: "seg-miss-2",   type: "lose",   stamps: null, weight: 22, tone: "charcoal", active: true, label: { fr: "Presque !",             en: "So close!",            tn: "قريب!" } },
       { id: "seg-seal-2",   type: "stamps", stamps: 2,    weight: 12, tone: "brass",    active: true, label: { fr: "+2 sceaux",             en: "+2 seals",             tn: "+2 طوابع" } },
-      { id: "seg-baba",     type: "prize",  stamps: null, weight: 7,  tone: "tile",     active: true, label: { fr: "Baba Ghanoush offert",  en: "Free Baba Ghanoush",   tn: "بابا غنوج بلاش" } },
-      { id: "seg-chawarma", type: "prize",  stamps: null, weight: 2,  tone: "ember",    active: true, label: { fr: "Chawarma offert",       en: "Free Shawarma",        tn: "شاورما بلاش" } }
+      { id: "seg-falafel",  type: "prize",  stamps: null, weight: 7,  tone: "tile",     active: true, label: { fr: "3 pièces falafel",      en: "3 falafel pieces",     tn: "3 فلافل" } },
+      { id: "seg-chawarma", type: "prize",  stamps: null, weight: 2,  tone: "ember",    active: true, label: { fr: "Chawarma 100g",         en: "Chawarma 100g",        tn: "شاورما 100غ" } }
     ]
   },
   stock: [
-    { segmentId: "seg-royal", left: 3 }, { segmentId: "seg-taboule", left: 25 },
-    { segmentId: "seg-baba", left: 15 }, { segmentId: "seg-chawarma", left: 8 }
+    { segmentId: "seg-royal", left: 3 }, { segmentId: "seg-frites", left: 25 },
+    { segmentId: "seg-falafel", left: 15 }, { segmentId: "seg-chawarma", left: 8 }
   ]
 };
 
@@ -677,6 +682,21 @@ async function seedDatabase() {
     if (contentCount === 0) {
       await Content.create({ key: 'main', ...defaultData.content });
       console.log('Seeded Content collection successfully.');
+    } else {
+      // Backfill fields that an older content document never had, because the
+      // strict schema used to drop them. Only fields that are MISSING are set,
+      // so anything the owner has already edited is left alone.
+      const backfill = {};
+      for (const field of ['supplements', 'customizationPrices']) {
+        if (defaultData.content[field] !== undefined) {
+          const exists = await Content.exists({ key: 'main', [field]: { $exists: true } });
+          if (!exists) backfill[field] = defaultData.content[field];
+        }
+      }
+      if (Object.keys(backfill).length) {
+        await Content.updateOne({ key: 'main' }, { $set: backfill });
+        console.log('Backfilled content fields: ' + Object.keys(backfill).join(', '));
+      }
     }
 
     // Seed Reviews
@@ -724,8 +744,8 @@ async function seedDatabase() {
         {
           id: "ORD-1719000000",
           customer: { name: "Ahmed Mansour", phone: "+216 98 765 432", address: "Hammam Sousse, near Monoprix" },
-          items: [{ name: "Chicken Shawarma Wrap", qty: 2, price: 12.5, spice: "Spicy", addons: ["Extra Cheddar"], exclusions: [] }],
-          subtotal: 28.0,
+          items: [{ name: "Plat Chawarma", qty: 2, price: 26.0, spice: "Spicy", addons: [], exclusions: [] }],
+          subtotal: 52.0,
           status: "delivered",
           createdAt: new Date("2026-06-21T18:32:00.000Z")
         },
@@ -733,10 +753,10 @@ async function seedDatabase() {
           id: "ORD-1719010000",
           customer: { name: "Sophie Dubois", phone: "+216 22 334 455", address: "Port El Kantaoui, Appt 4B" },
           items: [
-            { name: "Plat Royal Babke", qty: 1, price: 34.0, spice: "Medium", addons: [], exclusions: ["No Onions"] },
-            { name: "Smoky Baba Ghanoush", qty: 1, price: 8.5, spice: "Mild", addons: [], exclusions: [] }
+            { name: "Plat Kebab Royal", qty: 1, price: 36.0, spice: "Medium", addons: [], exclusions: ["No Onions"] },
+            { name: "Mfattet Chawarma", qty: 1, price: 18.0, spice: "Mild", addons: [], exclusions: [] }
           ],
-          subtotal: 42.5,
+          subtotal: 54.0,
           status: "preparing",
           createdAt: new Date("2026-06-22T10:15:00.000Z")
         }
@@ -1080,8 +1100,8 @@ app.post('/api/admin/reset-database', authMiddleware, ownerOnlyMiddleware, async
       {
         id: "ORD-1719000000",
         customer: { name: "Ahmed Mansour", phone: "+216 98 765 432", address: "Hammam Sousse, near Monoprix" },
-        items: [{ name: "Chicken Shawarma Wrap", qty: 2, price: 12.5, spice: "Spicy", addons: ["Extra Cheddar"], exclusions: [] }],
-        subtotal: 28.0,
+        items: [{ name: "Plat Chawarma", qty: 2, price: 26.0, spice: "Spicy", addons: [], exclusions: [] }],
+        subtotal: 52.0,
         status: "delivered",
         createdAt: new Date("2026-06-21T18:32:00.000Z")
       },
@@ -1089,10 +1109,10 @@ app.post('/api/admin/reset-database', authMiddleware, ownerOnlyMiddleware, async
         id: "ORD-1719010000",
         customer: { name: "Sophie Dubois", phone: "+216 22 334 455", address: "Port El Kantaoui, Appt 4B" },
         items: [
-          { name: "Plat Royal Babke", qty: 1, price: 34.0, spice: "Medium", addons: [], exclusions: ["No Onions"] },
-          { name: "Smoky Baba Ghanoush", qty: 1, price: 8.5, spice: "Mild", addons: [], exclusions: [] }
+          { name: "Plat Kebab Royal", qty: 1, price: 36.0, spice: "Medium", addons: [], exclusions: ["No Onions"] },
+          { name: "Mfattet Chawarma", qty: 1, price: 18.0, spice: "Mild", addons: [], exclusions: [] }
         ],
-        subtotal: 42.5,
+        subtotal: 54.0,
         status: "preparing",
         createdAt: new Date("2026-06-22T10:15:00.000Z")
       }
