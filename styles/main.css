@@ -5207,3 +5207,23 @@ body.light-theme .checkbox-custom-label {
   }
   body.rtl-active .nav-menu.open { left: 0 !important; right: auto !important; }
 }
+
+/* ==========================================================================
+   Order tracker ("Suivre ma commande"): on phones the search button sits
+   UNDER the order-number input, full width, instead of being squeezed beside
+   it. Placed last so it wins over the two earlier .tracker-search-box blocks.
+   ========================================================================== */
+.tracker-search-box input { min-width: 0; }
+@media (max-width: 560px) {
+  .tracker-search-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tracker-search-box input,
+  .btn-track-submit {
+    width: 100%;
+  }
+  .btn-track-submit {
+    padding: 14px 24px;
+  }
+}
