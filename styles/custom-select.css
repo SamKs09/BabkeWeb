@@ -1,0 +1,330 @@
+/* ==========================================================================
+   BABKE — CUSTOM SELECT  (pairs with scripts/custom-select.js)
+   Works on the landing page (styles/main.css tokens) and in the admin
+   (styles/admin.css tokens); every token has a fallback for the other page.
+   The trigger mirrors the hidden native select's own computed box styles
+   (--bs-src-*), so it lines up with the inputs next to it in every form.
+   ========================================================================== */
+
+.bs,
+.bs-pop,
+.bs-backdrop {
+  --bs-accent: var(--accent-primary, var(--accent-admin, #ff5a1f));
+  --bs-brass: var(--accent-warm, #ffb830);
+  --bs-text: var(--text-primary, var(--text-admin-primary, #fbf9f6));
+  --bs-muted: var(--text-muted, var(--text-admin-muted, #8c8277));
+  --bs-surface: rgba(255, 255, 255, 0.05);
+  --bs-border: var(--glass-border, var(--border-admin, rgba(255, 90, 31, 0.2)));
+  --bs-radius: var(--radius-md, var(--radius-admin-md, 12px));
+  --bs-danger: #ef4444;
+  --bs-pop-bg: rgba(24, 20, 18, 0.93);
+  --bs-pop-border: rgba(255, 90, 31, 0.24);
+  --bs-pop-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 26px rgba(255, 90, 31, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --bs-hover: rgba(255, 90, 31, 0.12);
+  --bs-selected: linear-gradient(90deg, rgba(255, 90, 31, 0.2), rgba(255, 184, 48, 0.08));
+  --bs-check: var(--accent-warm, #ffb830);
+}
+
+body.light-theme .bs,
+body.light-theme .bs-pop,
+body.light-theme .bs-backdrop {
+  --bs-surface: #ffffff;
+  --bs-pop-bg: rgba(255, 252, 250, 0.97);
+  --bs-pop-border: rgba(192, 58, 46, 0.18);
+  --bs-pop-shadow: 0 18px 44px rgba(120, 40, 25, 0.16), 0 2px 8px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --bs-hover: rgba(192, 58, 46, 0.08);
+  --bs-selected: linear-gradient(90deg, rgba(192, 58, 46, 0.13), rgba(217, 140, 90, 0.07));
+  --bs-check: var(--accent-primary, var(--accent-admin, #c03a2e));
+  --bs-danger: #dc2626;
+}
+
+/* --------------------------------------------------------------------------
+   Wrapper: the invisible native select stays in flow and keeps deciding the
+   size (its own CSS still applies); the trigger is laid over it (inset: 0),
+   so nothing around it moves.
+   -------------------------------------------------------------------------- */
+.bs {
+  position: relative;
+  display: inline-flex;
+  vertical-align: baseline;
+  box-sizing: border-box;
+}
+.bs--block { display: flex; }
+.bs[hidden] { display: none !important; }
+
+.bs > select.bs-native {
+  margin: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+/* The wrapper carries the select's width rules (see measure() in the JS). */
+.bs.bs--ready > select.bs-native { flex: 1 1 auto; min-width: 0 !important; }
+.bs.bs--ready.bs--sized > select.bs-native { width: 100% !important; }
+
+.bs-trigger {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  margin: 0;
+  box-sizing: border-box;
+  padding-block: 0;
+  padding-inline: var(--bs-src-pad, 14px) 12px;
+  font-family: var(--bs-src-font, inherit);
+  font-size: var(--bs-src-size, 0.9rem);
+  font-weight: var(--bs-src-weight, 600);
+  letter-spacing: var(--bs-src-ls, normal);
+  line-height: 1.2;
+  text-align: start;
+  text-transform: none;
+  color: var(--bs-src-color, var(--bs-text));
+  background: var(--bs-src-bg, var(--bs-surface));
+  border: var(--bs-src-bw, 1px) var(--bs-src-bs, solid) var(--bs-src-bc, var(--bs-border));
+  border-radius: var(--bs-src-radius, var(--bs-radius));
+  box-shadow: var(--bs-src-shadow, none);
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.bs-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bs--placeholder .bs-value { color: var(--bs-muted); font-weight: 500; }
+
+.bs-chev {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-accent);
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.bs-chev svg { display: block; }
+.bs--open .bs-chev { transform: rotate(180deg); }
+
+.bs-trigger:hover:not(:disabled) {
+  border-color: rgba(255, 90, 31, 0.45);
+  border-color: color-mix(in srgb, var(--bs-accent) 55%, var(--bs-src-bc, transparent));
+}
+.bs-trigger:focus-visible,
+.bs--focus .bs-trigger,
+.bs--open .bs-trigger {
+  border-color: var(--bs-accent);
+  box-shadow: 0 0 0 3px rgba(255, 90, 31, 0.18);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bs-accent) 20%, transparent);
+}
+.bs--invalid .bs-trigger,
+.bs--invalid .bs-trigger:hover:not(:disabled) {
+  border-color: var(--bs-danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.16);
+}
+.bs--disabled .bs-trigger { cursor: not-allowed; opacity: 0.55; }
+
+/* Compact controls (table-row status selects, .adm-sel-sm) */
+.bs--compact .bs-trigger { gap: 5px; padding-inline-end: 8px; }
+.bs--compact .bs-chev svg { width: 13px; height: 13px; }
+
+.bs-sr {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Popup listbox (rendered into <body>, position: fixed)
+   -------------------------------------------------------------------------- */
+.bs-pop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2147483000;
+  box-sizing: border-box;
+  padding: 6px;
+  font-family: var(--bs-src-font, var(--font-body, inherit));
+  font-size: var(--bs-src-size, 0.9rem);
+  color: var(--bs-text);
+  background: var(--bs-pop-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid var(--bs-pop-border);
+  border-radius: 14px;
+  box-shadow: var(--bs-pop-shadow);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top center;
+  transition: opacity 0.16s ease, transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+.bs-pop--up { transform: translateY(6px) scale(0.98); transform-origin: bottom center; }
+.bs-pop--in { opacity: 1; transform: none; }
+.bs-pop--compact { font-size: 0.84rem; }
+
+.bs-list,
+.bs-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bs-list {
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 90, 31, 0.45) transparent;
+}
+.bs-list::-webkit-scrollbar { width: 8px; }
+.bs-list::-webkit-scrollbar-thumb { background: rgba(255, 90, 31, 0.4); border-radius: 8px; }
+
+.bs-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: 9px;
+  line-height: 1.3;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.bs-pop--compact .bs-option { min-height: 32px; padding: 6px 10px; }
+.bs-option + .bs-option { margin-top: 1px; }
+.bs-option-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+
+.bs-option.is-active { background: var(--bs-hover); }
+.bs-option[aria-selected="true"] {
+  background: var(--bs-selected);
+  color: var(--bs-accent);
+  font-weight: 800;
+}
+.bs-option[aria-selected="true"]::before {
+  content: "";
+  position: absolute;
+  inset-block: 8px;
+  inset-inline-start: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--bs-brass), var(--bs-accent));
+}
+.bs-option[aria-selected="true"].is-active {
+  box-shadow: inset 0 0 0 1px rgba(255, 90, 31, 0.28);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bs-accent) 30%, transparent);
+}
+.bs-option[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
+.bs-option--placeholder .bs-option-text { color: var(--bs-muted); font-weight: 500; }
+
+.bs-check {
+  flex: none;
+  display: inline-flex;
+  color: var(--bs-check);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.bs-option[aria-selected="true"] .bs-check { opacity: 1; transform: none; }
+
+.bs-group + .bs-group,
+.bs-option + .bs-group { margin-top: 6px; }
+.bs-group-label {
+  padding: 8px 12px 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bs-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Phones: bottom sheet
+   -------------------------------------------------------------------------- */
+.bs-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482999;
+  background: rgba(8, 6, 5, 0.5);
+  animation: bs-fade 0.18s ease both;
+}
+body.light-theme .bs-backdrop { background: rgba(35, 29, 28, 0.32); }
+
+.bs-pop.bs-pop--sheet {
+  top: auto !important;
+  left: 0 !important;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  min-width: 0 !important;
+  max-width: none !important;
+  padding: 18px 10px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-radius: 22px 22px 0 0;
+  border-bottom: 0;
+  font-size: 1rem;
+  transform: translateY(100%);
+  transition: opacity 0.18s ease, transform 0.26s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+.bs-pop.bs-pop--sheet.bs-pop--in { transform: none; }
+.bs-pop--sheet::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 40px;
+  height: 4px;
+  margin-left: -20px;
+  border-radius: 4px;
+  background: var(--bs-muted);
+  opacity: 0.45;
+}
+.bs-sheet-head {
+  padding: 4px 12px 10px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bs-muted);
+}
+.bs-pop--sheet .bs-list { max-height: min(60vh, 440px) !important; }
+.bs-pop--sheet .bs-option { min-height: 46px; padding: 10px 14px; }
+
+@keyframes bs-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bs-pop,
+  .bs-pop.bs-pop--sheet,
+  .bs-chev,
+  .bs-trigger,
+  .bs-option,
+  .bs-check,
+  .bs-backdrop {
+    transition: none !important;
+    animation: none !important;
+  }
+  .bs-pop,
+  .bs-pop--up,
+  .bs-pop.bs-pop--sheet { transform: none; }
+}
+
+@media (forced-colors: active) {
+  .bs-trigger, .bs-pop { border: 1px solid CanvasText; }
+  .bs-option.is-active { outline: 2px solid Highlight; }
+  .bs-option[aria-selected="true"] { outline: 1px solid CanvasText; }
+}

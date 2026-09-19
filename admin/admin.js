@@ -1364,7 +1364,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const select = document.getElementById(selectId);
     if (!select) return;
     const types = BabkeDB.getProductTypes();
-    let optionsHtml = types.map(t => `<option value="${t.name}">${t.name} (${t.defaultUnit})</option>`).join('');
+    // Product names are admin-entered: escape them (a quote in a name used to
+    // cut the value attribute short and save the movement under a wrong name).
+    let optionsHtml = types.map(t => `<option value="${admEsc(t.name)}">${admEsc(t.name)} (${admEsc(t.defaultUnit)})</option>`).join('');
     optionsHtml += `<option value="__add_new_product__" style="font-weight: 700; color: var(--accent-admin);">➕ Ajouter un nouveau produit...</option>`;
     select.innerHTML = optionsHtml;
     
