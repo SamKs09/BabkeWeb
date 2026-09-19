@@ -1283,3 +1283,30 @@ body.rtl-active .menubook-skeleton-card {
 /* The cover medallion already shows the Babke logo; the rosette slot that used
    to hold a star would add a second, overlapping logo, so it stays empty. */
 .menubook-cover-rosette { display: none; }
+
+/* ==========================================================================
+   Fill the page: the dish list takes all the height between the page title
+   and the folio, and each dish gets an equal share, instead of stacking at
+   the top and leaving a blank band above the page number. Thumbnails grow
+   with the row. Only layout at rest changes; nothing here animates, so the
+   page-turn performance work is unaffected.
+   ========================================================================== */
+.menubook-rows {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.menubook-row {
+  flex: 1 1 0;
+  min-height: 0;
+  grid-template-columns: 5.4em 1fr auto;
+  align-content: center;
+}
+.menubook-thumb,
+.menubook-thumb-empty {
+  width: 5.4em;
+  height: 5.4em;
+}
+.menubook-rows + .menubook-folio {
+  margin-top: 0;
+}
