@@ -1275,3 +1275,7 @@ body.rtl-active .menubook-skeleton-card {
     transform: none;
   }
 }
+
+/* The cover medallion already shows the Babke logo; the rosette slot that used
+   to hold a star would add a second, overlapping logo, so it stays empty. */
+.menubook-cover-rosette { display: none; }
