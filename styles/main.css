@@ -5227,3 +5227,75 @@ body.light-theme .checkbox-custom-label {
     padding: 14px 24px;
   }
 }
+
+/* ==========================================================================
+   Hero: breathing room above the two buttons. The paragraph's class is
+   .hero-desc, but the existing spacing rule targets .hero-description, so
+   the buttons sat right against the text.
+   ========================================================================== */
+.hero-desc {
+  margin-bottom: 36px;
+  max-width: 540px;
+}
+@media (max-width: 768px) {
+  .hero-desc { margin-bottom: 28px; }
+}
+
+/* ==========================================================================
+   Platter cards: the dish photo fills the whole image area, edge to edge,
+   and nothing is drawn on top of it. The old contain + drop-shadow setup was
+   made for cut-out images and left empty bands around real photographs.
+   ========================================================================== */
+.menu-item-img-wrapper {
+  overflow: hidden;
+  display: block;
+  border-radius: var(--radius-md, 16px) var(--radius-md, 16px) 0 0;
+}
+.menu-item-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  filter: none;
+}
+.menu-item-card:hover .menu-item-img {
+  transform: scale(1.05);
+  filter: none;
+}
+.menu-item-tags { display: none; }
+
+/* ==========================================================================
+   Find us: the real Google Map in place of the drawn street diagram.
+   ========================================================================== */
+.map-live .map-embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  min-height: 280px;
+  border-radius: var(--radius-sm, 12px);
+  overflow: hidden;
+  background: var(--glass-bg-card, rgba(255, 255, 255, 0.04));
+}
+.map-live .map-embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.map-live .map-footer {
+  display: block;
+  text-decoration: none;
+}
+
+/* ==========================================================================
+   Footer: a bigger logo.
+   ========================================================================== */
+.footer-logo-img {
+  height: 72px;
+  margin-bottom: 16px;
+}
+@media (max-width: 768px) {
+  .footer-logo-img { height: 60px; }
+}

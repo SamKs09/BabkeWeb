@@ -573,3 +573,15 @@ body.light-theme .chatbot-input-footer input:focus {
     right: auto;
   }
 }
+
+/* The Babke logo inside the orange assistant bubble, in white so it reads on
+   the orange (the logo artwork itself is orange-red). */
+.chatbot-trigger-bubble .trigger-logo-img {
+  display: block;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  -webkit-user-drag: none;
+  pointer-events: none;
+}

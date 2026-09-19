@@ -462,46 +462,27 @@
         </div>
       </div>
 
-      <!-- Map Display (Stylized Interactive Dark Vector) -->
+      <!-- Map Display: the real Google Map (replaces the drawn street diagram) -->
       <div class="map-panel">
-        <a href="https://maps.google.com/?q=Babke+Kebab+and+Plates+Hammam+Sousse" target="_blank" class="map-directions-link-wrapper" aria-label="Open Babke Location on Google Maps">
-          <div class="stylized-map-container glass-card">
-            <div class="map-header">
-              <div class="map-dot"></div>
-              <span data-translate="contact_map_title">Interactive Map — Sousse Center</span>
-            </div>
-            <!-- Clean SVG stylized street layout representing Avenue des Orangers Sousse area -->
-            <svg class="map-vector" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="300" rx="12" fill="#ece4e0"/>
-              <path d="M-10 120 H410" stroke="#d0c4be" stroke-width="12"/>
-              <path d="M120 -10 V310" stroke="#d0c4be" stroke-width="16"/>
-              <path d="M280 -10 V310" stroke="#d0c4be" stroke-width="8"/>
-              <path d="M-10 210 H410" stroke="#d0c4be" stroke-width="10"/>
-              
-              <!-- Avenue labels -->
-              <text x="10" y="105" fill="hsl(5, 15%, 55%)" font-size="8" font-family="Outfit" font-weight="600" letter-spacing="1">AV. DES ORANGERS</text>
-              <text x="135" y="40" fill="hsl(5, 15%, 55%)" font-size="8" font-family="Outfit" font-weight="600" letter-spacing="1" transform="rotate(90 135 40)">RUE DE ROME</text>
-              <text x="10" y="195" fill="hsl(5, 15%, 55%)" font-size="8" font-family="Outfit" font-weight="600" letter-spacing="1">AVENUE HEDI CHAKER</text>
-              
-              <!-- Map marker -->
-              <g class="map-marker-glow" transform="translate(120, 120)">
-                <circle cx="0" cy="0" r="16" fill="rgba(192, 58, 46, 0.18)"/>
-                <circle cx="0" cy="0" r="8" fill="rgba(192, 58, 46, 0.4)"/>
-                <circle cx="0" cy="0" r="4" fill="hsl(5, 62%, 46%)"/>
-              </g>
-              <g transform="translate(142, 115)">
-                <rect x="0" y="0" width="105" height="28" rx="6" fill="#ffffff" stroke="hsl(5, 62%, 46%)" stroke-width="1"/>
-                <text x="8" y="12" fill="hsl(5, 15%, 16%)" font-size="7" font-family="Outfit" font-weight="700">BABKE KEBAB</text>
-                <text x="8" y="21" fill="hsl(5, 62%, 46%)" font-size="6" font-family="Outfit" font-weight="600" data-translate="contact_map_label_sub">HAMMAM SOUSSE</text>
-              </g>
-            </svg>
-            <div class="map-footer">
-              <span class="btn-map-directions" data-translate="contact_map_directions">
-                GET DIRECTIONS ON GOOGLE MAPS ➔
-              </span>
-            </div>
+        <div class="stylized-map-container glass-card map-live">
+          <div class="map-header">
+            <div class="map-dot"></div>
+            <span data-translate="contact_map_title">Interactive Map — Sousse Center</span>
           </div>
-        </a>
+          <div class="map-embed">
+            <iframe
+              src="https://www.google.com/maps?q=Babke%20Kebab%20%26%20Plates%2C%20Hammam%20Sousse&output=embed"
+              title="Babke Kebab &amp; Plates on Google Maps"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              allowfullscreen></iframe>
+          </div>
+          <a href="https://www.google.com/maps/search/?api=1&query=Babke%20Kebab%20%26%20Plates%2C%20Hammam%20Sousse" target="_blank" rel="noopener" class="map-footer map-directions-link-wrapper" aria-label="Open Babke Location on Google Maps">
+            <span class="btn-map-directions" data-translate="contact_map_directions">
+              GET DIRECTIONS ON GOOGLE MAPS ➔
+            </span>
+          </a>
+        </div>
       </div>
     </div>
   </section>

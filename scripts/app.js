@@ -456,9 +456,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="menu-item-img-wrapper" style="position:relative;">
             ${ribbonBannerHtml}
             <img src="${esc(imageSrc)}" alt="${esc(title)}" class="menu-item-img" loading="lazy">
-            <div class="menu-item-tags">
-              ${tagsHtml}
-            </div>
           </div>
           <div class="menu-item-body">
             <div class="menu-item-header">
