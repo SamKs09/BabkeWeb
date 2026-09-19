@@ -13,9 +13,25 @@
    Engine: the hardened kinben / pickelz sheet state machine.
      - `sheet` = number of leaves already turned (0..total). Sheet i carries
        pages[2i] on its front (right page) and pages[2i+1] on its back.
-     - One writer per leaf (applyTurn) sets rotateY and --turn together.
+     - One writer per leaf (applyTurn) sets rotateY and the two turn-shade
+       opacities together (inline: gesture start, drags, landing). Only
+       transform and opacity ever change on moving elements, never an
+       inherited custom property, so a turn never restyles the page subtree,
+       repaints the paper or re-rasterises its photos.
+     - Tweened turns and single-mode pans run as Web Animations sampled from
+       the same cubicInOut curve (play()), so the compositor animates them
+       off the main thread. The rAF tween still runs as the clock (writing
+       nothing) and lands the turn exactly when it always did; the landing
+       commits the same values inline and drops the animations. Reduced
+       motion and browsers without WAAPI keep the rAF tween as the writer
+       (instant under reduced motion).
      - layout() rewrites the resting z-index ramps and the inert flags after
-       every commit, cancel, tap, rebuild and breakpoint change.
+       every commit, cancel, tap, rebuild and breakpoint change, and drops
+       .is-turning. Resting writes are cached: an unchanged value is never
+       written again.
+     - Dish thumbnails load a 160px centre-cropped copy from assets/thumbs/
+       when the photo is a same-origin assets/*.jpg; a missing copy falls back
+       to the photo, then to item.fallbackImage.
      - Presses that land mid-turn are banked (+-3) and drained one at a time.
      - Mouse drags start in the outer 28% and capture on e.target, so a dish
        button pressed there keeps its own click.
@@ -163,6 +179,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     return s;
   }
 
+  // The book prints dishes at 3.8em (48 to 64 CSS px) but the photos are
+  // 1080x1350. Every same-origin assets/<name>.jpg ships a 160x160
+  // centre-cropped copy at assets/thumbs/<name>.jpg (the same crop the
+  // object-fit: cover square shows). Anything else (admin data: URIs, other
+  // hosts, PNGs) has no copy and loads as-is. Returns '' when there is none.
+  function thumbUrl(src) {
+    if (!src || /^data:/i.test(src)) return '';
+    let u;
+    try { u = new URL(src, document.baseURI); } catch (e) { return ''; }
+    if (u.origin !== window.location.origin || u.search || u.hash) return '';
+    const m = /^(.*\/assets\/)([^/]+\.jpe?g)$/i.exec(u.pathname);
+    return m ? m[1] + 'thumbs/' + m[2] : '';
+  }
+
   function isSettings(s) {
     return !!s && typeof s === 'object' && !Array.isArray(s) && !s.error &&
       (Array.isArray(s.categories) || typeof s.enabled === 'boolean');
@@ -256,6 +286,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let sheets = [];          // .menubook-sheet elements
   let fronts = [];
   let backs = [];
+  let leaves = [];          // per sheet: { shadeF, shadeB, t, z, f, b, turning } (last written values)
+  let panT = '';            // last transform written on the book (single-mode pan)
   let chips = [];           // [{ el, cat, page }]
   let rowItems = [];        // menu items by row index, for the add buttons
   let perPage = 3;
@@ -364,10 +396,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const img = safeUrl(item.image);
     const fb = safeUrl(item.fallbackImage);
     const src = img || fb;
+    const small = thumbUrl(src);
     const idx = rowItems.push(item) - 1;
 
     const thumb = src
-      ? '<img class="menubook-thumb" src="' + esc(src) + '"' +
+      ? '<img class="menubook-thumb" src="' + esc(small || src) + '"' +
+          (small ? ' data-full="' + esc(src) + '"' : '') +
           (fb && fb !== src ? ' data-fallback="' + esc(fb) + '"' : '') +
           ' alt="" loading="lazy" decoding="async" width="64" height="64" draggable="false">'
       : '<span class="menubook-thumb menubook-thumb-empty" aria-hidden="true">' + STAR + '</span>';
@@ -502,6 +536,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     sheets = Array.prototype.slice.call(book.querySelectorAll('.menubook-sheet'));
     fronts = sheets.map((el) => el.querySelector('.menubook-face-front'));
     backs = sheets.map((el) => el.querySelector('.menubook-face-back'));
+    leaves = sheets.map((el) => ({
+      shadeF: el.querySelector('.menubook-shade-front'),
+      shadeB: el.querySelector('.menubook-shade-back'),
+      t: null, z: null, f: null, b: null, turning: false
+    }));
   }
 
   function renderChips(lang) {
@@ -523,8 +562,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* --------------------------------------------------------- engine */
 
+  // Single mode: the camera is a translateX on the (composited) book, written
+  // inline. A custom property here would restyle every page in the book on
+  // every frame of a pan. Spread mode never pans: no transform at all.
   function setPan(v) {
-    book.style.setProperty('--menubook-pan', v + '%');
+    const t = st.single ? 'translateX(' + v + '%)' : '';
+    if (t === panT) return;
+    panT = t;
+    book.style.transform = t;
   }
 
   function pinHalf() {
@@ -547,16 +592,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function setInert(el, on) {
-    if (!el) return;
+    if (!el || el.hasAttribute('inert') === on) return;
     if (on) el.setAttribute('inert', '');
     else el.removeAttribute('inert');
   }
 
-  // One rotation + --turn writer per leaf, lifted clear of both stacks.
-  function applyTurn(el, v) {
-    el.style.transform = 'rotateY(' + (-180 * v) + 'deg)';
-    el.style.setProperty('--turn', String(v));
-    el.style.zIndex = '100';
+  // The turn shading, written straight to the two shade layers. Same curve as
+  // the old calc(var(--turn) * 1.6) (opacity clamps at 1). Unchanged values
+  // are not written again.
+  function setShades(i, f, b) {
+    const L = leaves[i];
+    const fs = f <= 0 ? '0' : f >= 1 ? '1' : f.toFixed(3);
+    const bs = b <= 0 ? '0' : b >= 1 ? '1' : b.toFixed(3);
+    if (fs !== L.f) { L.f = fs; L.shadeF.style.opacity = fs; }
+    if (bs !== L.b) { L.b = bs; L.shadeB.style.opacity = bs; }
+  }
+
+  function setLeaf(i, t, z) {
+    const L = leaves[i];
+    const el = sheets[i];
+    if (t !== L.t) { L.t = t; el.style.transform = t; }
+    if (z !== L.z) { L.z = z; el.style.zIndex = z; }
+  }
+
+  // One rotation + shading writer per leaf, lifted clear of both stacks. The
+  // first call of a gesture promotes the shades (.is-turning) and lifts the
+  // leaf; every later frame writes only transform and opacity.
+  function applyTurn(i, v) {
+    const L = leaves[i];
+    if (!L) return;
+    if (!L.turning) {
+      L.turning = true;
+      sheets[i].classList.add('is-turning');
+    }
+    setLeaf(i, 'rotateY(' + (-180 * v) + 'deg)', '100');
+    setShades(i, v * 1.6, (1 - v) * 1.6);
   }
 
   // Resting state of the whole book from the committed (sheet, half):
@@ -567,11 +637,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const active = document.activeElement;
     let lostFocus = false;
     for (let i = 0; i < n; i++) {
-      const el = sheets[i];
       const flipped = i < s;
-      el.style.transform = 'rotateY(' + (flipped ? -180 : 0) + 'deg)';
-      el.style.setProperty('--turn', flipped ? '1' : '0');
-      el.style.zIndex = String(flipped ? i + 1 : n - i);
+      setLeaf(i, 'rotateY(' + (flipped ? -180 : 0) + 'deg)', String(flipped ? i + 1 : n - i));
+      setShades(i, flipped ? 1 : 0, flipped ? 0 : 1);
+      if (leaves[i].turning) {
+        leaves[i].turning = false;
+        sheets[i].classList.remove('is-turning');
+      }
       let frontLive = i === s;
       let backLive = i === s - 1;
       if (st.single) {
@@ -672,6 +744,57 @@ document.addEventListener('DOMContentLoaded', async () => {
     step(dir);
   }
 
+  /* ------------------------------------------- compositor animations */
+
+  // A tweened turn or pan is handed to the compositor as a Web Animation.
+  // Measured in Chromium: an inline 3D rotateY on a sheet (and an inline
+  // translateX on the 3D book) is never a direct compositor update, so each
+  // frame re-layerised the whole page; the same motion as a Web Animation runs
+  // off the main thread. The keyframes sample the exact cubicInOut curve the
+  // rAF tween wrote frame by frame (linear between samples, KF_MS apart).
+  const KF_MS = 25;
+  const canAnimate = typeof book.animate === 'function';
+
+  function sampled(from, to, duration, frame) {
+    const k = Math.max(8, Math.ceil(duration / KF_MS));
+    const out = [];
+    for (let j = 0; j <= k; j++) {
+      const f = frame(from + (to - from) * Fx.ease.cubicInOut(j / k));
+      f.offset = j / k;
+      out.push(f);
+    }
+    return out;
+  }
+
+  // Runs [element, keyframes] tracks together, holding the last frame
+  // (fill: forwards) until the caller has committed the same values inline;
+  // the returned stop() then drops them. Returns null when WAAPI is missing
+  // (the caller keeps writing frames itself). The landing is NOT tied to the
+  // animation's finish event: with no other main-thread frame pending,
+  // Chromium can deliver it long after the end. The rAF tween stays the clock.
+  function play(tracks, duration) {
+    if (!canAnimate) return null;
+    const anims = [];
+    const stop = () => {
+      while (anims.length) {
+        const a = anims.pop();
+        try { a.cancel(); } catch (e) { /* ignore */ }
+      }
+    };
+    try {
+      tracks.forEach((t) => { anims.push(t[0].animate(t[1], { duration, fill: 'forwards' })); });
+    } catch (e) {
+      stop();
+      return null;
+    }
+    return stop;
+  }
+
+  const leafFrame = (v) => ({ transform: 'rotateY(' + (-180 * v) + 'deg)' });
+  const shadeFFrame = (v) => ({ opacity: clamp(v * 1.6, 0, 1) });
+  const shadeBFrame = (v) => ({ opacity: clamp((1 - v) * 1.6, 0, 1) });
+  const panFrame = (p) => ({ transform: 'translateX(' + p + '%)' });
+
   // Land whatever is in flight on its own target and forget pending input.
   function finishNow() {
     if (live) {
@@ -696,37 +819,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     st.busy = true;
     let landed = false;
     let cancelTween = () => {};
+    let stopAnims = () => {};
     const land = () => {
       if (landed) return;
       landed = true;
       if (live && live.land === land) live = null;
-      applyTurn(el, to);
+      applyTurn(idx, to);
       st.sheet = target.sheet;
       st.half = target.half;
       st.busy = false;
       pinHalf();
       layout();
       updateChrome();
+      // the resting values are inline now: drop the held last frame
+      stopAnims();
     };
     live = { land, cancel: () => cancelTween() };
     // seeded before the tween so the leaf is lifted clear on the first frame
-    applyTurn(el, from);
+    applyTurn(idx, from);
     const rm = reduced();
     const duration = rm ? 0 : (0.55 + Math.abs(to - from) * 0.45) * 1000;
-    cancelTween = Fx.tween({
+    const onDone = () => {
+      land();
+      if (rm) fadeStage(REDUCED_FADE_MS);
+      drain();
+    };
+    let onCompositor = false;
+    if (duration > 0) {
+      const L = leaves[idx];
+      const tracks = [
+        [el, sampled(from, to, duration, leafFrame)],
+        [L.shadeF, sampled(from, to, duration, shadeFFrame)],
+        [L.shadeB, sampled(from, to, duration, shadeBFrame)]
+      ];
+      // single mode: the camera rides the turn, so the turn ends on the page it delivered
+      if (st.single) tracks.push([book, sampled(from, to, duration, (v) => panFrame(-50 + 50 * v))]);
+      const stop = play(tracks, duration);
+      if (stop) {
+        stopAnims = stop;
+        onCompositor = true;
+      }
+    }
+    // the clock (and, without WAAPI, the frame writer): lands on the first
+    // frame at or after `duration`, exactly as before
+    const cancelClock = Fx.tween({
       from, to, duration,
       ease: Fx.ease.cubicInOut,
-      onUpdate: (v) => {
-        applyTurn(el, v);
-        // single mode: the camera rides the turn, so the turn ends on the page it delivered
+      onUpdate: onCompositor ? null : (v) => {
+        applyTurn(idx, v);
         if (st.single) setPan(-50 + 50 * v);
       },
-      onDone: () => {
-        land();
-        if (rm) fadeStage(REDUCED_FADE_MS);
-        drain();
-      }
+      onDone
     });
+    cancelTween = () => { cancelClock(); stopAnims(); };
   }
 
   // Single mode: cross the fold inside a spread. No paper moves.
@@ -734,6 +879,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     st.busy = true;
     let done = false;
     let cancelTween = () => {};
+    let stopAnims = () => {};
     const from = st.half === 'r' ? -50 : 0;
     const to = h === 'r' ? -50 : 0;
     const land = () => {
@@ -745,19 +891,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       pinHalf();
       layout();
       updateChrome();
+      stopAnims();
     };
     live = { land, cancel: () => cancelTween() };
     const rm = reduced();
-    cancelTween = Fx.tween({
+    const onDone = () => {
+      land();
+      if (rm) fadeStage(REDUCED_FADE_MS);
+      drain();
+    };
+    const stop = rm ? null : play([[book, sampled(from, to, PAN_MS, panFrame)]], PAN_MS);
+    if (stop) stopAnims = stop;
+    const cancelClock = Fx.tween({
       from, to, duration: rm ? 0 : PAN_MS,
       ease: Fx.ease.cubicInOut,
-      onUpdate: setPan,
-      onDone: () => {
-        land();
-        if (rm) fadeStage(REDUCED_FADE_MS);
-        drain();
-      }
+      onUpdate: stop ? null : setPan,
+      onDone
     });
+    cancelTween = () => { cancelClock(); stopAnims(); };
   }
 
   function step(dir) {
@@ -840,11 +991,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   book.addEventListener('pointermove', (e) => {
     const d = st.drag;
     if (!d || d.mode !== 'drag' || d.id !== e.pointerId) return;
-    const el = sheets[d.idx];
-    if (!el) return;
+    if (!sheets[d.idx]) return;
     const base = d.dir === 1 ? 0 : 1;
     d.progress = clamp(base + (d.startX - e.clientX) / (d.width * 0.85), 0, 1);
-    applyTurn(el, d.progress);
+    applyTurn(d.idx, d.progress);
   });
 
   book.addEventListener('pointerup', (e) => {
@@ -914,10 +1064,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.stopPropagation();
   }, true);
 
-  // Missing thumbnails fall back once to item.fallbackImage (error does not bubble: capture).
+  // Missing thumbnails fall back to the full photo (a photo added after the
+  // thumbs were cut), then once to item.fallbackImage (error does not bubble: capture).
   book.addEventListener('error', (e) => {
     const img = e.target;
     if (!img || img.tagName !== 'IMG' || !img.classList.contains('menubook-thumb')) return;
+    const full = img.getAttribute('data-full');
+    if (full) {
+      img.removeAttribute('data-full');
+      img.src = full;
+      return;
+    }
     const fb = img.getAttribute('data-fallback');
     img.removeAttribute('data-fallback');
     if (fb) img.src = fb;
@@ -1054,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       setHidden(true);
       built = false;
       book.innerHTML = '';
-      sheets = []; fronts = []; backs = []; pages = []; chips = [];
+      sheets = []; fronts = []; backs = []; leaves = []; pages = []; chips = [];
       lastSig = signature(s, menu, lang);
       return;
     }
@@ -1075,7 +1232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!res.itemCount) {
       built = false;
       book.innerHTML = '';
-      sheets = []; fronts = []; backs = []; chips = [];
+      sheets = []; fronts = []; backs = []; leaves = []; chips = [];
       contents.innerHTML = '';
       setState('empty');
       return;

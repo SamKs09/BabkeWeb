@@ -29,10 +29,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const toast = document.createElement('div');
     toast.className = 'babke-toast';
-    toast.innerHTML = `
-      <div class="babke-toast-accent"></div>
-      <span style="font-weight: 600;">${message}</span>
-    `;
+    // The message is set as text, never parsed as HTML. Callers pass dish names
+    // an admin typed, and every caller sends plain text (an emoji prefix at
+    // most), so there is nothing to lose and no way for markup to run.
+    const accent = document.createElement('div');
+    accent.className = 'babke-toast-accent';
+    const label = document.createElement('span');
+    label.style.fontWeight = '600';
+    label.textContent = message == null ? '' : String(message);
+    toast.appendChild(accent);
+    toast.appendChild(label);
 
     container.appendChild(toast);
     setTimeout(() => toast.classList.add('show'), 50);

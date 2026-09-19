@@ -12,6 +12,20 @@
      for tn), so the physical left/right rules inside .menubook-book and
      .menubook-controls are deliberately NOT mirrored under body.rtl-active.
 
+   Per-frame cost (a turn must stay on the compositor):
+   - A turn changes only the sheet's transform and its two shades' opacity
+     (and the book's translateX in single mode): Web Animations from
+     menubook.js for tweened turns, inline writes while a mouse drags. Never
+     drive anything inside the book with a custom property: it is
+     inherited, so changing one restyles the whole subtree every frame and
+     repaints the paper (photos included).
+   - .menubook-sheet.is-turning (added on the first frame of a gesture,
+     removed by the resting layout) gives the two shades their own layer so
+     their opacity changes without repainting the page under them.
+   - Filters, shadows and blurs inside a paper are rasterised once with the
+     paper and then only moved; they cost nothing per frame as long as the
+     paper is not repainted.
+
    Objects (the cover) are theme-invariant charcoal and brass. Everything
    else reads Babke tokens; every hardcoded rgba on a token surface lives in
    a --menubook-* property with a body.light-theme counterpart.
@@ -370,22 +384,29 @@ body.light-theme .menubook-paper {
 
 /* ----------------------------------------------------- turn shading */
 
+/* opacity is written inline by menubook.js (applyTurn / layout); 0 until then */
 .menubook-shade-front,
 .menubook-shade-back {
   position: absolute;
   inset: 0;
   z-index: 3;
   pointer-events: none;
+  opacity: 0;
 }
 
 .menubook-shade-front {
   background: linear-gradient(to right, var(--menubook-shade), rgba(0, 0, 0, 0) 30%);
-  opacity: calc(var(--turn, 0) * 1.6);
 }
 
 .menubook-shade-back {
   background: linear-gradient(to left, var(--menubook-shade), rgba(0, 0, 0, 0) 30%);
-  opacity: calc((1 - var(--turn, 0)) * 1.6);
+}
+
+/* only the leaf in flight: its shades fade on the compositor, the paper under
+   them is neither repainted nor re-rasterised */
+.menubook-sheet.is-turning .menubook-shade-front,
+.menubook-sheet.is-turning .menubook-shade-back {
+  will-change: opacity;
 }
 
 .menubook-spine {
@@ -1201,10 +1222,11 @@ body.rtl-active .menubook-skeleton-card {
   margin-block: -3.25rem;
 }
 
+/* the pan (translateX -50% / 0%) is written inline by menubook.js setPan()
+   and animated by a Web Animation while it moves */
 .menubook[data-mode="single"] .menubook-book {
   width: 200%;
   margin-inline: 0;
-  transform: translateX(var(--menubook-pan, 0%));
   transition: none;
 }
 
