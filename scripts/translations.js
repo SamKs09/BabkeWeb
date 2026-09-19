@@ -86,7 +86,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       events_subtitle: "Catch us hosting stands and preparing live street food at these local events.",
       event_status_cancelled: "CANCELLED",
       event_status_upcoming: "UPCOMING",
-      visit_stand: "Visit our stand"
+      visit_stand: "Visit our stand",
+
+      nav_wheel: "Spin & Win",
+      nav_loyalty: "Loyalty",
+      menubook_title: "THE MENU BOOK",
+      menubook_subtitle: "Turn the pages of our charcoal grill menu. Tap any dish to add it to your order.",
+      menubook_cta: "Open the menu book",
+      wheel_title: "THE BABKE WHEEL",
+      wheel_subtitle: "Spin for free and try your luck: mezze, shawarma or bonus seals. The embers decide.",
+      loyalty_title: "EVERY ORDER LEAVES ITS SEAL",
+      loyalty_subtitle: "Collect a seal with every order and unlock dishes from the grill. Your card lives on your phone."
     },
     fr: {
       nav_home: "Accueil",
@@ -161,7 +171,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       events_subtitle: "Retrouvez-nous en direct ! Nous tenons des stands et servons des grillades au charbon lors de ces événements.",
       event_status_cancelled: "ANNULÉ",
       event_status_upcoming: "À VENIR",
-      visit_stand: "Visitez notre stand"
+      visit_stand: "Visitez notre stand",
+
+      nav_wheel: "La Roue",
+      nav_loyalty: "Fidélité",
+      menubook_title: "LE CARNET",
+      menubook_subtitle: "Feuilletez notre carte des grillades au charbon. Touchez un plat pour l'ajouter à votre commande.",
+      menubook_cta: "Feuilleter le carnet",
+      wheel_title: "LA ROUE BABKE",
+      wheel_subtitle: "Tentez votre chance gratuitement : mezzé, chawarma ou sceaux bonus. La braise décide.",
+      loyalty_title: "CHAQUE COMMANDE LAISSE SON SCEAU",
+      loyalty_subtitle: "Un sceau à chaque commande, des plats offerts au bout du chemin. Votre carte vit dans votre téléphone."
     },
     tn: {
       nav_home: "الرئيسية",
@@ -236,7 +256,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       events_subtitle: "تفضل بزيارتنا! تلقانا حاضرين في الأحداث القادمة بوقيد مشوي عالجمر وبنتنا المعهودة.",
       event_status_cancelled: "ملغي",
       event_status_upcoming: "قريبًا",
-      visit_stand: "زوروا الكشك متعنا"
+      visit_stand: "زوروا الكشك متعنا",
+
+      nav_wheel: "الرّودة",
+      nav_loyalty: "الوفاء",
+      menubook_title: "كرّاس المنيو",
+      menubook_subtitle: "قلّب صفحات المنيو متاعنا. انزل على أي ماكلة باش تزيدها للكوموند.",
+      menubook_cta: "قلّب الكرّاس",
+      wheel_title: "رودة بابكي",
+      wheel_subtitle: "جرّب زهرك بلاش: مقبلات، شاورما ولا طوابع زايدة. الجمر هو اللي يقرّر.",
+      loyalty_title: "كل كوموند تخلّي طابعها",
+      loyalty_subtitle: "طابع مع كل كوموند و ماكلة بلاش في الآخر. الكارت متاعك ديما في تليفونك."
     }
   };
 
@@ -367,7 +397,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       ".info-blocks-grid .info-block:nth-child(2) h3": "contact_phone",
       ".info-blocks-grid .info-block:nth-child(3) h3": "contact_hours",
       ".delivery-integration-card h4": "contact_delivery_card_title",
-      ".delivery-integration-card p": "contact_delivery_card_desc"
+      ".delivery-integration-card p": "contact_delivery_card_desc",
+
+      ".navbar .nav-menu a[href='#wheel']": "nav_wheel",
+      ".navbar .nav-menu a[href='#loyalty']": "nav_loyalty",
+      ".menubook-section .section-title": "menubook_title",
+      ".menubook-section .section-subtitle": "menubook_subtitle",
+      ".wheel-section .section-title": "wheel_title",
+      ".wheel-section .section-subtitle": "wheel_subtitle",
+      ".loyalty-section .section-title": "loyalty_title",
+      ".loyalty-section .section-subtitle": "loyalty_subtitle"
     };
 
     Object.keys(mappings).forEach(selector => {

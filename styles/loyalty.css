@@ -1,0 +1,1195 @@
+/* ==========================================================================
+   CARTE BABKE — loyalty section, card object and web pass (/carte)
+   Rendered by scripts/loyalty.js. Prefix: loyalty-. Spec 5.1.
+
+   The card (.loyalty-card) is a theme-invariant physical object: fixed
+   charcoal, ember and brass, so its hardcoded colours need no
+   body.light-theme override. Everything around it uses main.css tokens;
+   the few rgba values on token surfaces carry a light-theme counterpart,
+   and every directional rule carries a body.rtl-active counterpart.
+   ========================================================================== */
+
+:root {
+  --loyalty-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23ffb830' stroke-width='1'%3E%3Crect x='14' y='14' width='20' height='20'/%3E%3Crect x='14' y='14' width='20' height='20' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E");
+  --loyalty-brass: #ffb830;
+  --loyalty-rest: -2deg;               /* the card rests hand-placed on the counter */
+  --loyalty-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  --loyalty-ease-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+body.rtl-active {
+  --loyalty-rest: 2deg;
+}
+
+/* ---------- Section surface ---------- */
+
+.loyalty-section {
+  position: relative;
+  isolation: isolate;
+  background: var(--glass-bg);
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+}
+/* Faint zellige field behind the card side of the section. */
+.loyalty-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--loyalty-tile);
+  background-size: 48px;
+  opacity: 0.06;
+  -webkit-mask-image: radial-gradient(60% 55% at 28% 58%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(60% 55% at 28% 58%, #000 0%, transparent 72%);
+}
+body.rtl-active .loyalty-section::before {
+  -webkit-mask-image: radial-gradient(60% 55% at 72% 58%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(60% 55% at 72% 58%, #000 0%, transparent 72%);
+}
+
+.loyalty-root {
+  position: relative;
+}
+
+.loyalty-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 60px;
+  align-items: center;
+}
+
+/* ---------- Card stage ---------- */
+
+.loyalty-card-stage {
+  position: relative;
+  perspective: 1200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 28px 0;
+  min-width: 0;
+}
+/* Ember light pooling on the counter under the card. */
+.loyalty-card-stage::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  width: 86%;
+  max-width: 520px;
+  aspect-ratio: 1.7;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 90, 31, 0.26), rgba(255, 184, 48, 0.08) 55%, transparent);
+  filter: blur(26px);
+  pointer-events: none;
+  z-index: -1;
+}
+body.light-theme .loyalty-card-stage::before {
+  background: radial-gradient(closest-side, rgba(192, 58, 46, 0.16), rgba(214, 140, 90, 0.08) 55%, transparent);
+}
+
+/* The generic reveal translate is replaced by the card's own entrance. */
+.loyalty-card-stage.fx-reveal {
+  opacity: 1;
+  transform: none;
+}
+.loyalty-card-stage.fx-reveal:not(.fx-in) .loyalty-card {
+  opacity: 0;
+}
+.loyalty-card-stage.fx-in:not(.is-settled) .loyalty-card {
+  animation: loyaltyCardIn 1000ms var(--loyalty-ease-back) backwards;
+  animation-delay: var(--fx-delay, 0ms);
+}
+@keyframes loyaltyCardIn {
+  from { opacity: 0; transform: rotate(calc(var(--loyalty-rest) * 6)) translateY(80px); }
+  to   { opacity: 1; transform: rotate(var(--loyalty-rest)); }
+}
+
+/* ---------- The card object ---------- */
+
+.loyalty-card {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 8 / 5;
+  border-radius: 22px;
+  padding: 24px 26px;
+  overflow: hidden;
+  overflow: clip;                 /* clips like hidden, but lets a crowded card grow past 8:5 */
+  color: #fbf9f6;
+  background:
+    radial-gradient(120% 120% at 18% 0%, rgba(255, 90, 31, 0.20), transparent 55%),
+    linear-gradient(145deg, #1d1714 0%, #0f0c0b 55%, #171210 100%);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 184, 48, 0.28);
+  transform: rotate(var(--loyalty-rest));
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.33, 1, 0.68, 1);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  font-family: var(--font-body);
+  text-align: start;
+  -webkit-user-select: none;
+  user-select: none;
+}
+body.rtl-active .loyalty-card {
+  background:
+    radial-gradient(120% 120% at 82% 0%, rgba(255, 90, 31, 0.20), transparent 55%),
+    linear-gradient(215deg, #1d1714 0%, #0f0c0b 55%, #171210 100%);
+}
+body.light-theme .loyalty-card {
+  box-shadow: 0 26px 60px rgba(70, 28, 14, 0.30), inset 0 0 0 1px rgba(255, 184, 48, 0.28);
+}
+/* Brass inner frame. */
+.loyalty-card::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 184, 48, 0.32);
+  pointer-events: none;
+  z-index: -1;
+}
+/* Khatam tile, fading out from the brass corner. */
+.loyalty-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: var(--loyalty-tile);
+  background-size: 48px;
+  opacity: 0.07;
+  -webkit-mask-image: linear-gradient(225deg, #000, transparent 70%);
+  mask-image: linear-gradient(225deg, #000, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+body.rtl-active .loyalty-card::after {
+  -webkit-mask-image: linear-gradient(135deg, #000, transparent 70%);
+  mask-image: linear-gradient(135deg, #000, transparent 70%);
+}
+
+.loyalty-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.loyalty-card-logo {
+  display: block;
+  height: 32px;
+  width: auto;
+  flex: none;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+}
+.loyalty-card-chip {
+  min-width: 0;
+  max-width: 62%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+  font: 700 0.66rem/1.5 var(--font-heading);
+  letter-spacing: 0.24em;
+  color: #ffb830;
+  border: 1px solid rgba(255, 184, 48, 0.45);
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  background: rgba(255, 184, 48, 0.06);
+}
+
+.loyalty-card-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 0;
+}
+.loyalty-card-body.no-qr {
+  grid-template-columns: 1fr;
+}
+.loyalty-card-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.loyalty-card-name {
+  font: 800 1.2rem/1.15 var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fbf9f6;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+.loyalty-card-name.is-placeholder {
+  color: rgba(251, 249, 246, 0.42);
+}
+.loyalty-card-name.is-skeleton {
+  width: 55%;
+  border-radius: 6px;
+  background: rgba(251, 249, 246, 0.08);
+}
+
+/* ---------- Seal slots ---------- */
+
+.loyalty-stamps {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 9px;
+  max-width: 290px;
+}
+/* More than 10 slots: two long rows so the card keeps its proportion. */
+.loyalty-stamps.is-dense {
+  grid-template-columns: repeat(var(--loyalty-cols, 10), 1fr);
+  gap: 5px;
+  max-width: none;
+}
+.loyalty-stamp {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255, 184, 48, 0.35);
+  display: grid;
+  place-items: center;
+  font: 700 0.78rem/1 var(--font-heading);
+  color: rgba(251, 249, 246, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+.loyalty-stamps.is-dense .loyalty-stamp {
+  font-size: 0;
+  border-width: 1px;
+}
+.loyalty-stamp.is-tier::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffb830;
+  box-shadow: 0 0 6px rgba(255, 184, 48, 0.75);
+}
+body.rtl-active .loyalty-stamp.is-tier::after {
+  right: auto;
+  left: -2px;
+}
+.loyalty-stamp.filled {
+  border-color: transparent;
+  border-style: solid;
+  background: radial-gradient(circle at 35% 30%, #ff7a47, #e73623 70%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22), 0 2px 10px rgba(255, 90, 31, 0.35);
+  transform: rotate(-6deg);
+  color: #fff;
+}
+.loyalty-stamp svg {
+  display: block;
+  width: 58%;
+  height: 58%;
+  fill: #fff;
+  opacity: 0.92;
+}
+
+/* The press: each new seal lands with an overshoot, staggered. */
+.loyalty-stamp.filled.is-new {
+  animation: loyaltyPress 420ms var(--loyalty-ease-back) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+/* First paint: wait for the card to land, and hold until the section is revealed. */
+.loyalty-card-stage:not(.is-settled) .loyalty-stamp.filled.is-new {
+  animation-delay: calc(var(--fx-delay, 0ms) + 640ms + var(--i, 0) * 60ms);
+}
+.loyalty-card-stage.fx-reveal:not(.fx-in) .loyalty-stamp.is-new {
+  animation-play-state: paused;
+}
+@keyframes loyaltyPress {
+  from { opacity: 0; transform: scale(1.45) rotate(-18deg); }
+  to   { opacity: 1; transform: scale(1) rotate(-6deg); }
+}
+
+/* ---------- QR ---------- */
+
+.loyalty-qr {
+  flex: none;
+  background: #fff;
+  padding: 8px;
+  border-radius: 12px;
+  line-height: 0;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 184, 48, 0.4);
+}
+.loyalty-qr svg {
+  display: block;
+  width: 88px;
+  height: 88px;
+}
+.loyalty-qr.is-locked {
+  width: 104px;
+  height: 104px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1.5px dashed rgba(255, 184, 48, 0.4);
+  box-shadow: none;
+  color: #ffb830;
+}
+.loyalty-qr.is-locked svg {
+  width: 54%;
+  height: 54%;
+  opacity: 0.7;
+}
+
+.loyalty-card-foot {
+  min-width: 0;
+}
+.loyalty-card-status {
+  color: #d1c7bd;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  min-height: 1.4em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- Pending ribbon ---------- */
+
+.loyalty-card.is-pending {
+  padding-bottom: 40px;
+}
+.loyalty-card-ribbon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 6px 14px;
+  text-align: center;
+  background: rgba(255, 184, 48, 0.14);
+  border-top: 1px solid rgba(255, 184, 48, 0.3);
+  color: #ffb830;
+  font: 800 0.7rem/1.3 var(--font-heading);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ---------- Loading / stalled card ---------- */
+
+.loyalty-card.is-loading .loyalty-stamp,
+.loyalty-card.is-stalled .loyalty-stamp {
+  border-style: solid;
+  border-color: rgba(255, 184, 48, 0.16);
+  color: transparent;
+}
+.loyalty-card.is-loading .loyalty-stamp {
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 184, 48, 0.24) 50%, transparent 80%) 0 0 / 250% 100% no-repeat;
+  animation: loyaltyShimmer 1.4s linear infinite;
+  animation-delay: calc(var(--s, 0) * 70ms);
+}
+body.rtl-active .loyalty-card.is-loading .loyalty-stamp {
+  animation-direction: reverse;
+}
+.loyalty-card.is-loading .loyalty-card-name.is-skeleton {
+  background: linear-gradient(100deg, rgba(251, 249, 246, 0.06) 20%, rgba(251, 249, 246, 0.16) 50%, rgba(251, 249, 246, 0.06) 80%) 0 0 / 250% 100%;
+  animation: loyaltyShimmer 1.4s linear infinite;
+}
+.loyalty-card.is-loading .loyalty-qr.is-locked,
+.loyalty-card.is-stalled .loyalty-qr.is-locked {
+  opacity: 0.55;
+}
+.loyalty-card.is-stalled .loyalty-stamps {
+  opacity: 0.5;
+}
+@keyframes loyaltyShimmer {
+  from { background-position: 150% 0; }
+  to   { background-position: -150% 0; }
+}
+
+/* ---------- Copy column ---------- */
+
+.loyalty-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+.loyalty-block-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font: 800 0.95rem/1.2 var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-primary);
+}
+/* A small brass khatam leads each block title. */
+.loyalty-block-title::before {
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-warm);
+  clip-path: polygon(100% 50%, 85.36% 64.64%, 85.36% 85.36%, 64.64% 85.36%, 50% 100%, 35.36% 85.36%, 14.64% 85.36%, 14.64% 64.64%, 0% 50%, 14.64% 35.36%, 14.64% 14.64%, 35.36% 14.64%, 50% 0%, 64.64% 14.64%, 85.36% 14.64%, 85.36% 35.36%);
+}
+
+.loyalty-steps {
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+.loyalty-step {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 14px;
+  align-items: start;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+.loyalty-step-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border-warm);
+  color: var(--accent-warm);
+  background: var(--glass-bg-card);
+  display: grid;
+  place-items: center;
+  font: 700 1rem/1 'Cairo', var(--font-heading);
+}
+
+.loyalty-tier-list {
+  list-style: none;
+}
+.loyalty-tier {
+  display: grid;
+  grid-template-columns: 24px auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--border-color);
+}
+.loyalty-tier:first-child {
+  border-top: 1px dashed var(--border-color);
+}
+.loyalty-tier-seal {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--glass-border-warm);
+  color: var(--accent-warm);
+  transform: rotate(-6deg);
+}
+.loyalty-tier-seal svg {
+  width: 60%;
+  height: 60%;
+  fill: currentColor;
+  opacity: 0.8;
+}
+.loyalty-tier-seal svg circle {
+  fill: var(--bg-card);
+}
+.loyalty-tier-count {
+  font: 800 0.8rem/1 var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-warm);
+  white-space: nowrap;
+}
+.loyalty-tier-reward {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.93rem;
+  line-height: 1.4;
+  min-width: 0;
+}
+.loyalty-tier.is-reached .loyalty-tier-seal {
+  border: 0;
+  color: #fff;
+  background: radial-gradient(circle at 35% 30%, #ff7a47, #e73623 70%);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.22), 0 2px 8px rgba(255, 90, 31, 0.3);
+}
+.loyalty-tier.is-reached .loyalty-tier-seal svg circle {
+  fill: #e73623;
+}
+.loyalty-tier.is-next .loyalty-tier-reward {
+  color: var(--accent-warm);
+}
+.loyalty-rule {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.loyalty-skel {
+  display: block;
+  height: 12px;
+  width: 100%;
+  border-radius: 6px;
+  background: var(--glass-border);
+  animation: loyaltyPulse 1.4s ease-in-out infinite alternate;
+}
+.loyalty-skel.is-short {
+  width: 60%;
+}
+.loyalty-tier-list.is-loading .loyalty-tier {
+  grid-template-columns: 1fr;
+}
+.loyalty-tier-list.is-loading .loyalty-tier:nth-child(2) .loyalty-skel {
+  width: 72%;
+}
+@keyframes loyaltyPulse {
+  from { opacity: 0.45; }
+  to   { opacity: 1; }
+}
+
+/* Unlocked rewards */
+.loyalty-unlocked {
+  margin-top: -8px;
+}
+.loyalty-unlocked-title {
+  font: 800 0.74rem/1.2 var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.loyalty-chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.loyalty-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border-warm);
+  background: var(--glass-bg-card);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+body.rtl-active .loyalty-chip {
+  padding: 6px 8px 6px 14px;
+}
+.loyalty-chip-seal {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 35% 30%, #ff7a47, #e73623 70%);
+  transform: rotate(-6deg);
+}
+.loyalty-chip-seal svg {
+  width: 62%;
+  height: 62%;
+  fill: #fff;
+}
+
+/* ---------- Form ---------- */
+
+.loyalty-form {
+  padding: 26px 24px;
+  display: grid;
+  gap: 16px;
+}
+.loyalty-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.loyalty-field label {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.loyalty-input {
+  width: 100%;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 16px;                 /* 16px keeps iOS from zooming into the field */
+  line-height: 1.3;
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+.loyalty-input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+.loyalty-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(255, 90, 31, 0.16);
+}
+.loyalty-input[aria-invalid="true"] {
+  border-color: var(--accent-primary);
+}
+body.light-theme .loyalty-input {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+body.light-theme .loyalty-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(192, 58, 46, 0.14);
+}
+body.light-theme .loyalty-input[aria-invalid="true"] {
+  border-color: var(--accent-primary);
+}
+
+/* The field is always LTR (dir="ltr"), so the physical sides below hold in RTL too. */
+.loyalty-phone-field {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+.loyalty-phone-prefix {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 0 14px;
+  border: 1px solid var(--glass-border);
+  border-right: 0;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  background: var(--glass-bg-card);
+  color: var(--accent-warm);
+  font: 700 0.95rem/1 var(--font-heading);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.loyalty-phone-field .loyalty-input {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  text-align: left;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+body.light-theme .loyalty-phone-prefix {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.loyalty-consent {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 10px;
+  align-items: start;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.loyalty-consent input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+.loyalty-consent input[aria-invalid="true"] {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.loyalty-submit-row {
+  display: grid;
+}
+.loyalty-error {
+  color: var(--accent-primary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.loyalty-error:not(:empty) {
+  margin-bottom: 12px;
+}
+.loyalty-actions .loyalty-error:not(:empty),
+.loyalty-pass .loyalty-error:not(:empty) {
+  margin-bottom: 0;
+}
+
+/* Buttons: the house classes, made to behave as <button>s here. */
+.loyalty-root .btn-primary-food,
+.loyalty-root .btn-secondary-dark,
+.loyalty-pass .btn-secondary-dark {
+  justify-content: center;
+  gap: 10px;
+  border-width: 0;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+  text-align: center;
+}
+.loyalty-root .btn-secondary-dark,
+.loyalty-pass .btn-secondary-dark {
+  border: 1.5px solid var(--glass-border);
+}
+.loyalty-root .btn-primary-food:disabled,
+.loyalty-root .btn-primary-food[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: progress;
+  transform: none;
+  box-shadow: none;
+}
+.loyalty-root .loyalty-open:disabled {
+  cursor: not-allowed;
+}
+.loyalty-submit,
+.loyalty-open {
+  width: 100%;
+}
+
+.loyalty-root :focus-visible,
+.loyalty-pass :focus-visible {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: 3px;
+}
+.loyalty-root .loyalty-input:focus-visible {
+  outline: none;
+}
+
+/* ---------- Actions (card saved on this device) ---------- */
+
+.loyalty-actions {
+  padding: 24px;
+  display: grid;
+  gap: 14px;
+}
+.loyalty-note {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+.loyalty-note.is-skeleton {
+  display: grid;
+  gap: 8px;
+}
+.loyalty-forget {
+  justify-self: start;
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--glass-border-warm);
+  cursor: pointer;
+  transition: color var(--transition-normal);
+}
+.loyalty-forget:hover {
+  color: var(--accent-primary);
+}
+.loyalty-forget[aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.7;
+}
+.loyalty-load-error {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+.loyalty-retry {
+  padding: 10px 22px;
+  font-size: 0.9rem;
+}
+
+/* ---------- Paused ---------- */
+
+.loyalty-paused {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--glass-border-warm);
+  background: var(--glass-bg-card);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.loyalty-paused-mark {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  color: var(--accent-warm);
+}
+.loyalty-paused-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- Pass overlay (/carte) ---------- */
+
+.loyalty-pass {
+  position: fixed;
+  inset: 0;
+  z-index: 1000001;                  /* above the 999999 preloader */
+  background: var(--body-bg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.28s ease, visibility 0s linear 0.28s;
+}
+.loyalty-pass.open {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.28s ease;
+}
+/* Ember glow (before) and a faint tile field (after) over the page gradient. */
+.loyalty-pass::before,
+.loyalty-pass::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.loyalty-pass::before {
+  background: radial-gradient(90% 45% at 50% 0%, rgba(255, 90, 31, 0.16), transparent 70%);
+}
+.loyalty-pass::after {
+  background-image: var(--loyalty-tile);
+  background-size: 48px;
+  opacity: 0.07;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 75%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 75%);
+}
+body.light-theme .loyalty-pass::before {
+  background: radial-gradient(90% 45% at 50% 0%, rgba(192, 58, 46, 0.10), transparent 70%);
+}
+.loyalty-pass-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 24px 16px calc(32px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  transform: translateY(16px);
+  transition: transform 0.45s var(--loyalty-ease-out);
+}
+.loyalty-pass.open .loyalty-pass-inner {
+  transform: none;
+}
+/* Quiet brass eyebrow between two hairlines: the card itself is the hero. */
+.loyalty-pass-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 0 52px;
+  text-align: center;
+  font: 800 0.78rem/1.3 var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  color: var(--accent-warm);
+}
+.loyalty-pass-title::before,
+.loyalty-pass-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--glass-border-warm);
+}
+.loyalty-pass .loyalty-card {
+  max-width: none;
+  transform: none;
+  transition: none;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42), inset 0 0 0 1px rgba(255, 184, 48, 0.28);
+}
+body.light-theme .loyalty-pass .loyalty-card {
+  box-shadow: 0 14px 34px rgba(70, 28, 14, 0.22), inset 0 0 0 1px rgba(255, 184, 48, 0.28);
+}
+.loyalty-pass .loyalty-stamps {
+  max-width: none;
+}
+.loyalty-pass-qr {
+  position: relative;               /* paints above the (positioned) card's drop shadow */
+  align-self: center;
+  background: #fff;
+  padding: 16px;
+  border-radius: 18px;
+  line-height: 0;
+  box-shadow: 0 0 0 1px rgba(255, 184, 48, 0.55), 0 0 0 7px rgba(255, 184, 48, 0.12), 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+.loyalty-pass-qr svg {
+  display: block;
+  width: 220px;
+  height: 220px;
+  max-width: 100%;
+}
+.loyalty-pass-qr.is-placeholder {
+  width: 252px;
+  height: 252px;
+  max-width: 100%;
+  display: grid;
+  place-items: center;
+  background: var(--glass-bg-card);
+  border: 1.5px dashed var(--glass-border-warm);
+  box-shadow: none;
+  color: var(--accent-warm);
+}
+.loyalty-pass-qr.is-placeholder svg {
+  width: 32%;
+  height: 32%;
+  opacity: 0.7;
+}
+.loyalty-pass-qr.is-loading svg {
+  animation: loyaltyPulse 1.4s ease-in-out infinite alternate;
+}
+.loyalty-pass-id {
+  margin-top: -4px;
+  text-align: center;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+.loyalty-pass-status {
+  text-align: center;
+  color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.5;
+  text-wrap: balance;
+}
+.loyalty-pass-status:empty {
+  display: none;
+}
+.loyalty-pass-refresh {
+  align-self: center;
+  padding: 12px 28px;
+  font-size: 0.95rem;
+}
+.loyalty-pass-refresh[aria-disabled="true"] {
+  opacity: 0.7;
+  cursor: progress;
+  transform: none;
+}
+.loyalty-pass .loyalty-error {
+  text-align: center;
+}
+.loyalty-pass-tip {
+  padding: 16px 18px;
+  margin-top: 4px;
+}
+.loyalty-pass-tip-title {
+  font: 800 0.85rem/1.3 var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-warm);
+  margin-bottom: 6px;
+}
+.loyalty-pass-tip p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.loyalty-pass-close {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: 12px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: color var(--transition-normal), border-color var(--transition-normal);
+}
+.loyalty-pass-close:hover {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+body.rtl-active .loyalty-pass-close {
+  right: auto;
+  left: 12px;
+}
+
+/* ---------- Arabic (tn): no letter-spacing, it breaks the joins ---------- */
+
+body.rtl-active .loyalty-card-chip,
+body.rtl-active .loyalty-card-ribbon,
+body.rtl-active .loyalty-card-name,
+body.rtl-active .loyalty-block-title,
+body.rtl-active .loyalty-tier-count,
+body.rtl-active .loyalty-unlocked-title,
+body.rtl-active .loyalty-field label,
+body.rtl-active .loyalty-pass-title,
+body.rtl-active .loyalty-pass-tip-title {
+  letter-spacing: 0;
+  font-family: 'Cairo', var(--font-heading);
+}
+body.rtl-active .loyalty-card-chip {
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 899px) {
+  .loyalty-container {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+  .loyalty-copy {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .loyalty-card-stage {
+    padding: 16px 0 8px;
+  }
+}
+
+@media (max-width: 520px) {
+  .loyalty-card {
+    padding: 18px 18px;
+    border-radius: 20px;
+    gap: 10px;
+  }
+  .loyalty-card::before {
+    inset: 6px;
+    border-radius: 15px;
+  }
+  .loyalty-card.is-pending {
+    padding-bottom: 34px;
+  }
+  .loyalty-card-logo {
+    height: 26px;
+  }
+  .loyalty-card-chip {
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    padding: 2px 9px;
+  }
+  .loyalty-card-body {
+    gap: 12px;
+  }
+  .loyalty-card-name {
+    font-size: 1.02rem;
+  }
+  .loyalty-card-main {
+    gap: 8px;
+  }
+  .loyalty-stamps {
+    gap: 7px;
+  }
+  .loyalty-stamp {
+    font-size: 0.7rem;
+  }
+  .loyalty-qr {
+    padding: 6px;
+    border-radius: 10px;
+  }
+  .loyalty-qr svg {
+    width: 72px;
+    height: 72px;
+  }
+  .loyalty-qr.is-locked {
+    width: 84px;
+    height: 84px;
+  }
+  .loyalty-card-status {
+    font-size: 0.74rem;
+  }
+  .loyalty-card-ribbon {
+    font-size: 0.64rem;
+    padding: 5px 10px;
+  }
+  .loyalty-form,
+  .loyalty-actions {
+    padding: 20px 18px;
+  }
+}
+
+@media (max-width: 360px) {
+  .loyalty-card {
+    padding: 15px 14px;
+  }
+  .loyalty-stamps {
+    gap: 5px;
+  }
+  .loyalty-stamp {
+    font-size: 0.64rem;
+  }
+  .loyalty-qr svg {
+    width: 62px;
+    height: 62px;
+  }
+  .loyalty-qr.is-locked {
+    width: 74px;
+    height: 74px;
+  }
+}
+
+/* ---------- Reduced motion: no tilt, entrance, press or shimmer ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .loyalty-card {
+    transition: none;
+  }
+  .loyalty-card-stage .loyalty-card,
+  .loyalty-card-stage.fx-in:not(.is-settled) .loyalty-card {
+    animation: none;
+  }
+  .loyalty-card-stage.fx-reveal:not(.fx-in) .loyalty-card {
+    opacity: 1;
+  }
+  .loyalty-stamp.filled.is-new {
+    animation: none;
+    opacity: 1;
+  }
+  .loyalty-card.is-loading .loyalty-stamp,
+  .loyalty-card.is-loading .loyalty-card-name.is-skeleton {
+    animation: none;
+    opacity: 0.5;
+  }
+  .loyalty-skel,
+  .loyalty-pass-qr.is-loading svg {
+    animation: none;
+    opacity: 0.6;
+  }
+  .loyalty-pass,
+  .loyalty-pass.open,
+  .loyalty-pass-inner {
+    transition: none;
+  }
+  .loyalty-pass-inner {
+    transform: none;
+  }
+}

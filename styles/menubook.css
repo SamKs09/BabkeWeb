@@ -1,0 +1,1255 @@
+/* =====================================================================
+   LE CARNET — 3D flip-book menu (scripts/menubook.js)
+
+   Load-bearing 3D rules (do not "tidy"):
+   - perspective + preserve-3d on .menubook-book, preserve-3d on sheet + face
+   - transform-origin: left center on the sheet (the spine)
+   - backface-visibility on faces (and papers), the back face pre-rotated 180deg
+   - overflow ONLY on .menubook-paper. No filter, opacity < 1, mask,
+     clip-path or backdrop-filter on a sheet or a face: any of them
+     flattens the 3D and the pages stop turning.
+   - The book frame is dir="ltr" in every language (page text flips to RTL
+     for tn), so the physical left/right rules inside .menubook-book and
+     .menubook-controls are deliberately NOT mirrored under body.rtl-active.
+
+   Objects (the cover) are theme-invariant charcoal and brass. Everything
+   else reads Babke tokens; every hardcoded rgba on a token surface lives in
+   a --menubook-* property with a body.light-theme counterpart.
+   ===================================================================== */
+
+.menubook-section[hidden],
+.menubook-cta[hidden],
+.menubook-contents[hidden],
+.menubook-retry[hidden] {
+  display: none !important;
+}
+
+/* CTA in the #menu section header ("Feuilleter le carnet") */
+.menubook-cta {
+  display: inline-flex;
+  margin-top: 18px;
+}
+
+.menubook-root {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.menubook {
+  --menubook-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23ffb830' stroke-width='1'%3E%3Crect x='14' y='14' width='20' height='20'/%3E%3Crect x='14' y='14' width='20' height='20' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E");
+  --menubook-star-brass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23e8b04a' d='M12 0L15.51 3.51H20.49V8.49L24 12L20.49 15.51V20.49H15.51L12 24L8.49 20.49H3.51V15.51L0 12L3.51 8.49V3.51H8.49Z'/%3E%3C/svg%3E");
+  --menubook-rosette: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23e8b04a' stroke-width='.45'%3E%3Ccircle cx='24' cy='24' r='22.5'/%3E%3Ccircle cx='24' cy='24' r='19.5'/%3E%3Crect x='10.6' y='10.6' width='26.8' height='26.8'/%3E%3Crect x='10.6' y='10.6' width='26.8' height='26.8' transform='rotate(45 24 24)'/%3E%3Ccircle cx='24' cy='24' r='5'/%3E%3C/g%3E%3C/svg%3E");
+  --menubook-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --menubook-star-clip: polygon(50% 0, 64.64% 14.64%, 85.36% 14.64%, 85.36% 35.36%, 100% 50%, 85.36% 64.64%, 85.36% 85.36%, 64.64% 85.36%, 50% 100%, 35.36% 85.36%, 14.64% 85.36%, 14.64% 64.64%, 0 50%, 14.64% 35.36%, 14.64% 14.64%, 35.36% 14.64%);
+
+  /* token-surface colours with light-theme counterparts below */
+  --menubook-glow: rgba(255, 90, 31, 0.16);
+  --menubook-shade: rgba(0, 0, 0, 0.55);
+  --menubook-spine-a: rgba(0, 0, 0, 0.4);
+  --menubook-spine-b: rgba(0, 0, 0, 0.55);
+  --menubook-paper-light: rgba(255, 184, 48, 0.06);
+  --menubook-board-shadow: 0 26px 50px -20px rgba(0, 0, 0, 0.65);
+  --menubook-edge-hover: rgba(255, 184, 48, 0.12);
+  --menubook-add-glow: rgba(255, 90, 31, 0.42);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+body.light-theme .menubook {
+  --menubook-glow: rgba(192, 58, 46, 0.12);
+  --menubook-shade: rgba(70, 32, 12, 0.34);
+  --menubook-spine-a: rgba(90, 45, 20, 0.14);
+  --menubook-spine-b: rgba(90, 45, 20, 0.22);
+  --menubook-paper-light: rgba(214, 120, 60, 0.07);
+  --menubook-board-shadow: 0 26px 50px -22px rgba(90, 40, 20, 0.3);
+  --menubook-edge-hover: rgba(192, 58, 46, 0.08);
+  --menubook-add-glow: rgba(192, 58, 46, 0.32);
+}
+
+/* ------------------------------------------------ contents (chips) */
+
+.menubook-contents {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 760px;
+  margin: 0 auto 34px;
+  text-align: center;
+}
+
+.menubook-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-secondary);
+  font: 600 0.86rem/1.2 var(--font-heading);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--transition-normal), border-color var(--transition-normal), background var(--transition-normal);
+}
+
+.menubook-chip::before {
+  content: '';
+  flex: none;
+  width: 9px;
+  height: 9px;
+  background: currentColor;
+  clip-path: var(--menubook-star-clip);
+  -webkit-clip-path: var(--menubook-star-clip);
+  opacity: 0.4;
+  transition: opacity var(--transition-normal), transform var(--transition-normal);
+}
+
+.menubook-chip:hover {
+  color: var(--text-primary);
+  border-color: var(--glass-border-warm);
+}
+
+.menubook-chip.active {
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border-color: var(--accent-primary);
+  box-shadow: 0 6px 18px -8px var(--menubook-add-glow);
+}
+
+.menubook-chip.active::before {
+  background: var(--accent-warm);
+  opacity: 1;
+  transform: rotate(22.5deg);
+}
+
+.menubook-chip:focus-visible {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: 2px;
+}
+
+body.rtl-active .menubook-chip {
+  font-family: 'Cairo', var(--font-heading);
+  letter-spacing: 0;
+}
+
+/* ------------------------------------------------------------ stage */
+
+.menubook-stage {
+  position: relative;
+  z-index: 1;               /* a leaf mid-turn overshoots the box and must paint over the controls */
+  width: 100%;
+  padding-block: 12px;
+  pointer-events: none;     /* the overshoot padding must not eat clicks meant for chips / controls */
+  direction: ltr;           /* in RTL the 200%-wide single-mode book would align right and invert the pan */
+}
+
+.menubook-stage > * {
+  pointer-events: auto;
+}
+
+/* grill light pooled under the book */
+.menubook-stage::before {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -6%;
+  height: 42%;
+  background: radial-gradient(closest-side, var(--menubook-glow), transparent);
+  filter: blur(26px);
+  -webkit-filter: blur(26px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* single-mode focus ring (the 200%-wide book is clipped by the stage) */
+.menubook-stage::after {
+  content: '';
+  position: absolute;
+  inset: 3.25rem 0;
+  border-radius: 8px;
+  box-shadow: 0 0 0 2px var(--accent-warm);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 300;
+}
+
+/* ------------------------------------------------------------- book */
+
+.menubook-book {
+  position: relative;
+  width: min(92vw, 980px);
+  /* also bounded by the viewport height so the spread and its controls fit a
+     1366x768 laptop without scrolling mid-read; never below 620px wide */
+  width: min(92vw, 980px, max(620px, calc((100vh - 190px) * 10 / 7)));
+  width: min(92vw, 980px, max(620px, calc((100svh - 190px) * 10 / 7)));
+  aspect-ratio: 10 / 7;
+  perspective: 2600px;
+  transform-style: preserve-3d;
+  margin-inline: auto;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.menubook[data-mode="spread"] .menubook-book:focus-visible {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: 8px;
+  border-radius: 6px;
+}
+
+/* the inside of the boards, seen where no leaf lies */
+.menubook-under {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  z-index: 0;
+  background: var(--bg-surface);
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--menubook-board-shadow);
+  overflow: hidden;
+}
+
+.menubook-under-l { left: 0; }
+.menubook-under-r { right: 0; }
+
+.menubook-under::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--menubook-tile);
+  background-size: 48px;
+  opacity: 0.07;
+}
+
+.menubook-under::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 38%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: var(--menubook-rosette) center / contain no-repeat;
+  opacity: 0.22;
+}
+
+.menubook-sheet {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 50%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.menubook-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.menubook-face-back {
+  transform: rotateY(180deg);
+}
+
+/* ------------------------------------------------------------ paper */
+
+.menubook-paper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Belt and braces: the face is preserve-3d, so the paper is its own plane in
+     the 3D context, and an engine that culls per plane reads the paper's own
+     backface-visibility rather than the face's. */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background:
+    radial-gradient(120% 100% at 50% 0%, var(--menubook-paper-light), transparent 60%),
+    var(--bg-card);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--menubook-fs, clamp(11px, 1.3vw, 15px));
+  line-height: 1.35;
+  padding: 2em 1.8em;
+  text-align: start;
+}
+
+body.light-theme .menubook-paper {
+  box-shadow: inset 0 0 40px rgba(120, 60, 20, 0.10);
+}
+
+.menubook-face-front .menubook-paper { border-radius: 0 6px 6px 0; }
+.menubook-face-back .menubook-paper { border-radius: 6px 0 0 6px; }
+
+/* grain */
+.menubook-paper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--menubook-grain);
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+/* a zellige band along the outer edge of every page */
+.menubook-paper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0.9em;
+  background-image: var(--menubook-tile);
+  background-size: 0.9em;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.menubook-face-front .menubook-paper::after { right: 0; }
+.menubook-face-back .menubook-paper::after { left: 0; }
+
+.menubook-paper-cover::before,
+.menubook-paper-cover::after {
+  content: none;
+}
+
+/* page content: clicks fall through to the edge zones, controls take them */
+.menubook-page {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.menubook-page a,
+.menubook-page button {
+  pointer-events: auto;
+}
+
+.menubook-page[dir="rtl"] {
+  font-family: 'Cairo', var(--font-body);
+}
+
+.menubook-page[dir="rtl"] .menubook-title,
+.menubook-page[dir="rtl"] .menubook-name,
+.menubook-page[dir="rtl"] .menubook-price,
+.menubook-page[dir="rtl"] .menubook-cover-title {
+  font-family: 'Cairo', var(--font-heading);
+}
+
+/* Arabic letters must stay joined */
+.menubook-page[dir="rtl"] .menubook-kicker,
+.menubook-page[dir="rtl"] .menubook-cover-kicker,
+.menubook-page[dir="rtl"] .menubook-cover-title,
+.menubook-page[dir="rtl"] .menubook-tag,
+.menubook-page[dir="rtl"] .menubook-soldout,
+.menubook-page[dir="rtl"] .menubook-open,
+.menubook-page[dir="rtl"] .menubook-folio {
+  letter-spacing: 0;
+}
+
+/* ----------------------------------------------------- turn shading */
+
+.menubook-shade-front,
+.menubook-shade-back {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.menubook-shade-front {
+  background: linear-gradient(to right, var(--menubook-shade), rgba(0, 0, 0, 0) 30%);
+  opacity: calc(var(--turn, 0) * 1.6);
+}
+
+.menubook-shade-back {
+  background: linear-gradient(to left, var(--menubook-shade), rgba(0, 0, 0, 0) 30%);
+  opacity: calc((1 - var(--turn, 0)) * 1.6);
+}
+
+.menubook-spine {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 40px;
+  height: 100%;
+  transform: translateX(-50%);
+  z-index: 200;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--menubook-spine-a) 48%, var(--menubook-spine-b) 50%, var(--menubook-spine-a) 52%, transparent);
+}
+
+/* ------------------------------------------------------- edge zones */
+
+.menubook-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 56px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.menubook-edge-next { right: 0; }
+.menubook-edge-prev { left: 0; }
+
+/* the fold-side zone exists only when one page is on view */
+.menubook[data-mode="spread"] .menubook-edge-fold {
+  display: none;
+}
+
+/* dog-ear hint on the outer corners */
+.menubook-edge::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 26px;
+  height: 26px;
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.menubook-edge-next::after {
+  right: 0;
+  transform-origin: 100% 100%;
+  background: linear-gradient(315deg, var(--bg-base) 0 49%, var(--bg-card-hover) 51%);
+  border-top-left-radius: 5px;
+  box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.18);
+}
+
+.menubook-edge-prev::after {
+  left: 0;
+  transform-origin: 0 100%;
+  background: linear-gradient(45deg, var(--bg-base) 0 49%, var(--bg-card-hover) 51%);
+  border-top-right-radius: 5px;
+  box-shadow: 2px -2px 5px rgba(0, 0, 0, 0.18);
+}
+
+body.light-theme .menubook-edge-next::after { box-shadow: -2px -2px 5px rgba(90, 40, 20, 0.12); }
+body.light-theme .menubook-edge-prev::after { box-shadow: 2px -2px 5px rgba(90, 40, 20, 0.12); }
+
+@media (hover: hover) and (pointer: fine) {
+  .menubook-edge-next:hover { background: linear-gradient(to left, var(--menubook-edge-hover), transparent); }
+  .menubook-edge-prev:hover { background: linear-gradient(to right, var(--menubook-edge-hover), transparent); }
+  .menubook-edge:hover::after { opacity: 1; transform: scale(1); }
+}
+
+/* ------------------------------------------------------------ cover */
+
+.menubook-page-cover {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3em 2.4em 4.2em;
+  color: #f3d9a4;
+  background:
+    radial-gradient(120% 90% at 30% 20%, rgba(255, 90, 31, 0.16), transparent 60%),
+    radial-gradient(85% 45% at 50% 112%, rgba(255, 90, 31, 0.26), transparent 70%),
+    #1a1210;
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.55);
+}
+
+.menubook-page-cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--menubook-tile);
+  background-size: 48px;
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+.menubook-cover-frame {
+  position: absolute;
+  inset: 14px;
+  border: 1px solid rgba(232, 176, 74, 0.55);
+  outline: 1px solid rgba(232, 176, 74, 0.25);
+  outline-offset: 4px;
+  border-radius: 2px;
+  pointer-events: none;
+  background:
+    var(--menubook-star-brass) 7px 7px / 10px no-repeat,
+    var(--menubook-star-brass) calc(100% - 7px) 7px / 10px no-repeat,
+    var(--menubook-star-brass) 7px calc(100% - 7px) / 10px no-repeat,
+    var(--menubook-star-brass) calc(100% - 7px) calc(100% - 7px) / 10px no-repeat;
+}
+
+.menubook-cover-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+}
+
+.menubook-cover-medallion {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 7.4em;
+  height: 7.4em;
+  margin-bottom: 1.3em;
+  border-radius: 50%;
+  border: 1px solid rgba(232, 176, 74, 0.55);
+  background: radial-gradient(circle at 50% 38%, #2c1f18, #120c0a 72%);
+  box-shadow: 0 0 0 5px rgba(232, 176, 74, 0.08), inset 0 0 26px rgba(255, 90, 31, 0.28), 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.menubook-cover-rosette {
+  position: absolute;
+  inset: -0.9em;
+  color: #e8b04a;
+  opacity: 0.35;
+}
+
+.menubook-cover-rosette svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.menubook-cover-medallion img {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 10px rgba(255, 90, 31, 0.35));
+}
+
+.menubook-cover-kicker {
+  color: #e8b04a;
+  font: 700 0.76em/1.3 var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: 0.55em;
+}
+
+.menubook-cover-title {
+  color: #f3d9a4;
+  font: 900 2.4em/1 var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 22px rgba(255, 90, 31, 0.35);
+  overflow-wrap: anywhere;
+}
+
+.menubook-cover-subtitle {
+  color: #d1c7bd;
+  font-size: 0.9em;
+  line-height: 1.5;
+  margin-top: 0.2em;
+  max-width: 22em;
+}
+
+.menubook-open {
+  position: absolute;
+  left: 50%;
+  bottom: 2.4em;
+  transform: translateX(-50%);
+  padding: 0.6em 1.1em;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-full);
+  color: #e8b04a;
+  font: 700 0.72em/1 var(--font-heading);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.25s ease, background 0.25s ease;
+}
+
+.menubook-open:hover {
+  color: #ffd27a;
+  background: rgba(232, 176, 74, 0.1);
+}
+
+.menubook-open:focus-visible {
+  outline: 2px solid #e8b04a;
+  outline-offset: 2px;
+}
+
+/* ----------------------------------------------- category page head */
+
+.menubook-head {
+  flex: none;
+  text-align: center;
+  margin-bottom: 0.5em;
+}
+
+.menubook-kicker {
+  color: var(--accent-warm);
+  font: 700 0.72em/1.3 var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin-bottom: 0.45em;
+  text-wrap: balance;
+}
+
+.menubook-title {
+  color: var(--text-primary);
+  font: 800 1.6em/1.1 var(--font-heading);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.menubook-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  width: 72%;
+  margin: 0.7em auto 0;
+  color: var(--accent-warm);
+}
+
+.menubook-rule span {
+  flex: 1;
+  height: 1px;
+  background: var(--glass-border-warm);
+}
+
+.menubook-rule .menubook-star {
+  flex: none;
+  width: 10px;
+  height: 10px;
+}
+
+.menubook-rule-brass {
+  color: #e8b04a;
+  width: 60%;
+  margin: 0.9em auto 0.8em;
+}
+
+.menubook-rule-brass span {
+  background: rgba(232, 176, 74, 0.45);
+}
+
+/* ------------------------------------------------------------- rows */
+
+.menubook-rows {
+  list-style: none;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.menubook-row {
+  display: grid;
+  grid-template-columns: 3.8em 1fr auto;
+  gap: 0.9em;
+  align-items: center;
+  padding: 0.7em 0;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.menubook-row:last-child {
+  border-bottom: 0;
+}
+
+.menubook-thumb {
+  display: block;
+  width: 3.8em;
+  height: 3.8em;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 1px var(--glass-border-warm);
+}
+
+.menubook-thumb-empty,
+.menubook-thumb.is-broken {
+  display: grid;
+  place-items: center;
+  color: var(--accent-warm);
+}
+
+.menubook-thumb-empty .menubook-star {
+  width: 38%;
+  height: 38%;
+  opacity: 0.6;
+}
+
+.menubook-thumb.is-broken {
+  opacity: 0.35;
+}
+
+.menubook-row-main {
+  min-width: 0;
+}
+
+.menubook-name {
+  color: var(--text-primary);
+  font: 700 1.05em/1.2 var(--font-heading);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* one line of tags; a tag that wraps is hidden whole, never shown as a sliver */
+.menubook-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  margin-top: 0.3em;
+  max-height: calc(0.62em * 1.7 + 3px);
+  overflow: hidden;
+}
+
+.menubook-tag {
+  display: inline-block;
+  padding: 0.35em 0.75em;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border-warm);
+  color: var(--accent-warm);
+  font: 700 0.62em/1 var(--font-body);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menubook-desc {
+  margin-top: 0.3em;
+  color: var(--text-secondary);
+  font-size: 0.8em;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.menubook-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45em;
+}
+
+.menubook-price {
+  color: var(--accent-warm);
+  font: 800 1em/1 var(--font-heading);
+  white-space: nowrap;
+  unicode-bidi: isolate;   /* "12.5 TND" stays in that order inside Arabic pages */
+}
+
+.menubook-add {
+  display: grid;
+  place-items: center;
+  width: 2.3em;
+  height: 2.3em;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px -3px var(--menubook-add-glow);
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.menubook-add svg {
+  width: 48%;
+  height: 48%;
+}
+
+.menubook-add:hover {
+  background: var(--accent-primary-hover);
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px -3px var(--menubook-add-glow);
+}
+
+.menubook-add:active {
+  transform: scale(0.92);
+}
+
+.menubook-add:focus-visible {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: 2px;
+}
+
+.menubook-row.is-soldout {
+  opacity: 0.55;
+}
+
+.menubook-row.is-soldout .menubook-price {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.menubook-soldout {
+  padding: 0.5em 0.85em;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--accent-primary);
+  font: 700 0.64em/1 var(--font-heading);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: not-allowed;
+}
+
+.menubook-folio {
+  flex: none;
+  margin-top: auto;
+  padding-top: 0.6em;
+  text-align: center;
+  color: var(--text-muted);
+  font: 600 0.72em/1 var(--font-heading);
+  letter-spacing: 0.2em;
+}
+
+.menubook-folio::before,
+.menubook-folio::after {
+  content: '\00B7';
+  margin: 0 0.6em;
+  color: var(--accent-warm);
+}
+
+/* ------------------------------------------------------- house page */
+
+.menubook-page-house {
+  justify-content: center;
+  text-align: center;
+}
+
+.menubook-house-mark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--accent-warm);
+  opacity: 0.09;
+  pointer-events: none;
+}
+
+.menubook-house-mark svg {
+  width: 82%;
+  height: auto;
+}
+
+.menubook-house-body {
+  position: relative;
+  margin-block: auto;
+}
+
+.menubook-house-text {
+  max-width: 24em;
+  margin: 1.1em auto 0;
+  color: var(--text-secondary);
+  font-size: 0.95em;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.menubook-page-house .menubook-folio {
+  margin-top: 0;
+}
+
+/* -------------------------------------------------------- back page */
+
+.menubook-page-back {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.menubook-back-body {
+  width: 100%;
+}
+
+.menubook-find {
+  list-style: none;
+  display: grid;
+  gap: 0.85em;
+  max-width: 23em;
+  margin: 1.3em auto 0;
+  padding: 1.1em 1.2em;
+  border: 1px solid var(--glass-border-warm);
+  border-radius: 14px;
+  background: var(--glass-bg);
+  text-align: start;
+}
+
+.menubook-find li {
+  display: grid;
+  grid-template-columns: 1.5em 1fr;
+  gap: 0.65em;
+  align-items: start;
+  color: var(--text-secondary);
+  font-size: 0.86em;
+  line-height: 1.45;
+}
+
+.menubook-find svg {
+  width: 1.3em;
+  height: 1.3em;
+  margin-top: 0.08em;
+  color: var(--accent-warm);
+}
+
+.menubook-hours {
+  display: block;
+}
+
+.menubook-tel {
+  color: var(--text-primary);
+  font-weight: 700;
+  text-decoration: none;
+  unicode-bidi: isolate;
+  border-bottom: 1px dashed var(--glass-border-warm);
+}
+
+.menubook-tel:hover {
+  color: var(--accent-primary);
+}
+
+.menubook-tel:focus-visible {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.menubook-note {
+  max-width: 22em;
+  margin: 1.2em auto 0;
+  color: var(--text-muted);
+  font-size: 0.82em;
+  line-height: 1.5;
+}
+
+.menubook-tocover {
+  display: grid;
+  place-items: center;
+  width: 2.6em;
+  height: 2.6em;
+  margin: 1.4em auto 0;
+  padding: 0;
+  border: 1px solid var(--glass-border-warm);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent-warm);
+  font: 700 1.1em/1 var(--font-heading);
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+.menubook-tocover:hover {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
+
+.menubook-tocover:focus-visible {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------- controls */
+
+.menubook-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  margin-top: 30px;
+  direction: ltr;
+}
+
+.menubook-counter {
+  min-width: 9.5em;
+  text-align: center;
+  color: var(--text-secondary);
+  font: 700 0.92rem/1.2 var(--font-heading);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.menubook-controls .btn-icon:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+  transform: none;
+}
+
+.menubook-controls .btn-icon:focus-visible {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: 3px;
+}
+
+.menubook-hint {
+  max-width: 34em;
+  margin: 12px auto 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+body.rtl-active .menubook-counter,
+body.rtl-active .menubook-hint {
+  font-family: 'Cairo', var(--font-heading);
+  letter-spacing: 0;
+}
+
+/* the frame is LTR in every language (see header); belt and braces with dir="ltr" */
+body.rtl-active .menubook-book,
+body.rtl-active .menubook-controls {
+  direction: ltr;
+}
+
+/* ----------------------------------------- loading / empty / error */
+
+.menubook-skeleton {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(92vw, 980px);
+  width: min(92vw, 980px, max(620px, calc((100vh - 190px) * 10 / 7)));
+  width: min(92vw, 980px, max(620px, calc((100svh - 190px) * 10 / 7)));
+  aspect-ratio: 10 / 7;
+  margin-inline: auto;
+}
+
+.menubook[data-state="ready"] .menubook-skeleton,
+.menubook:not([data-state="ready"]) .menubook-book,
+.menubook:not([data-state="ready"]) .menubook-controls,
+.menubook:not([data-state="ready"]) .menubook-contents,
+.menubook:not([data-state="ready"]) .menubook-hint {
+  display: none;
+}
+
+.menubook-skeleton-half {
+  display: flex;
+  flex-direction: column;
+  gap: 7%;
+  padding: 9% 8%;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--menubook-board-shadow);
+}
+
+.menubook-skeleton-l { border-radius: 6px 0 0 6px; }
+.menubook-skeleton-r { border-radius: 0 6px 6px 0; border-left: 0; }
+
+.menubook-skeleton-half i {
+  display: block;
+  height: 10%;
+  border-radius: 10px;
+  background: var(--bg-card-hover);
+}
+
+.menubook-skeleton-half i:first-child {
+  width: 55%;
+  height: 7%;
+  margin-inline: auto;
+}
+
+.menubook[data-state="loading"] .menubook-skeleton-half i {
+  animation: menubookPulse 1.4s ease-in-out infinite alternate;
+}
+
+.menubook[data-state="loading"] .menubook-skeleton-half i:nth-child(2) { animation-delay: 0.15s; }
+.menubook[data-state="loading"] .menubook-skeleton-half i:nth-child(3) { animation-delay: 0.3s; }
+.menubook[data-state="loading"] .menubook-skeleton-half i:nth-child(4) { animation-delay: 0.45s; }
+
+.menubook[data-state="empty"] .menubook-skeleton-half i,
+.menubook[data-state="error"] .menubook-skeleton-half i {
+  opacity: 0.4;
+}
+
+@keyframes menubookPulse {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
+
+.menubook-skeleton-msg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.menubook-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 24em;
+  padding: 22px 26px;
+  text-align: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: var(--glass-shadow);
+}
+
+.menubook-skeleton-mark {
+  display: block;
+  width: 30px;
+  height: 30px;
+  color: var(--accent-warm);
+}
+
+.menubook-skeleton-mark .menubook-star {
+  width: 100%;
+  height: 100%;
+}
+
+.menubook[data-state="loading"] .menubook-skeleton-mark {
+  animation: menubookTurn 2.8s linear infinite;
+}
+
+@keyframes menubookTurn {
+  to { transform: rotate(360deg); }
+}
+
+.menubook-skeleton-text {
+  color: var(--text-secondary);
+  font: 600 1rem/1.4 var(--font-heading);
+}
+
+.menubook[data-state="error"] .menubook-skeleton-mark {
+  color: var(--accent-primary);
+}
+
+.menubook-retry {
+  padding: 11px 24px;
+  font-size: 0.92rem;
+}
+
+body.rtl-active .menubook-skeleton-text {
+  font-family: 'Cairo', var(--font-heading);
+}
+
+/* the stage is forced LTR (see .menubook-stage); its message card reads in the page language */
+body.rtl-active .menubook-skeleton-card {
+  direction: rtl;
+}
+
+/* ------------------------------------------ single page (< 900px) */
+
+@media (max-width: 899px) {
+  .menubook-contents {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: 440px;
+    margin-bottom: 26px;
+    padding: 2px 16px 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+  }
+
+  .menubook-contents::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* centred while the strip fits, scrollable once it does not */
+  .menubook-chip:first-child { margin-inline-start: auto; }
+  .menubook-chip:last-child { margin-inline-end: auto; }
+
+  .menubook-controls {
+    margin-top: 24px;
+  }
+}
+
+.menubook[data-mode="single"] .menubook-stage {
+  width: min(100%, 440px);
+  margin-inline: auto;
+  overflow: hidden;
+  padding-block: 3.25rem;
+  margin-block: -3.25rem;
+}
+
+.menubook[data-mode="single"] .menubook-book {
+  width: 200%;
+  margin-inline: 0;
+  transform: translateX(var(--menubook-pan, 0%));
+  transition: none;
+}
+
+.menubook[data-mode="single"] .menubook-stage:has(.menubook-book:focus-visible)::after {
+  opacity: 1;
+}
+
+.menubook[data-mode="single"] .menubook-skeleton {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  grid-template-columns: 1fr;
+}
+
+.menubook[data-mode="single"] .menubook-skeleton-l {
+  display: none;
+}
+
+.menubook[data-mode="single"] .menubook-skeleton-r {
+  border-radius: 6px;
+  border-left: 1px solid var(--glass-border);
+}
+
+/* ------------------------------------------------- reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .menubook-sheet {
+    will-change: auto;
+  }
+
+  .menubook[data-state="loading"] .menubook-skeleton-half i,
+  .menubook[data-state="loading"] .menubook-skeleton-mark {
+    animation: none;
+  }
+
+  .menubook-chip,
+  .menubook-chip::before,
+  .menubook-add,
+  .menubook-edge::after,
+  .menubook-open,
+  .menubook-tocover {
+    transition: none;
+  }
+
+  .menubook-add:hover,
+  .menubook-add:active {
+    transform: none;
+  }
+}

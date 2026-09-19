@@ -28,6 +28,7 @@ const BabkeDB = {
       .then(data => {
         this.cache = data;
         console.log("Babke DB initialized from backend server successfully.");
+        window.dispatchEvent(new Event('babkeDataRefreshed'));
         return data;
       })
       .catch(err => {
@@ -40,7 +41,8 @@ const BabkeDB = {
           gallery: [],
           orders: [],
           reservations: [],
-          events: []
+          events: [],
+          menuBook: null
         };
         return this.cache;
       });
@@ -146,6 +148,8 @@ const BabkeDB = {
   getContent() {
     return this.cache ? (this.cache.content || {}) : {};
   },
+
+  getMenuBook() { return this.cache ? (this.cache.menuBook || null) : null; },
 
   async saveContent(content) {
     if (this.cache) this.cache.content = content;

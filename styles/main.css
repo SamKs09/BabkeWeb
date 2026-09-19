@@ -5142,3 +5142,57 @@ body.light-theme .checkbox-custom-label {
   justify-content: center;
   gap: 6px;
 }
+
+/* =====
+   FEATURE REVEAL + REDUCED MOTION (loyalty / wheel / menubook)
+   ===== */
+.fx-reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.65s cubic-bezier(0.25,1,0.5,1), transform 0.65s cubic-bezier(0.25,1,0.5,1); transition-delay: var(--fx-delay, 0ms); }
+.fx-reveal.fx-in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; transition-delay: 0ms !important; }
+  .fx-reveal { opacity: 1; transform: none; }
+}
+
+/* =====
+   NAV WITH THE FEATURE LINKS (9 links: Spin & Win + Loyalty added)
+   The desktop row no longer fits below ~1250px (FR is the longest).
+   1101-1300px: tighten the row. 769-1100px: use the same burger drawer
+   as the <=768px block (rules mirrored from it, including RTL).
+   ===== */
+@media (min-width: 1101px) and (max-width: 1300px) {
+  .nav-menu { gap: 20px; }
+  .nav-link { font-size: 0.88rem; white-space: nowrap; }
+}
+@media (min-width: 769px) and (max-width: 1100px) {
+  .burger-menu { display: flex; }
+  .nav-menu {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 280px;
+    height: 100vh;
+    background: var(--bg-surface);
+    border-left: 1px solid var(--border-color);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.2);
+    flex-direction: column;
+    padding: 100px 40px;
+    gap: 24px;
+    transition: right var(--transition-normal);
+  }
+  body.light-theme .nav-menu { box-shadow: -10px 0 40px rgba(0, 0, 0, 0.08); }
+  .nav-menu.open { right: 0; }
+  .burger-menu.open .burger-bar:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+  .burger-menu.open .burger-bar:nth-child(2) { opacity: 0; }
+  .burger-menu.open .burger-bar:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px); }
+  body.rtl-active .nav-menu {
+    flex-direction: column !important;
+    right: auto !important;
+    left: -280px !important;
+    border-left: none !important;
+    border-right: 1px solid var(--border-color) !important;
+    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.15) !important;
+    transition: left var(--transition-normal) !important;
+  }
+  body.rtl-active .nav-menu.open { left: 0 !important; right: auto !important; }
+}

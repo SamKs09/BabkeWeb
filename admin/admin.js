@@ -296,6 +296,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
+    // Loyalty / wheel / menu-book admin-only events (payloads carry ids and
+    // versions only — never a phone, a name, a code or a token).
+    ['loyaltyMemberChanged', 'loyaltyProgramChanged', 'wheelPlayed', 'wheelCodeRedeemed', 'wheelConfigChanged', 'menuBookChanged'].forEach((evtName) => {
+      eventSource.addEventListener(evtName, (e) => admHandleSse(evtName, e));
+    });
+
     eventSource.onerror = (err) => {
       console.warn("SSE connection error. Closing stream...", err);
       eventSource.close();
@@ -443,19 +449,19 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (!['leftovers', 'ruined'].includes(currentActivePanel)) currentActivePanel = 'leftovers';
         } else if (userRole === 'cashier') {
           navButtons.forEach(btn => {
-            btn.style.display = (['expenses', 'orders-reservations', 'menu'].includes(btn.dataset.panel)) ? 'flex' : 'none';
+            btn.style.display = (['expenses', 'orders-reservations', 'menu', 'loyalty', 'wheel'].includes(btn.dataset.panel)) ? 'flex' : 'none';
           });
-          if (!['expenses', 'orders-reservations', 'menu'].includes(currentActivePanel)) currentActivePanel = 'expenses';
+          if (!['expenses', 'orders-reservations', 'menu', 'loyalty', 'wheel'].includes(currentActivePanel)) currentActivePanel = 'expenses';
         } else if (userRole === 'sm_manager') {
           navButtons.forEach(btn => {
-            btn.style.display = (['menu', 'content', 'gallery', 'events', 'reviews'].includes(btn.dataset.panel)) ? 'flex' : 'none';
+            btn.style.display = (['menu', 'content', 'gallery', 'events', 'reviews', 'wheel', 'menubook'].includes(btn.dataset.panel)) ? 'flex' : 'none';
           });
-          if (!['menu', 'content', 'gallery', 'events', 'reviews'].includes(currentActivePanel)) currentActivePanel = 'menu';
+          if (!['menu', 'content', 'gallery', 'events', 'reviews', 'wheel', 'menubook'].includes(currentActivePanel)) currentActivePanel = 'menu';
         } else if (userRole === 'comptable') {
           navButtons.forEach(btn => {
-            btn.style.display = (['stock', 'leftovers', 'ruined', 'expenses', 'comptabilite', 'product-types'].includes(btn.dataset.panel)) ? 'flex' : 'none';
+            btn.style.display = (['stock', 'leftovers', 'ruined', 'expenses', 'comptabilite', 'product-types', 'loyalty', 'wheel'].includes(btn.dataset.panel)) ? 'flex' : 'none';
           });
-          if (!['stock', 'leftovers', 'ruined', 'expenses', 'comptabilite', 'product-types'].includes(currentActivePanel)) currentActivePanel = 'stock';
+          if (!['stock', 'leftovers', 'ruined', 'expenses', 'comptabilite', 'product-types', 'loyalty', 'wheel'].includes(currentActivePanel)) currentActivePanel = 'stock';
         } else {
           // Admin / Owner
           navButtons.forEach(btn => btn.style.display = 'flex');
@@ -524,6 +530,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const logoutBtns = document.querySelectorAll('#btn-admin-logout, #btn-admin-logout-top');
   logoutBtns.forEach(btn => {
     btn.addEventListener('click', async () => {
+      stopActiveScanner();
       try {
         await fetch('/api/admin/logout', { method: 'POST' });
         if (eventSource) {
@@ -628,6 +635,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentActivePanel = 'overview'; // Default
 
   const switchPanel = async (panelName) => {
+    stopActiveScanner(); // never leave the counter camera running on another panel
     currentActivePanel = panelName;
     
     // Reset notifications when visiting the orders logs or expenses logs
@@ -670,7 +678,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         'gallery': 'Galerie Instagram',
         'events': 'Événements & Popups',
         'reviews': 'Avis Clients',
-        'orders-reservations': 'Commandes & Réservations'
+        'orders-reservations': 'Commandes & Réservations',
+        'loyalty': '💳 Carte de Fidélité',
+        'wheel': '🎡 Roue de la Chance',
+        'menubook': '📖 Carnet 3D'
       };
       titleHeader.textContent = titles[panelName] || 'Dashboard';
     }
@@ -715,6 +726,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         break;
       case 'orders-reservations':
         renderOrdersReservationsPanel();
+        break;
+      case 'loyalty':
+        renderLoyaltyPanel();
+        break;
+      case 'wheel':
+        renderWheelPanel();
+        break;
+      case 'menubook':
+        renderMenuBookPanel();
         break;
     }
   };
@@ -5103,6 +5123,2547 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (interval >= 1) return interval + " minutes ago";
     return "just now";
   }
+
+  // ==========================================================================
+  // 8. CARTE DE FIDÉLITÉ · ROUE DE LA CHANCE · CARNET 3D (admin modules)
+  //    Contract: build spec §0 + §6. Everything here is closure-private.
+  //    SECURITY RULE: every server-supplied or admin-editable string goes
+  //    through escapeHtml() before it reaches innerHTML — templates AND toasts.
+  //    Nothing here ever shows a card token, a play token or a stored code
+  //    that the server did not already format for staff.
+  // ==========================================================================
+
+  const escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+
+  // Same-origin JSON helper for the new endpoints (spec §6.1).
+  async function adminApi(path, { method = 'GET', body } = {}) {
+    let res;
+    try {
+      res = await fetch(path, {
+        method,
+        credentials: 'same-origin',
+        headers: body ? { 'Content-Type': 'application/json' } : {},
+        body: body ? JSON.stringify(body) : undefined
+      });
+    } catch (netErr) {
+      throw new Error('Serveur injoignable.');
+    }
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) {
+      showToast('Session expirée, reconnexion…', 'error', 'Session');
+      setTimeout(() => location.reload(), 1200);
+      throw new Error('Session expirée');
+    }
+    if (!res.ok) {
+      const e = new Error(data.message || `Erreur (${res.status})`);
+      e.status = res.status;
+      e.data = data;
+      throw e;
+    }
+    return data;
+  }
+
+  // One id per confirmed click (stamps / redeem). crypto.randomUUID only exists
+  // in secure contexts, so a plain-http LAN test falls back to getRandomValues.
+  const newRequestId = () => {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    const b = new Uint8Array(16);
+    window.crypto.getRandomValues(b);
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  };
+
+  const admReducedMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const admNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+  const admLocFr = (o) => (o && typeof o === 'object') ? String(o.fr || o.en || o.tn || '') : String(o == null ? '' : o);
+  const admFmtDate = (d) => {
+    if (!d) return '—';
+    const x = new Date(d);
+    return isNaN(x.getTime()) ? '—' : x.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  const admFmtDateTime = (d) => {
+    if (!d) return '—';
+    const x = new Date(d);
+    return isNaN(x.getTime()) ? '—' : x.toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+  const admRelTime = (d) => {
+    const t = new Date(d).getTime();
+    if (!Number.isFinite(t)) return '';
+    const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    if (s < 60) return "à l'instant";
+    if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+    if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+    return `il y a ${Math.floor(s / 86400)} j`;
+  };
+  const admSeals = (n) => `${n} sceau${Math.abs(n) > 1 ? 'x' : ''}`;
+  const admErrToast = (err) => {
+    if (err && err.message === 'Session expirée') return;
+    showToast(escapeHtml(err && err.message ? err.message : 'Erreur inconnue.'), 'error', 'Erreur');
+  };
+  const admLoadingHtml = (txt = 'Chargement…') => `<div class="adm-loading" role="status">${escapeHtml(txt)}</div>`;
+
+  // Tabs visible per role — must match the server gates (spec §6.1 table).
+  const ADM_LOYALTY_TABS = [
+    { key: 'comptoir', label: 'Comptoir', roles: ['admin', 'cashier'] },
+    { key: 'membres', label: 'Membres', roles: ['admin', 'cashier'] },
+    { key: 'programme', label: 'Programme', roles: ['admin'] },
+    { key: 'stats', label: 'Statistiques', roles: ['admin', 'comptable'] }
+  ];
+  const ADM_WHEEL_TABS = [
+    { key: 'comptoir', label: 'Comptoir', roles: ['admin', 'cashier'] },
+    { key: 'reglages', label: 'Réglages', roles: ['admin'] },
+    { key: 'parties', label: 'Parties', roles: ['admin'] },
+    { key: 'stats', label: 'Statistiques', roles: ['admin', 'comptable', 'sm_manager'] }
+  ];
+  const ADM_MENUBOOK_ROLES = ['admin', 'sm_manager'];
+  const ADM_TONES = [
+    { key: 'ember', label: 'Braise', hex: '#c93f16' },
+    { key: 'brass', label: 'Laiton', hex: '#b8781f' },
+    { key: 'charcoal', label: 'Charbon', hex: '#1c1714' },
+    { key: 'tile', label: 'Zellige', hex: '#136f63' },
+    { key: 'herb', label: 'Olive', hex: '#55702f' }
+  ];
+  const ADM_TONE_HEX = ADM_TONES.reduce((m, t) => { m[t.key] = t.hex; return m; }, {});
+  const ADM_SEG_TYPES = [
+    { key: 'prize', label: 'Lot' },
+    { key: 'stamps', label: 'Sceaux' },
+    { key: 'lose', label: 'Perdu' }
+  ];
+  const ADM_WHEEL_CODE_RE = /^BK[-\s]?[A-Z0-9]{4}[-\s]?[A-Z0-9]{4}$/i;
+  const ADM_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+
+  let loyaltyTab = null;
+  let wheelTab = null;
+  let admRenderSeq = 0;          // bumps on every panel / sub-tab render
+  let admTabRefresher = null;    // live-refresh hook of the visible tab (SSE)
+  const admAlive = (seq, el) => seq === admRenderSeq && (!el || el.isConnected);
+
+  // Settings forms: unsaved-edit tracking for the "changed elsewhere" rule.
+  const admForms = {
+    programme: { dirty: false, version: null, stale: false, saving: false, seenVersion: null, reload: null, banner: null },
+    reglages: { dirty: false, version: null, stale: false, saving: false, seenVersion: null, reload: null, banner: null },
+    menubook: { dirty: false, version: null, stale: false, saving: false, seenVersion: null, reload: null, banner: null }
+  };
+  const admResetForm = (key) => {
+    const f = admForms[key];
+    f.dirty = false; f.stale = false; f.saving = false; f.seenVersion = null; f.reload = null; f.banner = null;
+  };
+
+  // --------------------------------------------------------------------------
+  // QR SCANNER (verbatim port of the suite loop, spec §6.1)
+  // --------------------------------------------------------------------------
+  let activeScanner = null;
+  let admJsQrPromise = null;
+
+  function stopActiveScanner() {
+    if (activeScanner) {
+      const s = activeScanner;
+      activeScanner = null;
+      s.stop();
+    }
+  }
+  function stopScannerIfInside(el) {
+    if (activeScanner && el && activeScanner.videoEl && el.contains(activeScanner.videoEl)) stopActiveScanner();
+  }
+
+  function admLoadJsQr() {
+    if (typeof window.jsQR === 'function') return Promise.resolve();
+    if (!admJsQrPromise) {
+      admJsQrPromise = new Promise((ok, ko) => {
+        const s = document.createElement('script');
+        s.src = 'vendor/jsQR.js';
+        s.onload = ok;
+        s.onerror = ko;
+        document.head.appendChild(s);
+      }).catch((err) => { admJsQrPromise = null; throw err; });
+    }
+    return admJsQrPromise;
+  }
+
+  function createQrScanner({ videoEl, canvasEl, onResult, onState }) {
+    let stream = null;
+    let scanning = false;
+    let session = 0;
+    const api = {
+      videoEl,
+      async start() {
+        api.stop(true);
+        const my = ++session;
+        if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          onState('insecure');
+          return;
+        }
+        if (activeScanner && activeScanner !== api) stopActiveScanner();
+        activeScanner = api;
+        onState('starting');
+        let s;
+        try {
+          s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        } catch (err) {
+          if (my !== session) return;
+          if (activeScanner === api) activeScanner = null;
+          const name = err && err.name;
+          onState(name === 'NotAllowedError' || name === 'SecurityError' ? 'denied' : 'error');
+          return;
+        }
+        // the panel may have been left (or another start won) while the
+        // permission prompt was open: never keep that stream alive
+        if (my !== session || activeScanner !== api || !videoEl.isConnected) {
+          s.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        stream = s;
+        try {
+          videoEl.muted = true;
+          videoEl.setAttribute('playsinline', '');
+          videoEl.srcObject = s;
+          await videoEl.play();
+          if (my !== session) return;
+          scanning = true;
+          onState('on');
+
+          let detector = null;
+          if ('BarcodeDetector' in window) {
+            try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { detector = null; }
+          }
+          if (!detector) await admLoadJsQr();
+          if (my !== session || !scanning) return;
+
+          const ctx = canvasEl.getContext('2d', { willReadFrequently: true });
+          const tick = async () => {
+            if (!scanning || my !== session) return;
+            if (!videoEl.videoWidth) { requestAnimationFrame(tick); return; }
+            canvasEl.width = Math.floor(videoEl.videoWidth / 2);
+            canvasEl.height = Math.floor(videoEl.videoHeight / 2);
+            ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+            let value = null;
+            if (detector) {
+              try { const codes = await detector.detect(canvasEl); value = (codes && codes[0] && codes[0].rawValue) || null; } catch (e) { value = null; }
+            } else if (typeof window.jsQR === 'function') {
+              const img = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+              const hit = window.jsQR(img.data, img.width, img.height);
+              value = (hit && hit.data) || null;
+            }
+            if (!scanning || my !== session) return;
+            if (value) {
+              api.stop();
+              if (navigator.vibrate) { try { navigator.vibrate(80); } catch (e) { /* ignore */ } }
+              onResult(value);
+              return;
+            }
+            setTimeout(() => requestAnimationFrame(tick), 120);
+          };
+          requestAnimationFrame(tick);
+        } catch (err) {
+          if (my !== session) return;
+          api.stop(true);
+          onState('error');
+        }
+      },
+      stop(silent) {
+        session++;
+        scanning = false;
+        if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+        try { if (videoEl) videoEl.srcObject = null; } catch (e) { /* ignore */ }
+        if (activeScanner === api) activeScanner = null;
+        if (!silent) onState('idle');
+      }
+    };
+    return api;
+  }
+
+  const ADM_SCANNER_MSG = {
+    idle: 'Pointez la caméra vers le QR du client, ou utilisez la saisie manuelle.',
+    starting: 'Démarrage de la caméra…',
+    on: 'Scan en cours : placez le QR dans le cadre.',
+    denied: 'Accès à la caméra refusé. Autorisez-la dans le navigateur, ou utilisez la saisie manuelle.',
+    error: "La caméra n'a pas pu démarrer. Réessayez, ou utilisez la saisie manuelle.",
+    insecure: 'La caméra nécessite HTTPS (admin.babke.tn). Utilisez la saisie manuelle.'
+  };
+  let admScannerUid = 0;
+
+  // Renders the scanner UI (4:3 view + reticle + state + manual entry) into
+  // `container` and returns { scanner, start, stop }.
+  function mountScannerUi(container, { onResult, idleText, manualPlaceholder = 'Téléphone, code carte ou code lot', manualLabel = 'Saisie manuelle' }) {
+    const uid = ++admScannerUid;
+    container.innerHTML = `
+      <div class="adm-scanner">
+        <div class="adm-scanner-view">
+          <video class="adm-scanner-video" playsinline muted></video>
+          <div class="adm-scanner-reticle" aria-hidden="true"></div>
+          <div class="adm-scanner-idle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="7" width="4" height="4"/><rect x="7" y="13" width="4" height="4"/><path d="M13 13h4v4"/></svg>
+            <p class="adm-scanner-state" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+        <canvas class="adm-scanner-canvas" hidden></canvas>
+        <div class="adm-scanner-actions">
+          <button type="button" class="btn-admin-primary adm-scanner-start">Démarrer le scanner</button>
+          <button type="button" class="btn-adm-ghost adm-scanner-stop" hidden>Arrêter</button>
+        </div>
+        <form class="adm-scanner-manual" autocomplete="off" novalidate>
+          <label class="adm-sr-only" for="adm-scan-manual-${uid}">${escapeHtml(manualLabel)}</label>
+          <input id="adm-scan-manual-${uid}" class="admin-input adm-scanner-input" type="text" maxlength="200" placeholder="${escapeHtml(manualPlaceholder)}" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <button type="submit" class="btn-adm-ghost">Rechercher</button>
+        </form>
+      </div>`;
+    const root = container.querySelector('.adm-scanner');
+    const videoEl = root.querySelector('.adm-scanner-video');
+    const canvasEl = root.querySelector('.adm-scanner-canvas');
+    const stateEl = root.querySelector('.adm-scanner-state');
+    const startBtn = root.querySelector('.adm-scanner-start');
+    const stopBtn = root.querySelector('.adm-scanner-stop');
+    const form = root.querySelector('.adm-scanner-manual');
+    const input = root.querySelector('.adm-scanner-input');
+    const insecure = !window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia;
+
+    const onState = (state) => {
+      if (!root.isConnected) return;
+      root.classList.toggle('is-on', state === 'on');
+      root.dataset.state = state;
+      stateEl.textContent = state === 'idle' && idleText ? idleText : (ADM_SCANNER_MSG[state] || '');
+      startBtn.hidden = state === 'on' || state === 'starting' || state === 'insecure';
+      startBtn.disabled = false;
+      startBtn.textContent = (state === 'denied' || state === 'error') ? 'Réessayer' : 'Démarrer le scanner';
+      stopBtn.hidden = !(state === 'on' || state === 'starting');
+    };
+    const scanner = createQrScanner({ videoEl, canvasEl, onResult: (text) => onResult(text, 'scan'), onState });
+
+    startBtn.addEventListener('click', () => scanner.start());
+    stopBtn.addEventListener('click', () => scanner.stop());
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = input.value.trim();
+      if (v.length < 4) { stateEl.textContent = 'Saisissez au moins 4 caractères.'; input.focus(); return; }
+      if (activeScanner === scanner) stopActiveScanner();
+      input.value = '';
+      onResult(v, 'manual');
+    });
+    onState(insecure ? 'insecure' : 'idle');
+    return { scanner, start: () => scanner.start(), stop: () => scanner.stop(), root, input };
+  }
+
+  // --------------------------------------------------------------------------
+  // SCAN ROUTING (shared by the loyalty and wheel counters)
+  // --------------------------------------------------------------------------
+  function admNormalizeCode(raw) {   // mirror of the server normalizeCode
+    let s = String(raw == null ? '' : raw).trim();
+    if (/^babke:w:/i.test(s)) s = s.slice(8);
+    s = s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return /^BK[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/.test(s) ? s : null;
+  }
+  const admFormatCode = (c) => `${c.slice(0, 2)}-${c.slice(2, 6)}-${c.slice(6, 10)}`;
+
+  function admNextHtml(opts) {
+    return opts && typeof opts.onNext === 'function'
+      ? '<div class="adm-next-wrap"><button type="button" class="btn-adm-ghost adm-next-scan">Scanner le client suivant</button></div>'
+      : '';
+  }
+  function admBindNext(host, opts) {
+    const b = host.querySelector(':scope > .adm-next-wrap .adm-next-scan');
+    if (b && opts && typeof opts.onNext === 'function') b.addEventListener('click', () => opts.onNext());
+  }
+  function admRenderHostMessage(host, html, opts) {
+    stopScannerIfInside(host);
+    host.innerHTML = `<div class="admin-card adm-result-card">${html}</div>${admNextHtml(opts)}`;
+    admBindNext(host, opts);
+  }
+  function admRenderError(host, message, opts) {
+    admRenderHostMessage(host, `<p class="adm-error" role="alert">${escapeHtml(message)}</p>`, opts);
+  }
+
+  let admLookupBusy = false;
+  async function routeScanPayload(raw, host, opts = {}) {
+    let text = String(raw == null ? '' : raw).trim().slice(0, 200);
+    if (!text || !host) return;
+    if (admLookupBusy) return;
+    // convenience for typed card ids: "LC-XXXXXXXXXX" -> the card QR payload
+    const card = /^LC-?([A-Z0-9]{10})$/i.exec(text);
+    if (card) text = 'babke:c:LC-' + card[1].toUpperCase();
+    admLookupBusy = true;
+    // never leave the previous customer on screen: staff could stamp the wrong card
+    admRenderHostMessage(host, admLoadingHtml('Recherche…'), null);
+    try {
+      if (/^babke:w:/i.test(text) || ADM_WHEEL_CODE_RE.test(text)) {
+        await admShowWheelCode(text, host, opts);
+      } else {
+        await admLoyaltyScan(text, host, opts);
+      }
+    } finally {
+      admLookupBusy = false;
+      // phones: the result renders below the scanner; bring it into view
+      if (host.isConnected && window.matchMedia && window.matchMedia('(max-width: 1024px)').matches) {
+        host.scrollIntoView({ behavior: admReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      }
+    }
+  }
+
+  async function admShowWheelCode(text, host, opts = {}) {
+    const code = admNormalizeCode(text);
+    if (!code) { admRenderError(host, 'Format de code invalide (BK-XXXX-XXXX).', opts); return; }
+    try {
+      const data = await adminApi('/api/admin/wheel/codes/' + encodeURIComponent(code));
+      if (!host.isConnected) return;
+      renderWheelCodePanel(host, data.play, opts);
+    } catch (err) {
+      if (!host.isConnected) return;
+      admRenderError(host, err.message, opts);
+    }
+  }
+
+  async function admLoyaltyScan(text, host, opts = {}) {
+    try {
+      const data = await adminApi('/api/admin/loyalty/scan', { method: 'POST', body: { payload: text } });
+      if (!host.isConnected) return;
+      if (data.kind === 'member') renderMemberPanel(host, { member: data.member, program: data.program }, opts);
+      else if (data.kind === 'pending_card') renderPendingCardPanel(host, data, opts);
+      else admRenderError(host, 'Réponse inattendue du serveur.', opts);
+    } catch (err) {
+      if (!host.isConnected) return;
+      const d = err.data || {};
+      if (err.status === 404 && d.error === 'member_not_found' && d.canCreate) {
+        renderCreateMemberPanel(host, { phone: text, phoneDisplay: d.phoneDisplay }, opts);
+      } else if (err.status === 400 && d.error === 'wheel_code' && d.code) {
+        await admShowWheelCode(d.code, host, opts);
+      } else {
+        admRenderError(host, err.message, opts);
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // MEMBER PANEL (shared by Comptoir and Membres)
+  // --------------------------------------------------------------------------
+  const admMemberPanels = new Set();
+
+  function renderMemberPanel(host, { member, program, cards, events }, opts = {}) {
+    stopActiveScanner();
+    for (const rec of admMemberPanels) if (!rec.root.isConnected || rec.host === host) admMemberPanels.delete(rec);
+
+    const st = {
+      member,
+      program: program || {},
+      cards: Array.isArray(cards) ? cards : null,
+      events: Array.isArray(events) ? events : null,
+      detailError: '',
+      busy: false,
+      error: '',
+      capHit: null,
+      gone: false,
+      seq: 0
+    };
+    const isOwner = userRole === 'admin';
+    host.innerHTML = `<div class="adm-member-root"></div>${admNextHtml(opts)}`;
+    const root = host.querySelector('.adm-member-root');
+    admBindNext(host, opts);
+
+    const draw = () => {
+      if (!root.isConnected) return;
+      if (st.gone) {
+        root.innerHTML = st.deleted
+          ? '<div class="admin-card adm-result-card"><p class="adm-muted">Membre supprimé (RGPD).</p></div>'
+          : '<div class="admin-card adm-result-card"><p class="adm-error" role="alert">Membre introuvable (supprimé ?).</p></div>';
+        return;
+      }
+      const m = st.member || {};
+      const p = st.program || {};
+      const goal = admNum(p.stampGoal) || 10;
+      const cap = admNum(p.maxStampsPerDay) || 3;
+      const stamps = Math.max(0, admNum(m.stamps));
+      const leftToday = Math.max(0, cap - admNum(m.stampsToday));
+      const dotCount = Math.max(goal, Math.min(stamps, 30));
+      const paused = p.active === false;
+      const dis = st.busy ? ' disabled' : '';
+      const tiers = (Array.isArray(p.tiers) ? p.tiers : []).slice().sort((a, b) => admNum(a.stamps) - admNum(b.stamps));
+      let dots = '';
+      for (let i = 0; i < dotCount; i++) dots += `<span class="adm-stamp-dot${i < stamps ? ' filled' : ''}"></span>`;
+      const initials = String(m.firstName || '?').trim().slice(0, 2).toUpperCase();
+
+      const tierRows = tiers.length ? tiers.map((t) => {
+        const need = admNum(t.stamps);
+        const ok = stamps >= need;
+        return `
+          <div class="adm-loyalty-tier${ok ? ' is-ready' : ''}">
+            <div class="adm-loyalty-tier-need">${need}</div>
+            <div class="adm-loyalty-tier-text">${escapeHtml(admLocFr(t.reward))}</div>
+            <button type="button" class="btn-admin-primary adm-act-redeem" data-tier="${escapeHtml(t.id)}"${ok && !st.busy ? '' : ' disabled'}>Offrir</button>
+          </div>`;
+      }).join('') : '<p class="adm-muted">Aucune récompense active.</p>';
+
+      const reds = (Array.isArray(m.redemptions) ? m.redemptions : []).slice(0, 5);
+      const redHtml = reds.length ? `<ul class="adm-list">${reds.map((r) => `
+          <li><span>🎁 ${escapeHtml(admLocFr(r.reward))}</span><span class="adm-muted">${escapeHtml(admFmtDate(r.at))}${r.by ? ' · ' + escapeHtml(r.by) : ''}</span></li>`).join('')}</ul>`
+        : '<p class="adm-muted">Aucun cadeau offert pour le moment.</p>';
+
+      let cardsHtml;
+      if (st.cards === null) cardsHtml = st.detailError ? `<p class="adm-error">${escapeHtml(st.detailError)}</p>` : admLoadingHtml();
+      else if (!st.cards.length) cardsHtml = '<p class="adm-muted">Aucune carte sur téléphone (membre créé au comptoir).</p>';
+      else {
+        cardsHtml = `<ul class="adm-list">${st.cards.map((c) => {
+          const statusLabel = c.status === 'active' ? 'Active' : c.status === 'pending' ? 'En attente' : 'Révoquée';
+          const cls = c.status === 'active' ? 'valid' : c.status === 'pending' ? 'expired' : 'void';
+          const canRevoke = c.status === 'active' || c.status === 'pending';
+          return `
+            <li>
+              <span><code dir="ltr">${escapeHtml(c.cardId)}</code> <span class="adm-code-status ${cls}">${statusLabel}</span></span>
+              <span class="adm-muted">Créée ${escapeHtml(admFmtDate(c.createdAt))}${c.lastSeenAt ? ' · vue ' + escapeHtml(admRelTime(c.lastSeenAt)) : ''}</span>
+              ${canRevoke ? `<button type="button" class="btn-adm-ghost adm-btn-sm adm-act-revoke" data-card="${escapeHtml(c.cardId)}"${dis}>Révoquer</button>` : ''}
+            </li>`;
+        }).join('')}</ul>`;
+      }
+
+      const evs = (st.events || []).slice(0, 6);
+      const evHtml = evs.length ? `
+        <details class="adm-details"><summary>Historique récent</summary>
+          <ul class="adm-list">${evs.map((ev) => `<li><span>${admEventLabel(ev)}</span><span class="adm-muted">${escapeHtml(admRelTime(ev.at))}${ev.byUser ? ' · ' + escapeHtml(ev.byUser) : ''}</span></li>`).join('')}</ul>
+        </details>` : '';
+
+      root.innerHTML = `
+        <div class="admin-card adm-loyalty-member" data-member-id="${escapeHtml(m.id)}">
+          ${paused ? '<div class="adm-banner adm-banner-warn">Programme en pause : attribution de sceaux désactivée, cadeaux toujours possibles.</div>' : ''}
+          <div class="adm-loyalty-member-head">
+            <div class="adm-avatar" aria-hidden="true">${escapeHtml(initials)}</div>
+            <div class="adm-loyalty-member-id">
+              <h3>${escapeHtml(m.firstName || '—')}</h3>
+              <p><span dir="ltr">${escapeHtml(m.phoneDisplay || '')}</span></p>
+              <p class="adm-muted">Membre depuis ${escapeHtml(admFmtDate(m.createdAt))}${m.lastVisitAt ? ' · dernière visite ' + escapeHtml(admRelTime(m.lastVisitAt)) : ''}</p>
+            </div>
+          </div>
+
+          <div class="adm-loyalty-stamps">
+            <div class="adm-loyalty-big"><strong>${stamps}</strong><span> / ${goal}</span> <small>sceaux</small></div>
+            <div class="adm-stamp-dots" role="img" aria-label="${stamps} sceaux sur ${goal}">${dots}</div>
+            <p class="adm-muted">Encore ${leftToday} sceau(x) possible(s) aujourd'hui · cumul ${admNum(m.lifetimeStamps)}</p>
+          </div>
+
+          <div class="adm-loyalty-actions">
+            <button type="button" class="btn-admin-primary adm-act-stamp" data-count="1"${paused || st.busy ? ' disabled' : ''}>+1 sceau</button>
+            <button type="button" class="btn-adm-ghost adm-act-stamp" data-count="2"${paused || st.busy ? ' disabled' : ''}>+2</button>
+            <button type="button" class="btn-adm-ghost adm-act-stamp" data-count="-1" title="Corriger une erreur"${stamps <= 0 || st.busy ? ' disabled' : ''}>−1</button>
+            ${st.capHit && isOwner ? `<button type="button" class="btn-adm-ghost adm-btn-warn adm-act-override"${dis}>Forcer (propriétaire)</button>` : ''}
+          </div>
+          ${st.busy ? '<p class="adm-muted adm-busy-line" role="status">Enregistrement…</p>' : ''}
+          ${st.error ? `<p class="adm-error" role="alert">${escapeHtml(st.error)}</p>` : ''}
+
+          <h4 class="adm-subhead">Récompenses</h4>
+          <div class="adm-loyalty-tiers">${tierRows}</div>
+
+          <h4 class="adm-subhead">Derniers cadeaux</h4>
+          ${redHtml}
+
+          <h4 class="adm-subhead">Cartes</h4>
+          ${cardsHtml}
+          ${evHtml}
+
+          ${isOwner ? `
+          <div class="adm-owner-tools">
+            <button type="button" class="btn-adm-ghost adm-btn-sm adm-act-rename"${dis}>Modifier le prénom</button>
+            <button type="button" class="btn-adm-ghost adm-btn-sm adm-btn-danger adm-act-delete"${dis}>Supprimer (RGPD)</button>
+          </div>` : ''}
+        </div>`;
+    };
+
+    const loadDetail = async () => {
+      const mySeq = st.seq;
+      const id = st.member && st.member.id;
+      if (!id) return;
+      try {
+        const d = await adminApi(`/api/admin/loyalty/members/${encodeURIComponent(id)}`);
+        if (!root.isConnected) return;
+        if (st.busy || mySeq !== st.seq) { st.reloadAfterBusy = true; return; }
+        st.member = d.member || st.member;
+        st.program = d.program || st.program;
+        st.cards = Array.isArray(d.cards) ? d.cards : [];
+        st.events = Array.isArray(d.events) ? d.events : [];
+        st.detailError = '';
+        draw();
+      } catch (err) {
+        if (!root.isConnected) return;
+        if (err.status === 404) { st.gone = true; admMemberPanels.delete(rec); }
+        else st.detailError = err.message;
+        draw();
+      }
+    };
+
+    const act = async (fn) => {
+      if (st.busy || st.gone) return;
+      st.busy = true; st.error = ''; st.seq++;
+      draw();
+      try {
+        await fn();
+      } catch (err) {
+        if (err && err.message === 'Session expirée') return;
+        if (err && err.status === 404 && err.data && err.data.error === 'member_not_found') st.gone = true;
+        else st.error = err && err.message ? err.message : 'Action impossible.';
+      } finally {
+        st.busy = false;
+        draw();
+        if (!st.gone && (st.reloadAfterBusy || st.cards === null)) { st.reloadAfterBusy = false; loadDetail(); }
+      }
+    };
+
+    const stamp = (count, override) => act(async () => {
+      const body = { count, requestId: newRequestId() };
+      if (override) body.override = true;
+      try {
+        const r = await adminApi(`/api/admin/loyalty/members/${encodeURIComponent(st.member.id)}/stamps`, { method: 'POST', body });
+        st.member = r.member || st.member;
+        if (r.program) st.program = r.program;
+        st.capHit = null;
+        if (r.replay) showToast('Action déjà enregistrée (double clic ignoré).', 'info');
+        else if (count > 0) showToast(`+${escapeHtml(admSeals(count))} pour ${escapeHtml(st.member.firstName)}${override ? ' (forcé)' : ''}`, 'success', 'Sceaux ajoutés');
+        else showToast(`Correction : ${escapeHtml(admSeals(count))}`, 'success', 'Correction enregistrée');
+      } catch (err) {
+        if (err.status === 409 && err.data && err.data.error === 'daily_cap') st.capHit = { count };
+        throw err;
+      }
+    });
+
+    root.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled || !root.contains(b)) return;
+      const m = st.member || {};
+      if (b.classList.contains('adm-act-stamp')) {
+        const count = parseInt(b.dataset.count, 10);
+        if (count < 0 && !confirm('Retirer 1 sceau (correction) ?')) return;
+        stamp(count, false);
+      } else if (b.classList.contains('adm-act-override')) {
+        const count = (st.capHit && st.capHit.count > 0) ? st.capHit.count : 1;
+        if (!confirm(`Forcer +${admSeals(count)} pour ${m.firstName} au-delà de la limite quotidienne ?`)) return;
+        stamp(count, true);
+      } else if (b.classList.contains('adm-act-redeem')) {
+        const tier = ((st.program && st.program.tiers) || []).find((t) => String(t.id) === b.dataset.tier);
+        if (!tier) return;
+        if (!confirm(`Offrir « ${admLocFr(tier.reward)} » à ${m.firstName} ? (−${admNum(tier.stamps)} sceaux)`)) return;
+        const requestId = newRequestId();
+        act(async () => {
+          const r = await adminApi(`/api/admin/loyalty/members/${encodeURIComponent(m.id)}/redeem`, { method: 'POST', body: { tierId: tier.id, requestId } });
+          st.member = r.member || st.member;
+          if (r.program) st.program = r.program;
+          const rw = (r.reward && r.reward.fr) || admLocFr(tier.reward);
+          showToast('🎁 ' + escapeHtml(rw) + ' offert', 'success');
+        });
+      } else if (b.classList.contains('adm-act-revoke')) {
+        const cardId = b.dataset.card;
+        if (!confirm(`Révoquer la carte ${cardId} ? Le téléphone du client ne l'affichera plus.`)) return;
+        act(async () => {
+          await adminApi(`/api/admin/loyalty/cards/${encodeURIComponent(cardId)}/revoke`, { method: 'POST', body: {} });
+          showToast(`Carte ${escapeHtml(cardId)} révoquée`, 'success');
+          st.cards = null;
+        });
+      } else if (b.classList.contains('adm-act-rename')) {
+        const v = prompt('Nouveau prénom du client :', m.firstName || '');
+        if (v === null) return;
+        const firstName = v.trim();
+        if (!firstName) return;
+        act(async () => {
+          const r = await adminApi(`/api/admin/loyalty/members/${encodeURIComponent(m.id)}`, { method: 'PUT', body: { firstName } });
+          st.member = r.member || st.member;
+          if (r.program) st.program = r.program;
+          showToast('Prénom modifié', 'success');
+        });
+      } else if (b.classList.contains('adm-act-delete')) {
+        if (!confirm(`Supprimer définitivement ${m.firstName} (${m.phoneDisplay || ''}), ses cartes et son solde ? (RGPD, irréversible)`)) return;
+        act(async () => {
+          await adminApi(`/api/admin/loyalty/members/${encodeURIComponent(m.id)}`, { method: 'DELETE' });
+          showToast('Membre supprimé (RGPD)', 'success');
+          admMemberPanels.delete(rec);
+          st.gone = true;
+          st.deleted = true;
+          if (typeof opts.onDeleted === 'function') opts.onDeleted();
+        });
+      }
+    });
+
+    const rec = {
+      host,
+      root,
+      get memberId() { return st.member && st.member.id; },
+      refresh() {
+        if (!root.isConnected) { admMemberPanels.delete(rec); return; }
+        if (st.busy) { st.reloadAfterBusy = true; return; }
+        loadDetail();
+      }
+    };
+    admMemberPanels.add(rec);
+    draw();
+    if (st.cards === null) loadDetail();
+    return rec;
+  }
+
+  function admEventLabel(ev) {
+    const n = admNum(ev.count);
+    switch (ev.type) {
+      case 'signup': return `Inscription${n ? ' (+' + escapeHtml(admSeals(n)) + ' de bienvenue)' : ''}`;
+      case 'card_activate': return 'Carte activée';
+      case 'card_revoke': return 'Carte révoquée';
+      case 'stamp': return `+${escapeHtml(admSeals(n))}`;
+      case 'unstamp': return `Correction ${escapeHtml(String(n))}`;
+      case 'redeem': return `🎁 ${escapeHtml(admLocFr(ev.reward))}`;
+      case 'wheel_stamps': return `🎡 +${escapeHtml(admSeals(n))} (roue)`;
+      case 'member_update': return 'Prénom modifié';
+      case 'member_delete': return 'Membre supprimé';
+      default: return escapeHtml(ev.type || '');
+    }
+  }
+
+  function renderPendingCardPanel(host, data, opts = {}) {
+    stopActiveScanner();
+    const c = data.card || {};
+    const ex = data.existingMember || null;
+    host.innerHTML = `
+      <div class="admin-card adm-loyalty-pending">
+        <div class="admin-card-header"><h3>🆕 Nouvelle carte à activer</h3><code class="adm-chip" dir="ltr">${escapeHtml(c.cardId)}</code></div>
+        <p class="adm-pending-who"><strong>${escapeHtml(c.firstName || '—')}</strong> · <span dir="ltr">${escapeHtml(c.phoneMasked || '')}</span></p>
+        <p class="adm-muted">Carte créée sur le site le ${escapeHtml(admFmtDateTime(c.createdAt))}</p>
+        ${ex ? `<div class="adm-banner adm-banner-warn">Ce numéro possède déjà un compte : <strong>${escapeHtml(ex.firstName || '—')}</strong> · ${admNum(ex.stamps)} sceaux. Vérifiez l'identité du client (prénom, numéro) avant d'activer.</div>` : ''}
+        <label class="adm-check"><input type="checkbox" class="adm-confirm-id"> J'ai vérifié l'identité du client</label>
+        <p class="adm-error" role="alert" hidden></p>
+        <div class="adm-row-actions">
+          <button type="button" class="btn-admin-primary adm-activate" disabled>Activer la carte</button>
+          <button type="button" class="btn-adm-ghost adm-refuse">Refuser</button>
+        </div>
+      </div>${admNextHtml(opts)}`;
+    admBindNext(host, opts);
+    const card = host.querySelector('.adm-loyalty-pending');
+    const chk = card.querySelector('.adm-confirm-id');
+    const actBtn = card.querySelector('.adm-activate');
+    const refBtn = card.querySelector('.adm-refuse');
+    const errEl = card.querySelector('.adm-error');
+    let busy = false;
+    const setBusy = (v) => { busy = v; actBtn.disabled = v || !chk.checked; refBtn.disabled = v; chk.disabled = v; };
+    const showErr = (msg) => { errEl.textContent = msg; errEl.hidden = !msg; };
+    chk.addEventListener('change', () => { actBtn.disabled = busy || !chk.checked; });
+    actBtn.addEventListener('click', async () => {
+      if (busy || !chk.checked) return;
+      setBusy(true); showErr('');
+      try {
+        const r = await adminApi(`/api/admin/loyalty/cards/${encodeURIComponent(c.cardId)}/activate`, { method: 'POST', body: { confirmIdentity: true } });
+        if (!host.isConnected) return;
+        showToast(r.created ? 'Nouveau membre créé' : 'Carte activée', 'success');
+        renderMemberPanel(host, { member: r.member, program: r.program }, opts);
+      } catch (err) {
+        if (!host.isConnected) return;
+        setBusy(false);
+        showErr(err.message);
+      }
+    });
+    refBtn.addEventListener('click', async () => {
+      if (busy) return;
+      if (!confirm(`Refuser la carte ${c.cardId} ? Elle sera révoquée.`)) return;
+      setBusy(true); showErr('');
+      try {
+        await adminApi(`/api/admin/loyalty/cards/${encodeURIComponent(c.cardId)}/revoke`, { method: 'POST', body: {} });
+        if (!host.isConnected) return;
+        showToast('Carte refusée', 'success');
+        admRenderHostMessage(host, `<p class="adm-muted">Carte <code dir="ltr">${escapeHtml(c.cardId)}</code> refusée et révoquée.</p>`, opts);
+      } catch (err) {
+        if (!host.isConnected) return;
+        setBusy(false);
+        showErr(err.message);
+      }
+    });
+  }
+
+  function renderCreateMemberPanel(host, { phone, phoneDisplay }, opts = {}) {
+    stopActiveScanner();
+    host.innerHTML = `
+      <div class="admin-card adm-loyalty-create">
+        <div class="admin-card-header"><h3>Aucun membre pour <span dir="ltr">${escapeHtml(phoneDisplay || phone)}</span></h3></div>
+        <form class="adm-create-form" novalidate autocomplete="off">
+          <div class="form-group-admin">
+            <label for="adm-create-name">Prénom du client</label>
+            <input id="adm-create-name" type="text" class="admin-input" maxlength="40" autocomplete="off">
+          </div>
+          <label class="adm-check"><input type="checkbox" class="adm-create-consent"> Le client accepte que Babke conserve son prénom et son numéro</label>
+          <p class="adm-error" role="alert" hidden></p>
+          <div class="adm-row-actions"><button type="submit" class="btn-admin-primary">Créer le membre</button></div>
+        </form>
+      </div>${admNextHtml(opts)}`;
+    admBindNext(host, opts);
+    const form = host.querySelector('.adm-create-form');
+    const nameEl = form.querySelector('#adm-create-name');
+    const consentEl = form.querySelector('.adm-create-consent');
+    const errEl = form.querySelector('.adm-error');
+    const btn = form.querySelector('button[type="submit"]');
+    const showErr = (msg) => { errEl.textContent = msg; errEl.hidden = !msg; };
+    let busy = false;
+    nameEl.focus();
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (busy) return;
+      const firstName = nameEl.value.trim().replace(/\s+/g, ' ');
+      if (!/^[\p{L}\p{M}][\p{L}\p{M} '’.\-]{1,39}$/u.test(firstName)) { showErr('Prénom invalide (2 à 40 lettres).'); nameEl.focus(); return; }
+      if (!consentEl.checked) { showErr('Le client doit accepter la conservation de ses données.'); return; }
+      busy = true; btn.disabled = true; showErr('');
+      try {
+        const r = await adminApi('/api/admin/loyalty/members', { method: 'POST', body: { phone, firstName, consent: true } });
+        if (!host.isConnected) return;
+        showToast(r.created ? 'Nouveau membre créé' : 'Ce numéro était déjà membre', r.created ? 'success' : 'info');
+        renderMemberPanel(host, { member: r.member, program: r.program }, opts);
+      } catch (err) {
+        if (!host.isConnected) return;
+        busy = false; btn.disabled = false;
+        showErr(err.message);
+      }
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // WHEEL CODE PANEL (counter redemption)
+  // --------------------------------------------------------------------------
+  const admCodePanels = new Set();
+
+  function renderWheelCodePanel(host, play, opts = {}) {
+    stopActiveScanner();
+    for (const rec of admCodePanels) if (!rec.root.isConnected || rec.host === host) admCodePanels.delete(rec);
+    const st = { play: play || {}, member: null, busy: false, error: '', note: '', memberScanOpen: false };
+    host.innerHTML = `<div class="adm-wheel-code-root"></div>${admNextHtml(opts)}`;
+    const root = host.querySelector('.adm-wheel-code-root');
+    admBindNext(host, opts);
+
+    const draw = () => {
+      if (!root.isConnected) return;
+      stopScannerIfInside(root);
+      const p = st.play || {};
+      const prize = p.prize || {};
+      const status = p.status;
+      const cls = status === 'won' ? 'valid' : (['redeemed', 'expired', 'void'].includes(status) ? status : 'void');
+      let statusText = 'Annulé';
+      if (status === 'won') statusText = 'Valide';
+      else if (status === 'redeemed') statusText = `Déjà remis le ${admFmtDateTime(p.redeemedAt)} par ${p.redeemedBy || '—'}`;
+      else if (status === 'expired') statusText = `Expiré le ${admFmtDate(p.expiresAt)}`;
+      const valid = status === 'won';
+      const isStamps = prize.type === 'stamps';
+      const n = admNum(prize.stamps);
+      const needMember = isStamps && valid;
+      const canRedeem = valid && !st.busy && (!isStamps || !!st.member);
+
+      let memberBlock = '';
+      if (needMember) {
+        const mm = st.member;
+        memberBlock = `
+          <div class="adm-wheel-member">
+            <h4 class="adm-subhead">Client (Carte Babke)</h4>
+            ${mm ? `<p class="adm-wheel-member-sel"><strong>${escapeHtml(mm.firstName)}</strong> · <span dir="ltr">${escapeHtml(mm.phoneDisplay || '')}</span> · ${admNum(mm.stamps)} sceaux
+                <button type="button" class="btn-adm-ghost adm-btn-sm adm-wheel-member-clear"${st.busy ? ' disabled' : ''}>Changer</button></p>`
+              : '<p class="adm-muted">Scannez la Carte Babke du client pour créditer les sceaux.</p>'}
+            ${mm ? '' : `<button type="button" class="btn-adm-ghost adm-wheel-member-scan"${st.busy ? ' disabled' : ''}>Scanner la carte du client</button>`}
+            <div class="adm-wheel-member-scanner"${st.memberScanOpen && !mm ? '' : ' hidden'}></div>
+          </div>`;
+      }
+
+      root.innerHTML = `
+        <div class="admin-card adm-wheel-code-card">
+          <div class="adm-wheel-code-top">
+            <span class="adm-code-status ${cls}">${escapeHtml(statusText)}</span>
+            <code class="adm-wheel-code-value" dir="ltr">${escapeHtml(p.code || '')}</code>
+          </div>
+          <h3 class="adm-wheel-prize-label">${escapeHtml(admLocFr(prize.label) || '—')}</h3>
+          <p class="adm-muted">${isStamps ? `Lot « sceaux » : +${escapeHtml(admSeals(n))} sur la Carte Babke du client` : 'Lot à remettre au comptoir'}</p>
+          <dl class="adm-kv">
+            <div><dt>Gagnant</dt><dd><strong>${escapeHtml(p.firstName || '—')}</strong></dd></div>
+            <div><dt>Téléphone</dt><dd><span dir="ltr">${escapeHtml(p.phoneMasked || '')}</span> — demandez le prénom au client</dd></div>
+            <div><dt>Gagné le</dt><dd>${escapeHtml(admFmtDateTime(p.createdAt))}</dd></div>
+            <div><dt>Valable jusqu'au</dt><dd>${escapeHtml(admFmtDate(p.expiresAt))}</dd></div>
+          </dl>
+          ${memberBlock}
+          ${st.error ? `<p class="adm-error" role="alert">${escapeHtml(st.error)}</p>` : ''}
+          ${st.note ? `<div class="adm-banner adm-banner-ok">${escapeHtml(st.note)}</div>` : ''}
+          ${valid ? `<div class="adm-row-actions"><button type="button" class="btn-admin-primary adm-wheel-redeem"${canRedeem ? '' : ' disabled'}>${st.busy ? 'Remise…' : 'Remettre le lot'}</button></div>` : ''}
+        </div>`;
+
+      const slot = root.querySelector('.adm-wheel-member-scanner');
+      if (slot && st.memberScanOpen && !st.member) {
+        const ui = mountScannerUi(slot, {
+          onResult: (text) => pickMember(text),
+          idleText: 'Scannez la Carte Babke (QR) du client, ou tapez son numéro.',
+          manualPlaceholder: 'Téléphone ou code carte'
+        });
+        if (st.autoStartScan) { st.autoStartScan = false; ui.start(); }
+      }
+    };
+
+    const pickMember = async (raw) => {
+      if (st.busy) return;
+      let text = String(raw || '').trim().slice(0, 200);
+      const card = /^LC-?([A-Z0-9]{10})$/i.exec(text);
+      if (card) text = 'babke:c:LC-' + card[1].toUpperCase();
+      if (/^babke:w:/i.test(text) || ADM_WHEEL_CODE_RE.test(text)) {
+        st.error = 'Ceci est un code de la roue : scannez la Carte Babke du client.';
+        draw();
+        return;
+      }
+      st.busy = true; st.error = ''; draw();
+      try {
+        const d = await adminApi('/api/admin/loyalty/scan', { method: 'POST', body: { payload: text } });
+        if (d.kind === 'member') { st.member = d.member; st.memberScanOpen = false; }
+        else if (d.kind === 'pending_card') { st.member = null; st.error = "Cette carte n'est pas encore activée : activez-la d'abord dans « Carte de Fidélité »."; }
+        else { st.member = null; st.error = 'QR ou saisie non reconnu.'; }
+      } catch (err) {
+        st.member = null;
+        if (err.message !== 'Session expirée') st.error = err.message;
+      } finally {
+        st.busy = false;
+        draw();
+      }
+    };
+
+    const redeem = async () => {
+      const p = st.play || {};
+      const prize = p.prize || {};
+      const isStamps = prize.type === 'stamps';
+      if (st.busy || p.status !== 'won') return;
+      if (isStamps && !st.member) return;
+      if (!confirm(`Remettre « ${admLocFr(prize.label)} » ? Ce code ne pourra plus être utilisé.`)) return;
+      st.busy = true; st.error = ''; st.note = ''; draw();
+      try {
+        const body = { code: p.code };
+        if (isStamps) body.memberId = st.member.id;
+        const r = await adminApi('/api/admin/wheel/redeem', { method: 'POST', body });
+        if (r.play) st.play = r.play;
+        if (r.member) st.note = `+${admSeals(admNum(prize.stamps))} crédité(s) à ${r.member.firstName} (solde : ${admNum(r.member.stamps)} sceaux).`;
+        showToast('✅ Lot remis', 'success');
+      } catch (err) {
+        const d = err.data || {};
+        if (err.message === 'Session expirée') return;
+        const next = Object.assign({}, st.play);
+        if (d.error === 'already_redeemed') { next.status = 'redeemed'; if (d.redeemedAt) next.redeemedAt = d.redeemedAt; if (d.redeemedBy) next.redeemedBy = d.redeemedBy; }
+        else if (d.error === 'code_expired') { next.status = 'expired'; if (d.expiresAt) next.expiresAt = d.expiresAt; }
+        else if (d.error === 'code_void') { next.status = 'void'; }
+        else if (d.error === 'member_not_found' || d.error === 'member_required') { st.member = null; }
+        st.play = next;
+        st.error = err.message;
+      } finally {
+        st.busy = false;
+        draw();
+      }
+    };
+
+    root.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled || !root.contains(b)) return;
+      if (b.classList.contains('adm-wheel-redeem')) redeem();
+      else if (b.classList.contains('adm-wheel-member-scan')) { st.memberScanOpen = true; st.autoStartScan = true; st.error = ''; draw(); }
+      else if (b.classList.contains('adm-wheel-member-clear')) { st.member = null; st.memberScanOpen = true; st.autoStartScan = false; draw(); }
+    });
+
+    const rec = {
+      host, root,
+      get playId() { return st.play && st.play.playId; },
+      async refresh() {
+        if (!root.isConnected) { admCodePanels.delete(rec); return; }
+        if (st.busy || !st.play || st.play.status !== 'won') return;
+        const code = admNormalizeCode(st.play.code);
+        if (!code) return;
+        try {
+          const d = await adminApi('/api/admin/wheel/codes/' + encodeURIComponent(code));
+          if (!root.isConnected || st.busy) return;
+          if (d.play && d.play.status !== st.play.status) { st.play = d.play; draw(); }
+        } catch (err) { /* informational refresh only */ }
+      }
+    };
+    admCodePanels.add(rec);
+    draw();
+  }
+
+  // --------------------------------------------------------------------------
+  // PANEL SHELLS + SUB-TABS
+  // --------------------------------------------------------------------------
+  const admVisibleTabs = (tabs) => tabs.filter((t) => t.roles.includes(userRole));
+  function admSubtabsHtml(tabs, active, attr) {
+    return `<div class="adm-subtabs" role="tablist">${tabs.map((t) => `
+      <button type="button" class="adm-subtab${t.key === active ? ' active' : ''}" role="tab" aria-selected="${t.key === active}" data-${attr}="${t.key}">${escapeHtml(t.label)}</button>`).join('')}</div>`;
+  }
+  function admNoAccess(contentArea) {
+    contentArea.innerHTML = `<div class="adm-module"><div class="admin-card"><div class="empty-state-container"><h4>Accès refusé</h4><p>Ce module n'est pas disponible pour votre rôle.</p></div></div></div>`;
+  }
+  function admBeginPanelRender() {
+    stopActiveScanner();
+    admTabRefresher = null;
+    ['chart-loyalty-14d', 'chart-wheel-14d'].forEach(_destroyChart);
+    return ++admRenderSeq;
+  }
+
+  function renderLoyaltyPanel() {
+    const contentArea = document.getElementById('admin-body-content');
+    if (!contentArea) return;
+    const seq = admBeginPanelRender();
+    const tabs = admVisibleTabs(ADM_LOYALTY_TABS);
+    if (!tabs.length) { admNoAccess(contentArea); return; }
+    if (!tabs.some((t) => t.key === loyaltyTab)) loyaltyTab = tabs[0].key;
+    admResetForm('programme');
+    contentArea.innerHTML = `
+      <div class="adm-module adm-loyalty">
+        <div class="adm-panel-head">
+          <div>
+            <h3>💳 Carte de Fidélité</h3>
+            <p>Un sceau par commande, des plats offerts au bout du chemin. Les cartes se créent sur le site et s'activent au comptoir.</p>
+          </div>
+        </div>
+        ${admSubtabsHtml(tabs, loyaltyTab, 'loyalty-tab')}
+        <div class="adm-tab-body" id="adm-loyalty-body"></div>
+      </div>`;
+    contentArea.querySelectorAll('.adm-subtab[data-loyalty-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.loyaltyTab === loyaltyTab) return;
+        const f = admForms.programme;
+        if (loyaltyTab === 'programme' && f.dirty && !confirm('Quitter sans enregistrer les modifications du programme ?')) return;
+        stopActiveScanner();
+        loyaltyTab = btn.dataset.loyaltyTab;
+        renderLoyaltyPanel();
+      });
+    });
+    const body = contentArea.querySelector('#adm-loyalty-body');
+    if (loyaltyTab === 'comptoir') renderLoyaltyComptoir(body, seq);
+    else if (loyaltyTab === 'membres') renderLoyaltyMembres(body, seq);
+    else if (loyaltyTab === 'programme') renderLoyaltyProgramme(body, seq);
+    else if (loyaltyTab === 'stats') renderLoyaltyStats(body, seq);
+  }
+
+  function renderWheelPanel() {
+    const contentArea = document.getElementById('admin-body-content');
+    if (!contentArea) return;
+    const seq = admBeginPanelRender();
+    const tabs = admVisibleTabs(ADM_WHEEL_TABS);
+    if (!tabs.length) { admNoAccess(contentArea); return; }
+    if (!tabs.some((t) => t.key === wheelTab)) wheelTab = tabs[0].key;
+    admResetForm('reglages');
+    contentArea.innerHTML = `
+      <div class="adm-module adm-wheel">
+        <div class="adm-panel-head">
+          <div>
+            <h3>🎡 Roue de la Chance</h3>
+            <p>Jeu gratuit sans obligation d'achat. Le tirage se fait sur le serveur ; les lots se retirent au comptoir avec leur code.</p>
+          </div>
+        </div>
+        ${admSubtabsHtml(tabs, wheelTab, 'wheel-tab')}
+        <div class="adm-tab-body" id="adm-wheel-body"></div>
+      </div>`;
+    contentArea.querySelectorAll('.adm-subtab[data-wheel-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.wheelTab === wheelTab) return;
+        const f = admForms.reglages;
+        if (wheelTab === 'reglages' && f.dirty && !confirm('Quitter sans enregistrer les réglages de la roue ?')) return;
+        stopActiveScanner();
+        wheelTab = btn.dataset.wheelTab;
+        renderWheelPanel();
+      });
+    });
+    const body = contentArea.querySelector('#adm-wheel-body');
+    if (wheelTab === 'comptoir') renderWheelComptoir(body, seq);
+    else if (wheelTab === 'reglages') renderWheelReglages(body, seq);
+    else if (wheelTab === 'parties') renderWheelParties(body, seq);
+    else if (wheelTab === 'stats') renderWheelStats(body, seq);
+  }
+
+  // --------------------------------------------------------------------------
+  // LOYALTY · COMPTOIR
+  // --------------------------------------------------------------------------
+  function renderLoyaltyComptoir(body, seq) {
+    body.innerHTML = `
+      <div class="dashboard-split-layout adm-split-even adm-comptoir">
+        <div class="admin-card adm-comptoir-scan">
+          <div class="admin-card-header"><h3>📷 Scanner la carte du client</h3></div>
+          <div class="adm-scanner-host"></div>
+        </div>
+        <div class="adm-loyalty-result" aria-live="polite">
+          <div class="admin-card adm-result-card adm-placeholder">
+            <p>Le client scanné apparaît ici.</p>
+            <p class="adm-muted">Carte Babke (QR sur le téléphone), numéro de téléphone ou code lot de la roue.</p>
+          </div>
+        </div>
+      </div>`;
+    const resultHost = body.querySelector('.adm-loyalty-result');
+    const scanCard = body.querySelector('.adm-comptoir-scan');
+    const opts = {
+      onNext: () => {
+        if (!admAlive(seq, scanCard)) return;
+        scanCard.scrollIntoView({ behavior: admReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+        ui.start();
+      }
+    };
+    const ui = mountScannerUi(body.querySelector('.adm-scanner-host'), {
+      onResult: (text) => routeScanPayload(text, resultHost, opts)
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // LOYALTY · MEMBRES
+  // --------------------------------------------------------------------------
+  const admMembersState = { q: '', page: 1 };
+  const admQueryLongEnough = (q) => {
+    const digits = q.replace(/\D/g, '').length;
+    const letters = (q.match(/\p{L}/gu) || []).length;
+    return digits >= 4 || letters >= 2;
+  };
+
+  function renderLoyaltyMembres(body, seq) {
+    const isOwner = userRole === 'admin';
+    const st = admMembersState;
+    body.innerHTML = `
+      <div class="dashboard-split-layout adm-split-even">
+        <div class="admin-card adm-members-card">
+          <div class="admin-card-header">
+            <h3>👥 Membres</h3>
+            <div class="adm-row-actions">${isOwner ? '<button type="button" class="btn-adm-ghost adm-btn-sm adm-export-members">Exporter CSV</button>' : ''}</div>
+          </div>
+          <label class="adm-sr-only" for="adm-members-q">Rechercher un membre</label>
+          <input id="adm-members-q" type="search" class="admin-input adm-members-search" maxlength="40" autocomplete="off" placeholder="Téléphone ou prénom" value="${escapeHtml(st.q)}">
+          <p class="adm-hint adm-members-hint" hidden>Tapez au moins 4 chiffres du numéro ou 2 lettres du prénom.</p>
+          <div class="adm-members-table"></div>
+          <div class="adm-pager"></div>
+        </div>
+        <div class="adm-loyalty-result" aria-live="polite">
+          <div class="admin-card adm-result-card adm-placeholder"><p>Sélectionnez un membre pour ajouter des sceaux ou offrir un cadeau.</p></div>
+        </div>
+      </div>`;
+    const input = body.querySelector('.adm-members-search');
+    const hint = body.querySelector('.adm-members-hint');
+    const tableEl = body.querySelector('.adm-members-table');
+    const pager = body.querySelector('.adm-pager');
+    const resultHost = body.querySelector('.adm-loyalty-result');
+    let reqId = 0;
+    let timer = null;
+    let selectedId = null;
+
+    const drawTable = (d) => {
+      const items = Array.isArray(d.items) ? d.items : [];
+      const pageSize = admNum(d.pageSize) || 25;
+      const total = admNum(d.total);
+      const pages = Math.max(1, Math.ceil(total / pageSize));
+      if (!items.length) {
+        tableEl.innerHTML = `
+          <div class="empty-state-container">
+            <div class="empty-state-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <h4>Aucun membre trouvé</h4>
+            <p>Vérifiez le numéro ou le prénom, ou créez le membre depuis le Comptoir.</p>
+          </div>`;
+      } else {
+        tableEl.innerHTML = `
+          <div class="table-responsive-wrapper">
+            <table class="admin-table adm-members-tbl">
+              <thead><tr><th>Prénom</th><th>Téléphone</th><th>Sceaux</th><th>Cumul</th><th>Dernière visite</th><th>Cartes</th><th><span class="adm-sr-only">Action</span></th></tr></thead>
+              <tbody>${items.map((m) => `
+                <tr class="${m.id === selectedId ? 'is-selected' : ''}">
+                  <td><strong>${escapeHtml(m.firstName || '—')}</strong></td>
+                  <td><span dir="ltr">${escapeHtml(m.phoneDisplay || '')}</span></td>
+                  <td>${admNum(m.stamps)}</td>
+                  <td>${admNum(m.lifetimeStamps)}</td>
+                  <td>${escapeHtml(admFmtDate(m.lastVisitAt))}</td>
+                  <td>${admNum(m.activeCards)}</td>
+                  <td><button type="button" class="btn-adm-ghost adm-btn-sm adm-open-member" data-id="${escapeHtml(m.id)}">Ouvrir</button></td>
+                </tr>`).join('')}</tbody>
+            </table>
+          </div>`;
+      }
+      const page = admNum(d.page) || st.page;
+      pager.innerHTML = total > pageSize ? `
+        <button type="button" class="btn-adm-ghost adm-btn-sm adm-page-prev"${page <= 1 ? ' disabled' : ''}>Précédent</button>
+        <span class="adm-muted">Page ${page} / ${pages} · ${total} membre(s)</span>
+        <button type="button" class="btn-adm-ghost adm-btn-sm adm-page-next"${page >= pages ? ' disabled' : ''}>Suivant</button>`
+        : `<span class="adm-muted">${total} membre(s)</span>`;
+      st.pages = pages;
+    };
+
+    const load = async (silent) => {
+      const my = ++reqId;
+      const q = st.q.trim().slice(0, 40);
+      if (!isOwner && !admQueryLongEnough(q)) {
+        hint.hidden = false;
+        tableEl.innerHTML = '';
+        pager.innerHTML = '';
+        return;
+      }
+      hint.hidden = true;
+      if (!silent) tableEl.innerHTML = admLoadingHtml();
+      try {
+        const d = await adminApi(`/api/admin/loyalty/members?q=${encodeURIComponent(q)}&page=${encodeURIComponent(st.page)}`);
+        if (my !== reqId || !admAlive(seq, tableEl)) return;
+        drawTable(d);
+      } catch (err) {
+        if (my !== reqId || !admAlive(seq, tableEl)) return;
+        if (err.data && err.data.error === 'query_too_short') { hint.hidden = false; tableEl.innerHTML = ''; pager.innerHTML = ''; return; }
+        tableEl.innerHTML = `<p class="adm-error" role="alert">${escapeHtml(err.message)}</p>`;
+      }
+    };
+
+    input.addEventListener('input', () => {
+      st.q = input.value;
+      st.page = 1;
+      clearTimeout(timer);
+      timer = setTimeout(() => load(false), 250);
+    });
+    pager.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled) return;
+      if (b.classList.contains('adm-page-prev') && st.page > 1) st.page--;
+      else if (b.classList.contains('adm-page-next') && st.page < (st.pages || 1)) st.page++;
+      else return;
+      load(false);
+    });
+    tableEl.addEventListener('click', async (e) => {
+      const b = e.target.closest('.adm-open-member');
+      if (!b) return;
+      const id = b.dataset.id;
+      selectedId = id;
+      tableEl.querySelectorAll('tr.is-selected').forEach((tr) => tr.classList.remove('is-selected'));
+      const tr = b.closest('tr'); if (tr) tr.classList.add('is-selected');
+      admRenderHostMessage(resultHost, admLoadingHtml(), null);
+      try {
+        const d = await adminApi(`/api/admin/loyalty/members/${encodeURIComponent(id)}`);
+        if (!admAlive(seq, resultHost) || selectedId !== id) return;
+        renderMemberPanel(resultHost, d, { onDeleted: () => { selectedId = null; load(true); } });
+        if (window.matchMedia && window.matchMedia('(max-width: 1024px)').matches) {
+          resultHost.scrollIntoView({ behavior: admReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+        }
+      } catch (err) {
+        if (!admAlive(seq, resultHost)) return;
+        admRenderError(resultHost, err.message, null);
+      }
+    });
+    const exportBtn = body.querySelector('.adm-export-members');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', async () => {
+        exportBtn.disabled = true;
+        try {
+          const q = st.q.trim().slice(0, 40);
+          const d = await adminApi(`/api/admin/loyalty/members?all=1&q=${encodeURIComponent(q)}`);
+          const rows = (d.items || []).map((m) => [
+            m.firstName || '',
+            m.phone || '',
+            admNum(m.stamps),
+            admNum(m.lifetimeStamps),
+            m.createdAt ? new Date(m.createdAt).toLocaleDateString('fr-FR') : '',
+            m.lastVisitAt ? new Date(m.lastVisitAt).toLocaleDateString('fr-FR') : ''
+          ]);
+          exportToCsv('membres-fidelite.csv', ['Prénom', 'Téléphone', 'Sceaux', 'Cumul', 'Créé le', 'Dernière visite'], rows);
+          showToast(`${rows.length} membre(s) exporté(s)`, 'success');
+        } catch (err) {
+          admErrToast(err);
+        } finally {
+          exportBtn.disabled = false;
+        }
+      });
+    }
+    admTabRefresher = () => { if (admAlive(seq, tableEl)) load(true); };
+    load(false);
+  }
+
+  // --------------------------------------------------------------------------
+  // SHARED FORM BITS (trilingual inputs, switches, stale banner)
+  // --------------------------------------------------------------------------
+  function admLangGrid(key, loc, max, { textarea = false, rows = 3, label = '', required = true } = {}) {
+    const v = (loc && typeof loc === 'object') ? loc : {};
+    const one = (lang, name) => {
+      const id = `adm-${key.replace(/[^a-z0-9]/gi, '-')}-${lang}`;
+      const attrs = `id="${id}" data-loc="${escapeHtml(key)}.${lang}" maxlength="${max}"${lang === 'tn' ? ' dir="rtl" lang="ar"' : ' dir="ltr"'}${lang === 'fr' && required ? ' aria-required="true"' : ''}`;
+      const field = textarea
+        ? `<textarea class="admin-input" rows="${rows}" ${attrs}>${escapeHtml(v[lang] || '')}</textarea>`
+        : `<input type="text" class="admin-input" ${attrs} value="${escapeHtml(v[lang] || '')}">`;
+      return `<div class="form-group-admin"><label for="${id}">${escapeHtml(label ? label + ' ' : '')}${name}${lang === 'fr' && required ? ' *' : ''}</label>${field}</div>`;
+    };
+    return `<div class="adm-lang-grid">${one('fr', 'FR')}${one('en', 'EN')}${one('tn', 'TN')}</div>`;
+  }
+  const admReadLoc = (scope, key) => {
+    const g = (lang) => { const el = scope.querySelector(`[data-loc="${key}.${lang}"]`); return el ? el.value.trim() : ''; };
+    return { fr: g('fr'), en: g('en'), tn: g('tn') };
+  };
+  function admSwitchHtml(name, checked, label) {
+    return `<label class="adm-switch"><input type="checkbox" name="${name}"${checked ? ' checked' : ''}><span class="adm-switch-track" aria-hidden="true"></span><span class="adm-switch-label">${escapeHtml(label)}</span></label>`;
+  }
+  function admStaleBannerHtml() {
+    return `<div class="adm-banner adm-banner-warn adm-stale-banner" hidden role="status">
+      <span>Configuration modifiée ailleurs — rechargez avant d'enregistrer.</span>
+      <button type="button" class="btn-adm-ghost adm-btn-sm adm-stale-reload">Recharger</button>
+    </div>`;
+  }
+  function admShowStale(key) {
+    const f = admForms[key];
+    f.stale = true;
+    if (f.banner && f.banner.isConnected) f.banner.hidden = false;
+  }
+  // Called for loyaltyProgramChanged / wheelConfigChanged / menuBookChanged.
+  function admConfigChanged(key, data) {
+    const f = admForms[key];
+    if (!f.reload) return;                 // form not on screen
+    const v = data && Number.isInteger(data.version) ? data.version : null;
+    if (f.saving) { if (v != null) f.seenVersion = Math.max(f.seenVersion || 0, v); return; }
+    if (v != null && f.version != null && v <= f.version) return;   // our own save (or older)
+    if (!f.dirty) f.reload();
+    else admShowStale(key);
+  }
+
+  // --------------------------------------------------------------------------
+  // LOYALTY · PROGRAMME (admin)
+  // --------------------------------------------------------------------------
+  async function renderLoyaltyProgramme(body, seq) {
+    const f = admForms.programme;
+    admResetForm('programme');
+    body.innerHTML = admLoadingHtml();
+    let prog;
+    try {
+      prog = await adminApi('/api/admin/loyalty/program');
+    } catch (err) {
+      if (!admAlive(seq, body)) return;
+      body.innerHTML = `<div class="admin-card"><p class="adm-error" role="alert">${escapeHtml(err.message)}</p><button type="button" class="btn-adm-ghost adm-retry">Réessayer</button></div>`;
+      body.querySelector('.adm-retry').addEventListener('click', () => renderLoyaltyProgramme(body, seq));
+      return;
+    }
+    if (!admAlive(seq, body)) return;
+    f.reload = () => { if (admAlive(seq, body)) renderLoyaltyProgramme(body, seq); };
+    admDrawProgramForm(body, seq, prog);
+  }
+
+  function admTierRowHtml(t) {
+    const r = (t.reward && typeof t.reward === 'object') ? t.reward : {};
+    return `
+      <tr class="adm-tier-row" data-id="${escapeHtml(t.id || '')}">
+        <td><input type="number" class="admin-input adm-num-sm" data-f="stamps" min="1" max="50" step="1" value="${escapeHtml(t.stamps == null ? '' : t.stamps)}" aria-label="Sceaux requis"></td>
+        <td><input type="text" class="admin-input" data-f="reward.fr" maxlength="60" value="${escapeHtml(r.fr || '')}" aria-label="Récompense FR" dir="ltr"></td>
+        <td><input type="text" class="admin-input" data-f="reward.en" maxlength="60" value="${escapeHtml(r.en || '')}" aria-label="Récompense EN" dir="ltr"></td>
+        <td><input type="text" class="admin-input" data-f="reward.tn" maxlength="60" value="${escapeHtml(r.tn || '')}" aria-label="Récompense TN" dir="rtl" lang="ar"></td>
+        <td class="adm-center"><input type="checkbox" data-f="active"${t.active !== false ? ' checked' : ''} aria-label="Palier actif"></td>
+        <td><button type="button" class="btn-admin-action delete adm-tier-del" aria-label="Supprimer ce palier">🗑</button></td>
+      </tr>`;
+  }
+
+  function admDrawProgramForm(body, seq, prog) {
+    const f = admForms.programme;
+    f.version = prog.version;
+    f.dirty = false;
+    f.stale = false;
+    const tiers = (Array.isArray(prog.tiers) ? prog.tiers : []).slice().sort((a, b) => admNum(a.stamps) - admNum(b.stamps));
+    body.innerHTML = `
+      ${admStaleBannerHtml()}
+      <div class="adm-form-layout">
+        <form class="admin-card adm-loyalty-program-form" novalidate autocomplete="off">
+          <div class="admin-card-header"><h3>⚙️ Programme de fidélité</h3><span class="adm-muted">Version ${admNum(prog.version)}${prog.updatedAt ? ' · ' + escapeHtml(admFmtDateTime(prog.updatedAt)) : ''}</span></div>
+          <div class="adm-form-row">${admSwitchHtml('active', prog.active !== false, 'Programme actif')}</div>
+          <fieldset class="adm-fieldset"><legend>Titre de la carte</legend>${admLangGrid('cardTitle', prog.cardTitle, 40)}</fieldset>
+          <fieldset class="adm-fieldset"><legend>Règle d'attribution</legend>${admLangGrid('stampRule', prog.stampRule, 120)}</fieldset>
+          <div class="adm-num-grid">
+            <div class="form-group-admin"><label for="adm-prog-goal">Objectif (4–20)</label><input id="adm-prog-goal" type="number" class="admin-input" name="stampGoal" min="4" max="20" step="1" value="${admNum(prog.stampGoal)}"></div>
+            <div class="form-group-admin"><label for="adm-prog-bonus">Bonus de bienvenue (0–5)</label><input id="adm-prog-bonus" type="number" class="admin-input" name="welcomeBonus" min="0" max="5" step="1" value="${admNum(prog.welcomeBonus)}"></div>
+            <div class="form-group-admin"><label for="adm-prog-cap">Max sceaux / jour / client (1–10)</label><input id="adm-prog-cap" type="number" class="admin-input" name="maxStampsPerDay" min="1" max="10" step="1" value="${admNum(prog.maxStampsPerDay)}"></div>
+          </div>
+          <h4 class="adm-subhead">Paliers de récompense</h4>
+          <div class="table-responsive-wrapper">
+            <table class="admin-table adm-loyalty-tiers-table">
+              <thead><tr><th>Sceaux</th><th>Récompense FR *</th><th>EN</th><th>TN</th><th>Actif</th><th><span class="adm-sr-only">Supprimer</span></th></tr></thead>
+              <tbody>${tiers.map(admTierRowHtml).join('')}</tbody>
+            </table>
+          </div>
+          <button type="button" class="btn-adm-ghost adm-btn-sm adm-add-tier">+ Ajouter un palier</button>
+          <p class="adm-error adm-form-error" role="alert" hidden></p>
+          <div class="adm-form-footer"><button type="submit" class="btn-admin-primary adm-save">Enregistrer le programme</button></div>
+        </form>
+        <div class="admin-card adm-preview-card-wrap">
+          <div class="admin-card-header"><h3>Aperçu de la carte</h3></div>
+          <div class="adm-loyalty-preview-card" aria-hidden="true">
+            <div class="adm-lp-head"><img src="../assets/BabkeLogo.png" alt=""><span class="adm-lp-chip"></span></div>
+            <div class="adm-lp-name">PRÉNOM</div>
+            <div class="adm-lp-dots"></div>
+            <div class="adm-lp-foot"></div>
+          </div>
+          <p class="adm-muted adm-preview-note">Les premiers cercles pleins correspondent au bonus de bienvenue.</p>
+        </div>
+      </div>`;
+    const form = body.querySelector('.adm-loyalty-program-form');
+    const tbody = form.querySelector('.adm-loyalty-tiers-table tbody');
+    const errEl = form.querySelector('.adm-form-error');
+    const saveBtn = form.querySelector('.adm-save');
+    f.banner = body.querySelector('.adm-stale-banner');
+    f.banner.querySelector('.adm-stale-reload').addEventListener('click', () => { f.dirty = false; f.reload && f.reload(); });
+
+    const read = () => {
+      const num = (name) => { const el = form.querySelector(`[name="${name}"]`); return el && el.value !== '' ? Number(el.value) : NaN; };
+      return {
+        active: form.querySelector('[name="active"]').checked,
+        cardTitle: admReadLoc(form, 'cardTitle'),
+        stampRule: admReadLoc(form, 'stampRule'),
+        stampGoal: num('stampGoal'),
+        welcomeBonus: num('welcomeBonus'),
+        maxStampsPerDay: num('maxStampsPerDay'),
+        tiers: Array.from(tbody.querySelectorAll('tr.adm-tier-row')).map((tr) => {
+          const g = (k) => tr.querySelector(`[data-f="${k}"]`);
+          const out = {
+            stamps: g('stamps').value === '' ? NaN : Number(g('stamps').value),
+            reward: { fr: g('reward.fr').value.trim(), en: g('reward.en').value.trim(), tn: g('reward.tn').value.trim() },
+            active: g('active').checked
+          };
+          if (tr.dataset.id) out.id = tr.dataset.id;
+          return out;
+        })
+      };
+    };
+    const validate = (p) => {
+      const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+      if (!p.cardTitle.fr) return 'Le titre de la carte (FR) est obligatoire.';
+      if (!p.stampRule.fr) return "La règle d'attribution (FR) est obligatoire.";
+      if (!isInt(p.stampGoal, 4, 20)) return "L'objectif doit être un entier entre 4 et 20.";
+      if (!isInt(p.welcomeBonus, 0, 5)) return 'Le bonus de bienvenue doit être un entier entre 0 et 5.';
+      if (!isInt(p.maxStampsPerDay, 1, 10)) return 'Le maximum de sceaux par jour doit être un entier entre 1 et 10.';
+      if (p.tiers.length < 1 || p.tiers.length > 6) return 'Il faut entre 1 et 6 paliers.';
+      const seen = new Set();
+      for (const t of p.tiers) {
+        if (!isInt(t.stamps, 1, 50)) return 'Chaque palier doit demander entre 1 et 50 sceaux.';
+        if (!t.reward.fr) return 'Chaque palier doit avoir une récompense en français.';
+        if (seen.has(t.stamps)) return `Deux paliers demandent ${t.stamps} sceaux : chaque palier doit être unique.`;
+        seen.add(t.stamps);
+      }
+      return '';
+    };
+    const updatePreview = () => {
+      const p = read();
+      const card = body.querySelector('.adm-loyalty-preview-card');
+      if (!card) return;
+      card.querySelector('.adm-lp-chip').textContent = p.cardTitle.fr || 'Carte Babke';
+      card.querySelector('.adm-lp-foot').textContent = p.stampRule.fr || '';
+      const goal = Math.min(20, Math.max(1, Number.isInteger(p.stampGoal) ? p.stampGoal : 10));
+      const bonus = Math.max(0, Math.min(goal, Number.isInteger(p.welcomeBonus) ? p.welcomeBonus : 0));
+      const dots = card.querySelector('.adm-lp-dots');
+      dots.classList.toggle('is-wide', goal > 10);
+      const tierAt = new Set(p.tiers.filter((t) => t.active && Number.isInteger(t.stamps)).map((t) => t.stamps));
+      let html = '';
+      for (let i = 0; i < goal; i++) html += `<span class="adm-lp-dot${i < bonus ? ' filled' : ''}${tierAt.has(i + 1) ? ' is-tier' : ''}">${i < bonus ? '' : i + 1}</span>`;
+      dots.innerHTML = html;
+    };
+    const markDirty = () => { f.dirty = true; errEl.hidden = true; };
+    form.addEventListener('input', () => { markDirty(); updatePreview(); });
+    form.addEventListener('change', () => { markDirty(); updatePreview(); });
+    form.querySelector('.adm-add-tier').addEventListener('click', () => {
+      const rows = tbody.querySelectorAll('tr.adm-tier-row');
+      if (rows.length >= 6) { showToast('Maximum 6 paliers.', 'warning'); return; }
+      const used = new Set(read().tiers.map((t) => t.stamps));
+      let s = Math.min(50, (Math.max(0, ...Array.from(used).filter(Number.isInteger)) || 0) + 5);
+      while (used.has(s) && s > 1) s--;
+      tbody.insertAdjacentHTML('beforeend', admTierRowHtml({ stamps: s, reward: {}, active: true }));
+      markDirty(); updatePreview();
+      const last = tbody.querySelector('tr.adm-tier-row:last-child [data-f="reward.fr"]');
+      if (last) last.focus();
+    });
+    tbody.addEventListener('click', (e) => {
+      const b = e.target.closest('.adm-tier-del');
+      if (!b) return;
+      b.closest('tr').remove();
+      markDirty(); updatePreview();
+    });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (f.saving) return;
+      const p = read();
+      const problem = validate(p);
+      if (problem) { errEl.textContent = problem; errEl.hidden = false; return; }
+      f.saving = true; f.seenVersion = null;
+      saveBtn.disabled = true; saveBtn.textContent = 'Enregistrement…';
+      try {
+        const r = await adminApi('/api/admin/loyalty/program', { method: 'PUT', body: Object.assign({ version: f.version }, p) });
+        f.saving = false;
+        if (!admAlive(seq, body)) return;
+        showToast('Programme enregistré', 'success');
+        const external = f.seenVersion != null && f.seenVersion > admNum(r.version);
+        admDrawProgramForm(body, seq, r);
+        if (external) admShowStale('programme');
+      } catch (err) {
+        f.saving = false;
+        if (!admAlive(seq, body)) return;
+        saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer le programme';
+        if (err.status === 409 && err.data && err.data.error === 'version_conflict') {
+          admErrToast(err);
+          admShowStale('programme');
+        } else if (err.message !== 'Session expirée') {
+          errEl.textContent = err.message; errEl.hidden = false;
+        }
+      }
+    });
+    updatePreview();
+  }
+
+  // --------------------------------------------------------------------------
+  // LOYALTY · STATS (admin, comptable)
+  // --------------------------------------------------------------------------
+  function admStatCard(label, value, trend, trendCls = 'neutral', icon = '') {
+    return `
+      <div class="stat-card">
+        <div class="stat-card-details">
+          <span>${escapeHtml(label)}</span>
+          <h3>${escapeHtml(value)}</h3>
+          ${trend ? `<span class="stat-card-trend ${trendCls}">${escapeHtml(trend)}</span>` : ''}
+        </div>
+        <div class="stat-card-visual"><div class="stat-card-icon">${icon}</div></div>
+      </div>`;
+  }
+  const ADM_ICONS = {
+    users: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    plus: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+    star: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    gift: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>',
+    wheel: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="10"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="2" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="22" y2="12"/></svg>',
+    phone: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+    check: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+  };
+
+  function renderLoyaltyStats(body, seq) {
+    body.innerHTML = admLoadingHtml();
+    const load = async () => {
+      let s;
+      try {
+        s = await adminApi('/api/admin/loyalty/stats');
+      } catch (err) {
+        if (!admAlive(seq, body)) return;
+        _destroyChart('chart-loyalty-14d');
+        body.innerHTML = `<div class="admin-card"><p class="adm-error" role="alert">${escapeHtml(err.message)}</p><button type="button" class="btn-adm-ghost adm-retry">Réessayer</button></div>`;
+        body.querySelector('.adm-retry').addEventListener('click', load);
+        return;
+      }
+      if (!admAlive(seq, body)) return;
+      _destroyChart('chart-loyalty-14d');
+      const days = Array.isArray(s.days) ? s.days : [];
+      const recent = Array.isArray(s.recent) ? s.recent : [];
+      const dotCls = { signup: 'ok', card_activate: 'ok', stamp: 'accent', wheel_stamps: 'accent', redeem: 'gold', unstamp: 'muted', card_revoke: 'muted', member_update: 'muted', member_delete: 'danger' };
+      body.innerHTML = `
+        ${s.programActive === false ? '<div class="adm-banner adm-banner-warn">Programme en pause : aucun sceau ne peut être attribué.</div>' : ''}
+        <div class="dashboard-grid-stats">
+          ${admStatCard('Membres', admNum(s.totalMembers), `${admNum(s.pendingCards)} carte(s) en attente`, 'neutral', ADM_ICONS.users)}
+          ${admStatCard('Nouveaux (7 j)', admNum(s.newMembers7d), `${admNum(s.activeCards)} carte(s) active(s)`, 'positive', ADM_ICONS.plus)}
+          ${admStatCard('Sceaux (7 j)', admNum(s.stamps7d), `Objectif ${admNum(s.stampGoal)} sceaux`, 'neutral', ADM_ICONS.star)}
+          ${admStatCard('Cadeaux (7 j)', admNum(s.redemptions7d), 'Récompenses offertes', 'positive', ADM_ICONS.gift)}
+        </div>
+        <div class="dashboard-split-layout">
+          <div class="admin-card">
+            <div class="admin-card-header"><h3>📊 14 derniers jours</h3></div>
+            <div class="adm-chart-box"><canvas id="chart-loyalty-14d" aria-label="Sceaux et cadeaux sur 14 jours" role="img"></canvas></div>
+          </div>
+          <div class="admin-card">
+            <div class="admin-card-header"><h3>🕒 Activité récente</h3></div>
+            ${recent.length ? `<ul class="adm-activity">${recent.map((ev) => `
+              <li>
+                <span class="adm-dot ${dotCls[ev.type] || 'muted'}" aria-hidden="true"></span>
+                <span class="adm-activity-main"><strong>${escapeHtml(ev.firstName || '—')}</strong> <span class="adm-muted" dir="ltr">${escapeHtml(ev.phoneMasked || '')}</span><br><span>${admEventLabel(ev)}</span></span>
+                <span class="adm-muted adm-activity-time">${escapeHtml(admRelTime(ev.at))}${ev.byUser ? '<br>' + escapeHtml(ev.byUser) : ''}</span>
+              </li>`).join('')}</ul>` : '<p class="adm-muted">Aucune activité pour le moment. Scannez la première carte au comptoir.</p>'}
+          </div>
+        </div>`;
+      if (typeof Chart !== 'undefined') {
+        const ctx = document.getElementById('chart-loyalty-14d');
+        if (ctx) {
+          _chartInstances['chart-loyalty-14d'] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: days.map((d) => String(d.label || d.day || '')),
+              datasets: [
+                { label: 'Sceaux', data: days.map((d) => admNum(d.stamps)), backgroundColor: '#c03a2e', borderRadius: 4, stack: 'l' },
+                { label: 'Cadeaux', data: days.map((d) => admNum(d.redeems)), backgroundColor: '#e0a526', borderRadius: 4, stack: 'l' }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: admReducedMotion() ? false : undefined,
+              plugins: { legend: { position: 'bottom' } },
+              scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } }
+            }
+          });
+        }
+      }
+    };
+    admTabRefresher = () => { if (admAlive(seq, body)) load(); };
+    load();
+  }
+
+  // --------------------------------------------------------------------------
+  // WHEEL · COMPTOIR (admin, cashier)
+  // --------------------------------------------------------------------------
+  function admFormatCodeInput(raw) {
+    let s = String(raw || '').toUpperCase();
+    if (s.startsWith('BABKE:W:')) s = s.slice(8);
+    s = s.split('').filter((ch) => ADM_CODE_ALPHABET.includes(ch)).join('');
+    if (s && s !== 'B' && !s.startsWith('BK')) s = 'BK' + s;
+    s = s.slice(0, 10);
+    let out = s.slice(0, 2);
+    if (s.length > 2) out += '-' + s.slice(2, 6);
+    if (s.length > 6) out += '-' + s.slice(6, 10);
+    return out;
+  }
+
+  function renderWheelComptoir(body, seq) {
+    body.innerHTML = `
+      <div class="dashboard-split-layout adm-split-even adm-comptoir">
+        <div class="admin-card adm-comptoir-scan">
+          <div class="admin-card-header"><h3>🎟️ Remise d'un lot</h3></div>
+          <form class="adm-wheel-code-form" autocomplete="off" novalidate>
+            <label for="adm-wheel-code" class="adm-label">Code du lot (sur le téléphone du client)</label>
+            <input id="adm-wheel-code" class="admin-input adm-wheel-code-input" type="text" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="12" placeholder="BK-XXXX-XXXX" dir="ltr">
+            <div class="adm-row-actions">
+              <button type="submit" class="btn-admin-primary">Vérifier</button>
+              <button type="button" class="btn-adm-ghost adm-wheel-scan-toggle" aria-expanded="false">Scanner</button>
+            </div>
+          </form>
+          <div class="adm-wheel-scanner-slot" hidden></div>
+        </div>
+        <div class="adm-wheel-result" aria-live="polite">
+          <div class="admin-card adm-result-card adm-placeholder">
+            <p>Saisissez ou scannez le code du lot.</p>
+            <p class="adm-muted">Le code seul ne suffit pas : vérifiez le prénom du gagnant avant de remettre le lot.</p>
+          </div>
+        </div>
+      </div>`;
+    const form = body.querySelector('.adm-wheel-code-form');
+    const input = form.querySelector('.adm-wheel-code-input');
+    const toggle = form.querySelector('.adm-wheel-scan-toggle');
+    const slot = body.querySelector('.adm-wheel-scanner-slot');
+    const resultHost = body.querySelector('.adm-wheel-result');
+    let ui = null;
+    const closeScanner = () => {
+      if (ui) { ui.stop(); ui = null; }
+      stopScannerIfInside(slot);
+      slot.hidden = true;
+      slot.innerHTML = '';
+      toggle.textContent = 'Scanner';
+      toggle.setAttribute('aria-expanded', 'false');
+    };
+    const opts = {
+      onNext: () => {
+        if (!admAlive(seq, slot)) return;
+        input.value = '';
+        openScanner();
+        body.querySelector('.adm-comptoir-scan').scrollIntoView({ behavior: admReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      }
+    };
+    const openScanner = () => {
+      slot.hidden = false;
+      toggle.textContent = 'Fermer le scanner';
+      toggle.setAttribute('aria-expanded', 'true');
+      ui = mountScannerUi(slot, {
+        onResult: (text) => routeScanPayload(text, resultHost, opts),
+        idleText: 'Scannez le QR du lot (ou la Carte Babke).'
+      });
+      ui.start();
+    };
+    input.addEventListener('input', () => {
+      const v = admFormatCodeInput(input.value);
+      if (v !== input.value) input.value = v;
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const code = admNormalizeCode(input.value);
+      if (!code) { admRenderError(resultHost, 'Format de code invalide (BK-XXXX-XXXX).', null); input.focus(); return; }
+      closeScanner();
+      routeScanPayload(admFormatCode(code), resultHost, opts);
+    });
+    toggle.addEventListener('click', () => { if (slot.hidden) openScanner(); else closeScanner(); });
+  }
+
+  // --------------------------------------------------------------------------
+  // WHEEL · RÉGLAGES (admin)
+  // --------------------------------------------------------------------------
+  async function renderWheelReglages(body, seq) {
+    const f = admForms.reglages;
+    admResetForm('reglages');
+    body.innerHTML = admLoadingHtml();
+    let cfg;
+    try {
+      cfg = await adminApi('/api/admin/wheel/config');
+    } catch (err) {
+      if (!admAlive(seq, body)) return;
+      body.innerHTML = `<div class="admin-card"><p class="adm-error" role="alert">${escapeHtml(err.message)}</p><button type="button" class="btn-adm-ghost adm-retry">Réessayer</button></div>`;
+      body.querySelector('.adm-retry').addEventListener('click', () => renderWheelReglages(body, seq));
+      return;
+    }
+    if (!admAlive(seq, body)) return;
+    f.reload = () => { if (admAlive(seq, body)) renderWheelReglages(body, seq); };
+    admDrawWheelForm(body, seq, cfg);
+  }
+
+  const ADM_COOLDOWNS = [
+    { h: 24, label: '24 h' }, { h: 72, label: '72 h' }, { h: 168, label: '7 jours' }, { h: 336, label: '14 jours' }, { h: 720, label: '30 jours' }
+  ];
+  let admSegUid = 0;
+
+  function admWheelPreviewSvg(segs) {
+    const act = segs.filter((s) => s.active);
+    const n = act.length;
+    if (!n) return '<p class="adm-muted">Aucun segment actif.</p>';
+    const C = 100, R = 88, LR = 56, span = 360 / n;
+    const pt = (deg, r) => {
+      const a = deg * Math.PI / 180;
+      return `${(C + r * Math.sin(a)).toFixed(2)} ${(C - r * Math.cos(a)).toFixed(2)}`;
+    };
+    let wedges = '';
+    let labels = '';
+    act.forEach((s, i) => {
+      const a0 = i * span, a1 = (i + 1) * span;
+      const fill = ADM_TONE_HEX[s.tone] || ADM_TONE_HEX.charcoal;
+      wedges += n === 1
+        ? `<circle cx="${C}" cy="${C}" r="${R}" fill="${fill}"/>`
+        : `<path d="M${C} ${C} L${pt(a0, R)} A${R} ${R} 0 ${span > 180 ? 1 : 0} 1 ${pt(a1, R)} Z" fill="${fill}" stroke="rgba(255,214,150,.55)" stroke-width=".6"/>`;
+      const mid = (i + 0.5) * span;
+      const flip = mid > 180 && mid < 360;
+      const rot = flip ? mid + 90 : mid - 90;
+      const x = flip ? C - LR : C + LR;
+      let text = admLocFr(s.label) || '—';
+      if (text.length > 14) text = text.slice(0, 13) + '…';
+      const color = s.tone === 'charcoal' ? '#ffb830' : '#fff8ee';
+      labels += `<text x="${x}" y="${C}" transform="rotate(${rot.toFixed(2)} ${C} ${C})" text-anchor="middle" dominant-baseline="middle" fill="${color}" font-size="7" font-weight="700" font-family="Outfit, sans-serif">${escapeHtml(text.toUpperCase())}</text>`;
+    });
+    return `
+      <svg viewBox="0 0 200 200" role="img" aria-label="Aperçu de la roue (${n} segments actifs)">
+        <circle cx="${C}" cy="${C}" r="97" fill="#2a1c10" stroke="#d9a441" stroke-width="5"/>
+        <circle cx="${C}" cy="${C}" r="${R}" fill="#120e0c"/>
+        ${wedges}${labels}
+        <circle cx="${C}" cy="${C}" r="20" fill="#120e0c" stroke="#d9a441" stroke-width="2"/>
+        <path d="M${C - 7} 1 L${C + 7} 1 L${C} 16 Z" fill="#ffd27a" stroke="#3b2410" stroke-width="1.2" stroke-linejoin="round"/>
+      </svg>`;
+  }
+
+  function admDrawWheelForm(body, seq, cfg) {
+    const f = admForms.reglages;
+    f.version = cfg.version;
+    f.dirty = false;
+    f.stale = false;
+    const loaded = new Map((cfg.segments || []).map((s) => [s.id, s]));
+    const model = {
+      enabled: cfg.enabled === true,
+      cooldownHours: admNum(cfg.cooldownHours),
+      ipMaxPlaysPerDay: admNum(cfg.ipMaxPlaysPerDay),
+      dailyWinCap: admNum(cfg.dailyWinCap),
+      codeValidityDays: admNum(cfg.codeValidityDays),
+      segs: (cfg.segments || []).map((s) => ({
+        k: 's' + (++admSegUid),
+        id: s.id,
+        label: { fr: (s.label && s.label.fr) || '', en: (s.label && s.label.en) || '', tn: (s.label && s.label.tn) || '' },
+        type: ['prize', 'stamps', 'lose'].includes(s.type) ? s.type : 'prize',
+        stamps: s.type === 'stamps' ? admNum(s.stamps) : 1,
+        weight: admNum(s.weight),
+        tone: ADM_TONE_HEX[s.tone] ? s.tone : 'charcoal',
+        active: s.active !== false,
+        stock: s.stock || null
+      }))
+    };
+    const wasEnabled = model.enabled;
+    const cdPreset = ADM_COOLDOWNS.some((c) => c.h === model.cooldownHours);
+
+    body.innerHTML = `
+      ${admStaleBannerHtml()}
+      <form class="adm-wheel-form" novalidate autocomplete="off">
+        <div class="adm-form-layout">
+          <div class="admin-card">
+            <div class="admin-card-header"><h3>⚙️ Réglages généraux</h3><span class="adm-muted">Version ${admNum(cfg.version)}${cfg.updatedAt ? ' · ' + escapeHtml(admFmtDateTime(cfg.updatedAt)) : ''}</span></div>
+            <div class="adm-form-row">${admSwitchHtml('enabled', model.enabled, 'Roue active')}</div>
+            <div class="adm-num-grid">
+              <div class="form-group-admin">
+                <label for="adm-wheel-cd">Délai entre deux parties par numéro</label>
+                <select id="adm-wheel-cd" class="admin-select" name="cooldownPreset">
+                  ${ADM_COOLDOWNS.map((c) => `<option value="${c.h}"${c.h === model.cooldownHours ? ' selected' : ''}>${c.label}</option>`).join('')}
+                  <option value="custom"${cdPreset ? '' : ' selected'}>Personnalisé (heures)</option>
+                </select>
+                <input type="number" class="admin-input adm-cd-custom" name="cooldownHours" min="1" max="2160" step="1" value="${model.cooldownHours}" aria-label="Délai personnalisé en heures"${cdPreset ? ' hidden' : ''}>
+              </div>
+              <div class="form-group-admin"><label for="adm-wheel-ip">Parties max par réseau / 24 h</label><input id="adm-wheel-ip" type="number" class="admin-input" name="ipMaxPlaysPerDay" min="1" max="50" step="1" value="${model.ipMaxPlaysPerDay}"></div>
+              <div class="form-group-admin"><label for="adm-wheel-cap">Plafond de gains / jour</label><input id="adm-wheel-cap" type="number" class="admin-input" name="dailyWinCap" min="1" max="1000" step="1" value="${model.dailyWinCap}"></div>
+              <div class="form-group-admin"><label for="adm-wheel-valid">Validité des codes (jours)</label><input id="adm-wheel-valid" type="number" class="admin-input" name="codeValidityDays" min="1" max="90" step="1" value="${model.codeValidityDays}"></div>
+            </div>
+            <fieldset class="adm-fieldset"><legend>Règlement</legend>${admLangGrid('rules', cfg.rules, 800, { textarea: true, rows: 5 })}</fieldset>
+          </div>
+          <div class="admin-card adm-wheel-preview-card">
+            <div class="admin-card-header"><h3>Aperçu</h3></div>
+            <div class="adm-wheel-preview"></div>
+            <p class="adm-muted adm-preview-note">Ordre et couleurs des segments actifs, libellés FR. Les poids ne sont jamais envoyés au site public.</p>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header"><h3>🎯 Segments</h3><span class="adm-muted adm-seg-count"></span></div>
+          <div class="adm-wheel-validation"></div>
+          <div class="table-responsive-wrapper">
+            <table class="admin-table adm-wheel-seg-table">
+              <thead><tr>
+                <th><span class="adm-sr-only">Ordre</span></th><th>Libellé FR / EN / TN</th><th>Type</th><th>Sceaux</th><th>Poids</th><th>%</th><th>Couleur</th><th>Actif</th><th>Stock</th><th><span class="adm-sr-only">Supprimer</span></th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn-adm-ghost adm-btn-sm adm-seg-add">+ Ajouter un segment</button>
+        </div>
+        <p class="adm-error adm-form-error" role="alert" hidden></p>
+        <div class="adm-form-footer"><button type="submit" class="btn-admin-primary adm-save">Enregistrer la roue</button></div>
+      </form>`;
+
+    const form = body.querySelector('.adm-wheel-form');
+    const tbody = form.querySelector('.adm-wheel-seg-table tbody');
+    const valEl = form.querySelector('.adm-wheel-validation');
+    const previewEl = form.querySelector('.adm-wheel-preview');
+    const countEl = form.querySelector('.adm-seg-count');
+    const errEl = form.querySelector('.adm-form-error');
+    const saveBtn = form.querySelector('.adm-save');
+    const cdSelect = form.querySelector('[name="cooldownPreset"]');
+    const cdCustom = form.querySelector('[name="cooldownHours"]');
+    f.banner = body.querySelector('.adm-stale-banner');
+    f.banner.querySelector('.adm-stale-reload').addEventListener('click', () => { f.dirty = false; f.reload && f.reload(); });
+
+    const stockEligible = (s) => {
+      const saved = s.id ? loaded.get(s.id) : null;
+      return !!saved && saved.type !== 'lose' && s.type !== 'lose';
+    };
+    const stockCellHtml = (s) => {
+      if (s.type === 'lose') return '<span class="adm-muted">—</span>';
+      if (!stockEligible(s)) return '<span class="adm-muted adm-small">Enregistrez d\'abord</span>';
+      const stock = s.stock;
+      if (!stock) {
+        return `<label class="adm-check adm-small"><input type="checkbox" class="adm-stock-unlimited" checked> Illimité</label>`;
+      }
+      const left = admNum(stock.left), total = admNum(stock.total);
+      return `
+        <label class="adm-check adm-small"><input type="checkbox" class="adm-stock-unlimited"> Illimité</label>
+        <div class="adm-small">Restant : <strong>${left}</strong>/${total}</div>
+        ${left <= 0 ? '<span class="adm-badge-danger">Épuisé — ne sortira plus</span>' : ''}
+        <div class="adm-stock-actions">
+          <button type="button" class="btn-adm-ghost adm-btn-xs adm-stock-add">+ Réassort</button>
+          <button type="button" class="btn-adm-ghost adm-btn-xs adm-stock-set">Corriger</button>
+        </div>`;
+    };
+    const rowHtml = (s, i, n) => `
+      <tr data-k="${s.k}" class="${s.active ? '' : 'is-inactive'}">
+        <td class="adm-seg-order">
+          <button type="button" class="btn-admin-action adm-seg-up" aria-label="Monter"${i === 0 ? ' disabled' : ''}>↑</button>
+          <button type="button" class="btn-admin-action adm-seg-down" aria-label="Descendre"${i === n - 1 ? ' disabled' : ''}>↓</button>
+        </td>
+        <td class="adm-seg-labels">
+          <input type="text" class="admin-input" data-f="label.fr" maxlength="24" placeholder="FR *" aria-label="Libellé FR" value="${escapeHtml(s.label.fr)}" dir="ltr">
+          <input type="text" class="admin-input" data-f="label.en" maxlength="24" placeholder="EN" aria-label="Libellé EN" value="${escapeHtml(s.label.en)}" dir="ltr">
+          <input type="text" class="admin-input" data-f="label.tn" maxlength="24" placeholder="TN" aria-label="Libellé TN" value="${escapeHtml(s.label.tn)}" dir="rtl" lang="ar">
+        </td>
+        <td><select class="admin-select adm-sel-sm" data-f="type" aria-label="Type">${ADM_SEG_TYPES.map((t) => `<option value="${t.key}"${t.key === s.type ? ' selected' : ''}>${t.label}</option>`).join('')}</select></td>
+        <td><input type="number" class="admin-input adm-num-sm" data-f="stamps" min="1" max="10" step="1" aria-label="Sceaux gagnés" value="${s.type === 'stamps' ? s.stamps : ''}"${s.type === 'stamps' ? '' : ' disabled'}></td>
+        <td><input type="number" class="admin-input adm-num-sm" data-f="weight" min="0" max="10000" step="1" aria-label="Poids" value="${s.weight}"></td>
+        <td class="adm-seg-share" data-share></td>
+        <td class="adm-seg-tone"><span class="adm-wheel-swatch" style="background:${ADM_TONE_HEX[s.tone]}"></span><select class="admin-select adm-sel-sm" data-f="tone" aria-label="Couleur">${ADM_TONES.map((t) => `<option value="${t.key}"${t.key === s.tone ? ' selected' : ''}>${t.label}</option>`).join('')}</select></td>
+        <td class="adm-center"><input type="checkbox" data-f="active" aria-label="Segment actif"${s.active ? ' checked' : ''}></td>
+        <td class="adm-seg-stock">${stockCellHtml(s)}</td>
+        <td><button type="button" class="btn-admin-action delete adm-seg-del" aria-label="Supprimer ce segment">🗑</button></td>
+      </tr>`;
+    const drawRows = () => {
+      tbody.innerHTML = model.segs.map((s, i) => rowHtml(s, i, model.segs.length)).join('');
+      refresh();
+    };
+    const readGeneral = () => {
+      const num = (name) => { const el = form.querySelector(`[name="${name}"]`); return el && el.value !== '' ? Number(el.value) : NaN; };
+      model.enabled = form.querySelector('[name="enabled"]').checked;
+      model.cooldownHours = cdSelect.value === 'custom' ? num('cooldownHours') : Number(cdSelect.value);
+      model.ipMaxPlaysPerDay = num('ipMaxPlaysPerDay');
+      model.dailyWinCap = num('dailyWinCap');
+      model.codeValidityDays = num('codeValidityDays');
+      model.rules = admReadLoc(form, 'rules');
+    };
+    const problems = () => {
+      readGeneral();
+      const out = [];
+      const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+      if (!isInt(model.cooldownHours, 1, 2160)) out.push('Délai entre deux parties : entier entre 1 et 2160 heures.');
+      if (!isInt(model.ipMaxPlaysPerDay, 1, 50)) out.push('Parties max par réseau : entier entre 1 et 50.');
+      if (!isInt(model.dailyWinCap, 1, 1000)) out.push('Plafond de gains / jour : entier entre 1 et 1000.');
+      if (!isInt(model.codeValidityDays, 1, 90)) out.push('Validité des codes : entier entre 1 et 90 jours.');
+      if (!model.rules.fr) out.push('Le règlement (FR) est obligatoire.');
+      const segs = model.segs;
+      const active = segs.filter((s) => s.active);
+      if (segs.length < 6 || segs.length > 12) out.push(`Il faut entre 6 et 12 segments (actuellement ${segs.length}).`);
+      if (active.length < 6 || active.length > 12) out.push(`Il faut entre 6 et 12 segments actifs (actuellement ${active.length}).`);
+      segs.forEach((s, i) => {
+        const name = `Segment ${i + 1}${s.label.fr ? ' « ' + s.label.fr + ' »' : ''}`;
+        if (!s.label.fr) out.push(`${name} : libellé FR obligatoire.`);
+        if (s.type === 'stamps' && !isInt(s.stamps, 1, 10)) out.push(`${name} : entre 1 et 10 sceaux.`);
+        if (!isInt(s.weight, 0, 10000)) out.push(`${name} : poids entier entre 0 et 10000.`);
+        if (s.type === 'lose' && s.id && loaded.get(s.id) && loaded.get(s.id).stock) out.push(`${name} : passez son stock en « Illimité » avant d'en faire un segment Perdu.`);
+      });
+      if (!active.some((s) => s.type === 'lose' && s.weight > 0)) out.push('Il faut au moins un segment « Perdu » actif avec un poids > 0.');
+      if (active.reduce((a, s) => a + (Number.isInteger(s.weight) ? s.weight : 0), 0) <= 0) out.push('La somme des poids actifs doit être supérieure à 0.');
+      return out;
+    };
+    const refresh = () => {
+      const total = model.segs.filter((s) => s.active).reduce((a, s) => a + (Number.isInteger(s.weight) && s.weight > 0 ? s.weight : 0), 0);
+      tbody.querySelectorAll('tr[data-k]').forEach((tr) => {
+        const s = model.segs.find((x) => x.k === tr.dataset.k);
+        if (!s) return;
+        const cell = tr.querySelector('[data-share]');
+        cell.textContent = s.active && total > 0 && Number.isInteger(s.weight) ? (s.weight / total * 100).toFixed(1) + ' %' : '—';
+        tr.classList.toggle('is-inactive', !s.active);
+      });
+      const probs = problems();
+      valEl.innerHTML = probs.length
+        ? `<div class="adm-banner adm-banner-warn"><div><strong>À corriger avant d'enregistrer :</strong><ul class="adm-problems">${probs.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul></div></div>`
+        : '<div class="adm-banner adm-banner-ok">Configuration valide.</div>';
+      saveBtn.disabled = probs.length > 0 || f.saving;
+      const act = model.segs.filter((s) => s.active).length;
+      countEl.textContent = `${model.segs.length} segment(s) · ${act} actif(s)`;
+      previewEl.innerHTML = admWheelPreviewSvg(model.segs);
+    };
+
+    tbody.addEventListener('input', (e) => {
+      const tr = e.target.closest('tr[data-k]');
+      const s = tr && model.segs.find((x) => x.k === tr.dataset.k);
+      const fld = e.target.dataset.f;
+      if (!s || !fld) return;
+      f.dirty = true;
+      if (fld.startsWith('label.')) s.label[fld.slice(6)] = e.target.value.trim();
+      else if (fld === 'weight') s.weight = e.target.value === '' ? NaN : Number(e.target.value);
+      else if (fld === 'stamps') s.stamps = e.target.value === '' ? NaN : Number(e.target.value);
+      refresh();
+    });
+    tbody.addEventListener('change', async (e) => {
+      const tr = e.target.closest('tr[data-k]');
+      const s = tr && model.segs.find((x) => x.k === tr.dataset.k);
+      if (!s) return;
+      if (e.target.classList.contains('adm-stock-unlimited')) { await stockToggle(s, e.target); return; }
+      const fld = e.target.dataset.f;
+      if (!fld) return;
+      f.dirty = true;
+      if (fld === 'type') {
+        s.type = e.target.value;
+        if (s.type === 'stamps' && !Number.isInteger(s.stamps)) s.stamps = 1;
+        if (s.type === 'lose') s.tone = s.tone || 'charcoal';
+        drawRows();
+        return;
+      }
+      if (fld === 'tone') { s.tone = ADM_TONE_HEX[e.target.value] ? e.target.value : 'charcoal'; const sw = tr.querySelector('.adm-wheel-swatch'); if (sw) sw.style.background = ADM_TONE_HEX[s.tone]; }
+      if (fld === 'active') s.active = e.target.checked;
+      refresh();
+    });
+    tbody.addEventListener('click', async (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled) return;
+      const tr = b.closest('tr[data-k]');
+      const idx = tr ? model.segs.findIndex((x) => x.k === tr.dataset.k) : -1;
+      if (idx < 0) return;
+      const s = model.segs[idx];
+      if (b.classList.contains('adm-seg-up') && idx > 0) {
+        [model.segs[idx - 1], model.segs[idx]] = [model.segs[idx], model.segs[idx - 1]];
+        f.dirty = true; drawRows();
+      } else if (b.classList.contains('adm-seg-down') && idx < model.segs.length - 1) {
+        [model.segs[idx + 1], model.segs[idx]] = [model.segs[idx], model.segs[idx + 1]];
+        f.dirty = true; drawRows();
+      } else if (b.classList.contains('adm-seg-del')) {
+        const saved = s.id && loaded.get(s.id);
+        if (saved && !confirm(`Supprimer le segment « ${s.label.fr || s.id} » ? Son stock sera effacé à l'enregistrement.`)) return;
+        model.segs.splice(idx, 1);
+        f.dirty = true; drawRows();
+      } else if (b.classList.contains('adm-stock-add')) {
+        const v = prompt(`Réassort pour « ${s.label.fr} » : combien de lots ajouter ?`, '10');
+        if (v === null) return;
+        const n = Number(v.trim());
+        if (!Number.isInteger(n) || n < 1 || n > 100000) { showToast('Entrez un entier entre 1 et 100000.', 'warning'); return; }
+        await stockCall(s, { limited: true, add: n }, tr);
+      } else if (b.classList.contains('adm-stock-set')) {
+        const v = prompt(`Nouveau stock restant pour « ${s.label.fr} » :`, String(s.stock ? admNum(s.stock.left) : 0));
+        if (v === null) return;
+        const n = Number(v.trim());
+        if (!Number.isInteger(n) || n < 0 || n > 100000) { showToast('Entrez un entier entre 0 et 100000.', 'warning'); return; }
+        if (!confirm('Remplacer le stock restant ? (ne pas utiliser pendant une forte affluence)')) return;
+        await stockCall(s, { limited: true, set: n }, tr);
+      }
+    });
+    const stockCall = async (s, payload, tr) => {
+      const cell = tr && tr.querySelector('.adm-seg-stock');
+      if (cell) cell.querySelectorAll('button, input').forEach((el) => { el.disabled = true; });
+      try {
+        const r = await adminApi(`/api/admin/wheel/stock/${encodeURIComponent(s.id)}`, { method: 'PUT', body: payload });
+        s.stock = r.stock || null;
+        const saved = loaded.get(s.id);
+        if (saved) saved.stock = s.stock;
+        showToast(s.stock ? `Stock « ${escapeHtml(s.label.fr)} » : ${admNum(s.stock.left)}/${admNum(s.stock.total)}` : `« ${escapeHtml(s.label.fr)} » : stock illimité`, 'success', 'Stock mis à jour');
+      } catch (err) {
+        admErrToast(err);
+      } finally {
+        if (cell && cell.isConnected) cell.innerHTML = stockCellHtml(s);
+        refresh();
+      }
+    };
+    const stockToggle = async (s, box) => {
+      if (box.checked) {
+        if (!confirm(`Rendre « ${s.label.fr} » illimité ? Le compteur de stock sera supprimé.`)) { box.checked = false; return; }
+        await stockCall(s, { limited: false }, box.closest('tr'));
+      } else {
+        const v = prompt(`Stock disponible pour « ${s.label.fr} » (nombre de lots) :`, '10');
+        const n = v === null ? NaN : Number(v.trim());
+        if (v === null || !Number.isInteger(n) || n < 0 || n > 100000) {
+          if (v !== null) showToast('Entrez un entier entre 0 et 100000.', 'warning');
+          box.checked = true;
+          return;
+        }
+        await stockCall(s, { limited: true, set: n }, box.closest('tr'));
+      }
+    };
+
+    form.querySelector('.adm-seg-add').addEventListener('click', () => {
+      if (model.segs.length >= 12) { showToast('Maximum 12 segments.', 'warning'); return; }
+      model.segs.push({ k: 's' + (++admSegUid), id: undefined, label: { fr: '', en: '', tn: '' }, type: 'prize', stamps: 1, weight: 1, tone: 'ember', active: true, stock: null });
+      f.dirty = true;
+      drawRows();
+      const last = tbody.querySelector('tr[data-k]:last-child [data-f="label.fr"]');
+      if (last) last.focus();
+    });
+    // general fields
+    form.addEventListener('input', (e) => { if (!tbody.contains(e.target)) { f.dirty = true; refresh(); } });
+    form.addEventListener('change', (e) => {
+      if (tbody.contains(e.target)) return;
+      f.dirty = true;
+      if (e.target === cdSelect) {
+        cdCustom.hidden = cdSelect.value !== 'custom';
+        if (cdSelect.value !== 'custom') cdCustom.value = cdSelect.value;
+        else cdCustom.focus();
+      }
+      refresh();
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (f.saving) return;
+      const probs = problems();
+      if (probs.length) { errEl.textContent = probs[0]; errEl.hidden = false; return; }
+      if (model.enabled && !wasEnabled && !confirm('Activer la roue sur le site public ? Vérifiez les probabilités et les stocks avant.')) return;
+      const body2 = {
+        version: f.version,
+        enabled: model.enabled,
+        cooldownHours: model.cooldownHours,
+        ipMaxPlaysPerDay: model.ipMaxPlaysPerDay,
+        dailyWinCap: model.dailyWinCap,
+        codeValidityDays: model.codeValidityDays,
+        rules: model.rules,
+        segments: model.segs.map((s) => {
+          const o = { label: { fr: s.label.fr, en: s.label.en, tn: s.label.tn }, type: s.type, stamps: s.type === 'stamps' ? s.stamps : null, weight: s.weight, tone: s.tone, active: s.active };
+          if (s.id) o.id = s.id;
+          return o;
+        })
+      };
+      f.saving = true; f.seenVersion = null;
+      errEl.hidden = true;
+      saveBtn.disabled = true; saveBtn.textContent = 'Enregistrement…';
+      try {
+        const r = await adminApi('/api/admin/wheel/config', { method: 'PUT', body: body2 });
+        f.saving = false;
+        if (!admAlive(seq, body)) return;
+        showToast(`Roue enregistrée (v${admNum(r.version)})`, 'success');
+        const external = f.seenVersion != null && f.seenVersion > admNum(r.version);
+        admDrawWheelForm(body, seq, r);
+        if (external) admShowStale('reglages');
+      } catch (err) {
+        f.saving = false;
+        if (!admAlive(seq, body)) return;
+        saveBtn.textContent = 'Enregistrer la roue';
+        refresh();
+        if (err.status === 409 && err.data && err.data.error === 'version_conflict') {
+          admErrToast(err);
+          admShowStale('reglages');
+        } else if (err.message !== 'Session expirée') {
+          errEl.textContent = err.message; errEl.hidden = false;
+        }
+      }
+    });
+    drawRows();
+  }
+
+  // --------------------------------------------------------------------------
+  // WHEEL · PARTIES (admin)
+  // --------------------------------------------------------------------------
+  const admPlaysState = { status: '', q: '', from: '', to: '', page: 1 };
+  const ADM_PLAY_STATUS = {
+    won: { cls: 'valid', label: 'À retirer' },
+    redeemed: { cls: 'redeemed', label: 'Remis' },
+    expired: { cls: 'expired', label: 'Expiré' },
+    lost: { cls: 'lost', label: 'Perdu' },
+    void: { cls: 'void', label: 'Annulé' }
+  };
+
+  function renderWheelParties(body, seq) {
+    const st = admPlaysState;
+    body.innerHTML = `
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <h3>🎡 Parties jouées</h3>
+          <div class="adm-row-actions"><button type="button" class="btn-adm-ghost adm-btn-sm adm-plays-export">Exporter CSV (page)</button></div>
+        </div>
+        <div class="adm-filters">
+          <div class="form-group-admin"><label for="adm-plays-status">Statut</label>
+            <select id="adm-plays-status" class="admin-select adm-plays-status">
+              <option value="">Tous</option><option value="won">À retirer</option><option value="redeemed">Remis</option><option value="expired">Expirés</option><option value="lost">Perdus</option><option value="void">Annulés</option>
+            </select></div>
+          <div class="form-group-admin adm-filter-grow"><label for="adm-plays-q">Recherche</label><input id="adm-plays-q" type="search" class="admin-input adm-plays-q" maxlength="40" placeholder="Téléphone, prénom ou code" autocomplete="off" value="${escapeHtml(st.q)}"></div>
+          <div class="form-group-admin"><label for="adm-plays-from">Du</label><input id="adm-plays-from" type="date" class="admin-input adm-plays-from" value="${escapeHtml(st.from)}"></div>
+          <div class="form-group-admin"><label for="adm-plays-to">Au</label><input id="adm-plays-to" type="date" class="admin-input adm-plays-to" value="${escapeHtml(st.to)}"></div>
+        </div>
+        <div class="adm-plays-table"></div>
+        <div class="adm-pager"></div>
+      </div>`;
+    const statusSel = body.querySelector('.adm-plays-status');
+    statusSel.value = st.status;
+    const qEl = body.querySelector('.adm-plays-q');
+    const fromEl = body.querySelector('.adm-plays-from');
+    const toEl = body.querySelector('.adm-plays-to');
+    const tableEl = body.querySelector('.adm-plays-table');
+    const pager = body.querySelector('.adm-pager');
+    let reqId = 0;
+    let timer = null;
+    let lastItems = [];
+
+    const draw = (d) => {
+      const items = Array.isArray(d.items) ? d.items : [];
+      lastItems = items;
+      const pageSize = admNum(d.pageSize) || 25;
+      const total = admNum(d.total);
+      const pages = Math.max(1, Math.ceil(total / pageSize));
+      st.pages = pages;
+      if (!items.length) {
+        tableEl.innerHTML = `<div class="empty-state-container"><h4>Aucune partie</h4><p>Aucune partie ne correspond à ces filtres.</p></div>`;
+      } else {
+        tableEl.innerHTML = `
+          <div class="table-responsive-wrapper">
+            <table class="admin-table adm-plays-tbl">
+              <thead><tr><th>Date</th><th>Prénom</th><th>Téléphone</th><th>Résultat</th><th>Statut</th><th>Code</th><th>Expire</th><th>Remis</th><th><span class="adm-sr-only">Action</span></th></tr></thead>
+              <tbody>${items.map((p) => {
+                const s = ADM_PLAY_STATUS[p.status] || { cls: 'lost', label: p.status || '—' };
+                const res = p.type === 'stamps' ? `+${admSeals(admNum(p.stamps))}` : '';
+                return `
+                  <tr>
+                    <td>${escapeHtml(admFmtDateTime(p.createdAt))}</td>
+                    <td><strong>${escapeHtml(p.firstName || '—')}</strong></td>
+                    <td><span dir="ltr">${escapeHtml(p.phoneDisplay || '')}</span></td>
+                    <td>${escapeHtml(admLocFr(p.segmentLabel))}${res && admLocFr(p.segmentLabel).indexOf('+') < 0 ? ' <span class="adm-muted">(' + escapeHtml(res) + ')</span>' : ''}</td>
+                    <td><span class="adm-code-status ${s.cls}">${escapeHtml(s.label)}</span></td>
+                    <td>${p.code ? `<code dir="ltr">${escapeHtml(p.code)}</code>` : '—'}</td>
+                    <td>${p.expiresAt ? escapeHtml(admFmtDate(p.expiresAt)) : '—'}</td>
+                    <td>${p.redeemedAt ? escapeHtml(admFmtDateTime(p.redeemedAt)) + (p.redeemedBy ? '<br><span class="adm-muted">' + escapeHtml(p.redeemedBy) + '</span>' : '') : '—'}</td>
+                    <td>${p.status === 'won' ? `<button type="button" class="btn-adm-ghost adm-btn-sm adm-btn-danger adm-play-void" data-id="${escapeHtml(p.id)}">Annuler</button>` : ''}</td>
+                  </tr>`;
+              }).join('')}</tbody>
+            </table>
+          </div>`;
+      }
+      const page = admNum(d.page) || st.page;
+      pager.innerHTML = total > pageSize ? `
+        <button type="button" class="btn-adm-ghost adm-btn-sm adm-page-prev"${page <= 1 ? ' disabled' : ''}>Précédent</button>
+        <span class="adm-muted">Page ${page} / ${pages} · ${total} partie(s)</span>
+        <button type="button" class="btn-adm-ghost adm-btn-sm adm-page-next"${page >= pages ? ' disabled' : ''}>Suivant</button>`
+        : `<span class="adm-muted">${total} partie(s)</span>`;
+    };
+    const load = async (silent) => {
+      const my = ++reqId;
+      if (!silent) tableEl.innerHTML = admLoadingHtml();
+      const qs = new URLSearchParams();
+      if (st.status) qs.set('status', st.status);
+      if (st.q.trim()) qs.set('q', st.q.trim().slice(0, 40));
+      if (st.from) qs.set('from', st.from);
+      if (st.to) qs.set('to', st.to);
+      qs.set('page', String(st.page));
+      try {
+        const d = await adminApi('/api/admin/wheel/plays?' + qs.toString());
+        if (my !== reqId || !admAlive(seq, tableEl)) return;
+        draw(d);
+      } catch (err) {
+        if (my !== reqId || !admAlive(seq, tableEl)) return;
+        tableEl.innerHTML = `<p class="adm-error" role="alert">${escapeHtml(err.message)}</p>`;
+      }
+    };
+    statusSel.addEventListener('change', () => { st.status = statusSel.value; st.page = 1; load(false); });
+    fromEl.addEventListener('change', () => { st.from = fromEl.value; st.page = 1; load(false); });
+    toEl.addEventListener('change', () => { st.to = toEl.value; st.page = 1; load(false); });
+    qEl.addEventListener('input', () => { st.q = qEl.value; st.page = 1; clearTimeout(timer); timer = setTimeout(() => load(false), 300); });
+    pager.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled) return;
+      if (b.classList.contains('adm-page-prev') && st.page > 1) st.page--;
+      else if (b.classList.contains('adm-page-next') && st.page < (st.pages || 1)) st.page++;
+      else return;
+      load(false);
+    });
+    tableEl.addEventListener('click', async (e) => {
+      const b = e.target.closest('.adm-play-void');
+      if (!b || b.disabled) return;
+      const reason = prompt('Motif ?');
+      if (reason === null) return;
+      const r = reason.trim();
+      if (r.length < 3 || r.length > 200) { showToast('Le motif doit faire entre 3 et 200 caractères.', 'warning'); return; }
+      b.disabled = true;
+      try {
+        await adminApi(`/api/admin/wheel/plays/${encodeURIComponent(b.dataset.id)}/void`, { method: 'POST', body: { reason: r } });
+        showToast('Lot annulé', 'success');
+        load(true);
+      } catch (err) {
+        b.disabled = false;
+        admErrToast(err);
+      }
+    });
+    body.querySelector('.adm-plays-export').addEventListener('click', () => {
+      if (!lastItems.length) { showToast('Rien à exporter sur cette page.', 'warning'); return; }
+      const rows = lastItems.map((p) => [
+        p.createdAt ? new Date(p.createdAt).toLocaleString('fr-FR') : '',
+        p.firstName || '',
+        p.phone || '',
+        admLocFr(p.segmentLabel),
+        (ADM_PLAY_STATUS[p.status] || {}).label || p.status || '',
+        p.code || '',
+        p.expiresAt ? new Date(p.expiresAt).toLocaleDateString('fr-FR') : '',
+        p.redeemedAt ? new Date(p.redeemedAt).toLocaleString('fr-FR') : '',
+        p.redeemedBy || ''
+      ]);
+      exportToCsv(`parties-roue-p${st.page}.csv`, ['Date', 'Prénom', 'Téléphone', 'Résultat', 'Statut', 'Code', 'Expire le', 'Remis le', 'Remis par'], rows);
+    });
+    admTabRefresher = () => { if (admAlive(seq, tableEl)) load(true); };
+    load(false);
+  }
+
+  // --------------------------------------------------------------------------
+  // WHEEL · STATS (admin, comptable, sm_manager)
+  // --------------------------------------------------------------------------
+  function renderWheelStats(body, seq) {
+    body.innerHTML = admLoadingHtml();
+    const pct = (v) => (admNum(v) * 100).toFixed(1) + ' %';
+    const load = async () => {
+      let s;
+      try {
+        s = await adminApi('/api/admin/wheel/stats');
+      } catch (err) {
+        if (!admAlive(seq, body)) return;
+        _destroyChart('chart-wheel-14d');
+        body.innerHTML = `<div class="admin-card"><p class="adm-error" role="alert">${escapeHtml(err.message)}</p><button type="button" class="btn-adm-ghost adm-retry">Réessayer</button></div>`;
+        body.querySelector('.adm-retry').addEventListener('click', load);
+        return;
+      }
+      if (!admAlive(seq, body)) return;
+      _destroyChart('chart-wheel-14d');
+      const days = Array.isArray(s.days) ? s.days : [];
+      const segs = Array.isArray(s.segments) ? s.segments : [];
+      const typeLabel = { prize: 'Lot', stamps: 'Sceaux', lose: 'Perdu' };
+      body.innerHTML = `
+        <div class="adm-stats-notes">
+          ${s.enabled === false ? '<span class="adm-code-status void">Roue désactivée</span>' : '<span class="adm-code-status valid">Roue active</span>'}
+          <span class="adm-muted">Version ${admNum(s.version)} · Codes expirant sous 72 h : <strong>${admNum(s.expiringSoon)}</strong></span>
+        </div>
+        <div class="dashboard-grid-stats">
+          ${admStatCard('Parties (7 j)', admNum(s.plays7d), '', 'neutral', ADM_ICONS.wheel)}
+          ${admStatCard('Numéros uniques (7 j)', admNum(s.uniquePhones7d), '', 'neutral', ADM_ICONS.phone)}
+          ${admStatCard('Gagnants (7 j)', admNum(s.wins7d), `${admNum(s.redeemed7d)} remis`, 'positive', ADM_ICONS.gift)}
+          ${admStatCard('Taux de retrait (30 j)', pct(s.redemptionRate30d), 'Lots remis / gagnés', 'neutral', ADM_ICONS.check)}
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-header"><h3>📈 14 derniers jours</h3></div>
+          <div class="adm-chart-box"><canvas id="chart-wheel-14d" role="img" aria-label="Parties, gagnants et lots remis sur 14 jours"></canvas></div>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-header"><h3>🎯 Segments</h3></div>
+          <div class="table-responsive-wrapper">
+            <table class="admin-table">
+              <thead><tr><th>Segment</th><th>Type</th><th>Poids %</th><th>Réel 30 j %</th><th>Parties 30 j</th><th>Stock</th></tr></thead>
+              <tbody>${segs.length ? segs.map((g) => `
+                <tr class="${g.active === false ? 'is-inactive' : ''}">
+                  <td><strong>${escapeHtml(admLocFr(g.label))}</strong>${g.active === false ? ' <span class="adm-muted">(inactif)</span>' : ''}</td>
+                  <td>${escapeHtml(typeLabel[g.type] || g.type || '')}</td>
+                  <td>${pct(g.configuredShare)}</td>
+                  <td>${pct(g.actualShare30d)}</td>
+                  <td>${admNum(g.plays30d)}</td>
+                  <td>${g.type === 'lose' ? '—' : (g.stock ? `${admNum(g.stock.left)}/${admNum(g.stock.total)}${admNum(g.stock.left) <= 0 ? ' <span class="adm-badge-danger">Épuisé</span>' : ''}` : 'Illimité')}</td>
+                </tr>`).join('') : '<tr><td colspan="6" class="adm-muted">Aucun segment.</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>`;
+      if (typeof Chart !== 'undefined') {
+        const ctx = document.getElementById('chart-wheel-14d');
+        if (ctx) {
+          const ds = (label, key, color) => ({ label, data: days.map((d) => admNum(d[key])), borderColor: color, backgroundColor: color, tension: 0.3, pointRadius: 2, fill: false });
+          _chartInstances['chart-wheel-14d'] = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: days.map((d) => String(d.label || d.day || '')),
+              datasets: [ds('Parties', 'plays', '#c03a2e'), ds('Gagnants', 'wins', '#e0a526'), ds('Remis', 'redeemed', '#059669')]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: admReducedMotion() ? false : undefined,
+              plugins: { legend: { position: 'bottom' } },
+              scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+          });
+        }
+      }
+    };
+    admTabRefresher = () => { if (admAlive(seq, body)) load(); };
+    load();
+  }
+
+  // --------------------------------------------------------------------------
+  // CARNET 3D (admin, sm_manager)
+  // --------------------------------------------------------------------------
+  async function renderMenuBookPanel() {
+    const contentArea = document.getElementById('admin-body-content');
+    if (!contentArea) return;
+    const seq = admBeginPanelRender();
+    if (!ADM_MENUBOOK_ROLES.includes(userRole)) { admNoAccess(contentArea); return; }
+    admResetForm('menubook');
+    contentArea.innerHTML = `
+      <div class="adm-module adm-menubook">
+        <div class="adm-panel-head">
+          <div>
+            <h3>📖 Carnet 3D</h3>
+            <p>Le carnet feuilletable du site lit les plats du Catalogue du Menu. Ici : couverture, textes, ordre et visibilité des catégories.</p>
+          </div>
+          <button type="button" class="btn-adm-ghost adm-mb-preview">Aperçu du carnet ↗</button>
+        </div>
+        <div class="adm-tab-body" id="adm-menubook-body">${admLoadingHtml()}</div>
+      </div>`;
+    contentArea.querySelector('.adm-mb-preview').addEventListener('click', () => {
+      window.open(location.hostname.startsWith('admin.') ? 'https://' + location.hostname.slice(6) + '/#menubook' : '/#menubook', '_blank', 'noopener');
+    });
+    const body = contentArea.querySelector('#adm-menubook-body');
+    const load = async () => {
+      body.innerHTML = admLoadingHtml();
+      let mb;
+      try {
+        mb = await adminApi('/api/admin/menu-book');
+      } catch (err) {
+        if (!admAlive(seq, body)) return;
+        body.innerHTML = `<div class="admin-card"><p class="adm-error" role="alert">${escapeHtml(err.message)}</p><button type="button" class="btn-adm-ghost adm-retry">Réessayer</button></div>`;
+        body.querySelector('.adm-retry').addEventListener('click', load);
+        return;
+      }
+      if (!admAlive(seq, body)) return;
+      admDrawMenuBookForm(body, seq, mb);
+    };
+    admForms.menubook.reload = () => { if (admAlive(seq, body)) { admForms.menubook.dirty = false; load(); } };
+    load();
+  }
+
+  function admDrawMenuBookForm(body, seq, mb) {
+    const f = admForms.menubook;
+    f.version = mb.version;
+    f.dirty = false;
+    f.stale = false;
+    const menu = (typeof BabkeDB !== 'undefined' && typeof BabkeDB.getMenu === 'function') ? BabkeDB.getMenu() : [];
+    const countByCat = {};
+    menu.forEach((m) => { if (m && m.category) countByCat[m.category] = (countByCat[m.category] || 0) + 1; });
+    const cats = (Array.isArray(mb.categories) ? mb.categories : []).map((c) => ({
+      id: String(c.id || ''),
+      title: Object.assign({ fr: '', en: '', tn: '' }, c.title || {}),
+      kicker: Object.assign({ fr: '', en: '', tn: '' }, c.kicker || {}),
+      visible: c.visible !== false,
+      isNew: false
+    }));
+    const skipped = [];
+    Object.keys(countByCat).forEach((id) => {
+      if (cats.some((c) => c.id === id)) return;
+      if (!/^[a-z0-9-]{2,30}$/.test(id)) { skipped.push(id); return; }
+      cats.push({ id, title: { fr: id, en: id, tn: id }, kicker: { fr: '', en: '', tn: '' }, visible: true, isNew: true });
+    });
+    const anyNew = cats.some((c) => c.isNew);
+    const cover = mb.cover || {};
+    const house = mb.housePage || {};
+    const back = mb.backPage || {};
+    const ipp = admNum(mb.itemsPerPage) || 3;
+
+    body.innerHTML = `
+      ${admStaleBannerHtml()}
+      <form class="adm-menubook-form" novalidate autocomplete="off">
+        <div class="admin-card">
+          <div class="admin-card-header"><h3>⚙️ Affichage</h3><span class="adm-muted">Version ${admNum(mb.version)}${mb.updatedAt ? ' · ' + escapeHtml(admFmtDateTime(mb.updatedAt)) : ''}</span></div>
+          <div class="adm-menubook-controls">
+            ${admSwitchHtml('enabled', mb.enabled !== false, 'Carnet affiché sur le site')}
+            <div class="form-group-admin adm-inline-field"><label for="adm-mb-ipp">Plats par page</label>
+              <select id="adm-mb-ipp" class="admin-select adm-sel-sm" name="itemsPerPage">${[2, 3, 4].map((n) => `<option value="${n}"${n === ipp ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+            ${admSwitchHtml('showSoldOut', mb.showSoldOut !== false, 'Afficher les plats épuisés')}
+          </div>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-header"><h3>📕 Couverture</h3></div>
+          <fieldset class="adm-fieldset"><legend>Surtitre (40)</legend>${admLangGrid('cover.kicker', cover.kicker, 40)}</fieldset>
+          <fieldset class="adm-fieldset"><legend>Titre (30)</legend>${admLangGrid('cover.title', cover.title, 30)}</fieldset>
+          <fieldset class="adm-fieldset"><legend>Sous-titre (80)</legend>${admLangGrid('cover.subtitle', cover.subtitle, 80)}</fieldset>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-header"><h3>🏠 Page « La Maison »</h3></div>
+          <fieldset class="adm-fieldset"><legend>Titre (30)</legend>${admLangGrid('housePage.title', house.title, 30)}</fieldset>
+          <fieldset class="adm-fieldset"><legend>Texte (400)</legend>${admLangGrid('housePage.body', house.body, 400, { textarea: true, rows: 4 })}</fieldset>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-header"><h3>📗 Dernière page</h3></div>
+          <fieldset class="adm-fieldset"><legend>Note (120)</legend>${admLangGrid('backPage.note', back.note, 120)}</fieldset>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-header"><h3>🗂️ Catégories</h3><span class="adm-muted">Ordre des pages du carnet</span></div>
+          ${anyNew ? '<div class="adm-banner adm-banner-info">De nouvelles catégories du menu ont été ajoutées à la liste : vérifiez leurs titres puis enregistrez.</div>' : ''}
+          ${skipped.length ? `<div class="adm-banner adm-banner-warn">Catégorie(s) ignorée(s), identifiant non valide : ${skipped.map((s) => `<code>${escapeHtml(s)}</code>`).join(', ')}</div>` : ''}
+          <div class="adm-menubook-cats"></div>
+        </div>
+        <p class="adm-error adm-form-error" role="alert" hidden></p>
+        <div class="adm-form-footer"><button type="submit" class="btn-admin-primary adm-save">Enregistrer le carnet</button></div>
+      </form>`;
+    const form = body.querySelector('.adm-menubook-form');
+    const catsEl = form.querySelector('.adm-menubook-cats');
+    const errEl = form.querySelector('.adm-form-error');
+    const saveBtn = form.querySelector('.adm-save');
+    f.banner = body.querySelector('.adm-stale-banner');
+    f.banner.querySelector('.adm-stale-reload').addEventListener('click', () => { f.dirty = false; f.reload && f.reload(); });
+    if (anyNew) f.dirty = true;
+
+    const drawCats = () => {
+      catsEl.innerHTML = cats.map((c, i) => `
+        <div class="adm-menubook-cat${c.visible ? '' : ' is-inactive'}" data-i="${i}">
+          <div class="adm-menubook-cat-head">
+            <div class="adm-seg-order">
+              <button type="button" class="btn-admin-action adm-cat-up" aria-label="Monter"${i === 0 ? ' disabled' : ''}>↑</button>
+              <button type="button" class="btn-admin-action adm-cat-down" aria-label="Descendre"${i === cats.length - 1 ? ' disabled' : ''}>↓</button>
+            </div>
+            <code class="adm-menubook-cat-id">${escapeHtml(c.id)}</code>
+            <span class="adm-muted adm-small">${admNum(countByCat[c.id])} plat(s)</span>
+            ${c.isNew ? '<span class="adm-chip adm-chip-new">Nouvelle catégorie</span>' : ''}
+            <label class="adm-check adm-cat-visible"><input type="checkbox" data-cf="visible"${c.visible ? ' checked' : ''}> Visible</label>
+          </div>
+          <div class="adm-menubook-cat-fields">
+            <div><span class="adm-label">Titre (30)</span>${admLangGrid(`cat${i}.title`, c.title, 30)}</div>
+            <div><span class="adm-label">Accroche (60, facultative)</span>${admLangGrid(`cat${i}.kicker`, c.kicker, 60, { required: false })}</div>
+          </div>
+        </div>`).join('') || '<p class="adm-muted">Aucune catégorie.</p>';
+    };
+    const syncCats = () => {
+      catsEl.querySelectorAll('.adm-menubook-cat[data-i]').forEach((row) => {
+        const i = Number(row.dataset.i);
+        const c = cats[i];
+        if (!c) return;
+        c.title = admReadLoc(row, `cat${i}.title`);
+        c.kicker = admReadLoc(row, `cat${i}.kicker`);
+        const v = row.querySelector('[data-cf="visible"]');
+        c.visible = v ? v.checked : c.visible;
+      });
+    };
+    catsEl.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled) return;
+      const row = b.closest('[data-i]');
+      const i = row ? Number(row.dataset.i) : -1;
+      if (i < 0) return;
+      syncCats();
+      if (b.classList.contains('adm-cat-up') && i > 0) [cats[i - 1], cats[i]] = [cats[i], cats[i - 1]];
+      else if (b.classList.contains('adm-cat-down') && i < cats.length - 1) [cats[i + 1], cats[i]] = [cats[i], cats[i + 1]];
+      else return;
+      f.dirty = true;
+      drawCats();
+    });
+    catsEl.addEventListener('change', (e) => {
+      const box = e.target.closest('[data-cf="visible"]');
+      if (box) { const row = box.closest('.adm-menubook-cat'); if (row) row.classList.toggle('is-inactive', !box.checked); }
+    });
+    form.addEventListener('input', () => { f.dirty = true; errEl.hidden = true; });
+    form.addEventListener('change', () => { f.dirty = true; errEl.hidden = true; });
+
+    const locFilled = (l) => !!(l.fr || l.en || l.tn);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (f.saving) return;
+      syncCats();
+      const payload = {
+        version: f.version,
+        enabled: form.querySelector('[name="enabled"]').checked,
+        itemsPerPage: Number(form.querySelector('[name="itemsPerPage"]').value),
+        showSoldOut: form.querySelector('[name="showSoldOut"]').checked,
+        cover: { kicker: admReadLoc(form, 'cover.kicker'), title: admReadLoc(form, 'cover.title'), subtitle: admReadLoc(form, 'cover.subtitle') },
+        categories: cats.map((c) => ({
+          id: c.id,
+          title: c.title,
+          kicker: locFilled(c.kicker) ? c.kicker : { fr: '', en: '', tn: '' },
+          visible: c.visible
+        })),
+        housePage: { title: admReadLoc(form, 'housePage.title'), body: admReadLoc(form, 'housePage.body') },
+        backPage: { note: admReadLoc(form, 'backPage.note') }
+      };
+      const problem = (() => {
+        if (![2, 3, 4].includes(payload.itemsPerPage)) return 'Plats par page : 2, 3 ou 4.';
+        if (!payload.cover.kicker.fr || !payload.cover.title.fr || !payload.cover.subtitle.fr) return 'Couverture : surtitre, titre et sous-titre FR obligatoires.';
+        if (!payload.housePage.title.fr || !payload.housePage.body.fr) return 'Page « La Maison » : titre et texte FR obligatoires.';
+        if (!payload.backPage.note.fr) return 'Dernière page : note FR obligatoire.';
+        if (payload.categories.length < 1 || payload.categories.length > 12) return 'Il faut entre 1 et 12 catégories.';
+        const seen = new Set();
+        for (const c of payload.categories) {
+          if (!/^[a-z0-9-]{2,30}$/.test(c.id)) return `Identifiant de catégorie invalide : ${c.id}`;
+          if (seen.has(c.id)) return `Catégorie en double : ${c.id}`;
+          seen.add(c.id);
+          if (!c.title.fr) return `Catégorie ${c.id} : titre FR obligatoire.`;
+          if (locFilled(c.kicker) && !c.kicker.fr) return `Catégorie ${c.id} : accroche FR obligatoire si une autre langue est remplie.`;
+        }
+        return '';
+      })();
+      if (problem) { errEl.textContent = problem; errEl.hidden = false; return; }
+      f.saving = true; f.seenVersion = null;
+      saveBtn.disabled = true; saveBtn.textContent = 'Enregistrement…';
+      try {
+        const r = await adminApi('/api/admin/menu-book', { method: 'PUT', body: payload });
+        f.saving = false;
+        if (!admAlive(seq, body)) return;
+        showToast('Carnet enregistré', 'success');
+        const external = f.seenVersion != null && f.seenVersion > admNum(r.version);
+        admDrawMenuBookForm(body, seq, r);
+        if (external) admShowStale('menubook');
+      } catch (err) {
+        f.saving = false;
+        if (!admAlive(seq, body)) return;
+        saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer le carnet';
+        if (err.status === 409 && err.data && err.data.error === 'version_conflict') {
+          admErrToast(err);
+          admShowStale('menubook');
+        } else if (err.message !== 'Session expirée') {
+          errEl.textContent = err.message; errEl.hidden = false;
+        }
+      }
+    });
+    drawCats();
+  }
+
+  // --------------------------------------------------------------------------
+  // SSE (admin-only events, spec §0.6 / §6.1)
+  // --------------------------------------------------------------------------
+  const admSseTimers = {};
+  const admDebounce = (key, fn, ms = 400) => { clearTimeout(admSseTimers[key]); admSseTimers[key] = setTimeout(fn, ms); };
+
+  function admHandleSse(type, e) {
+    let data = {};
+    try { data = JSON.parse(e && e.data ? e.data : '{}') || {}; } catch (err) { data = {}; }
+    try {
+      if (type === 'loyaltyMemberChanged') {
+        for (const rec of admMemberPanels) {
+          if (!rec.root.isConnected) { admMemberPanels.delete(rec); continue; }
+          if (data.memberId && rec.memberId === data.memberId) admDebounce('member:' + data.memberId, () => rec.refresh(), 250);
+        }
+        if (currentActivePanel === 'loyalty' && (loyaltyTab === 'membres' || loyaltyTab === 'stats') && admTabRefresher) {
+          const fn = admTabRefresher;
+          admDebounce('tab', () => fn());
+        }
+      } else if (type === 'wheelPlayed' || type === 'wheelCodeRedeemed') {
+        if (type === 'wheelCodeRedeemed' && data.playId) {
+          for (const rec of admCodePanels) {
+            if (!rec.root.isConnected) { admCodePanels.delete(rec); continue; }
+            if (rec.playId === data.playId) admDebounce('code:' + data.playId, () => rec.refresh(), 250);
+          }
+        }
+        if (currentActivePanel === 'wheel' && (wheelTab === 'parties' || wheelTab === 'stats') && admTabRefresher) {
+          const fn = admTabRefresher;
+          admDebounce('tab', () => fn());
+        }
+      } else if (type === 'wheelConfigChanged') {
+        if (currentActivePanel === 'wheel' && wheelTab === 'reglages') admConfigChanged('reglages', data);
+      } else if (type === 'loyaltyProgramChanged') {
+        if (currentActivePanel === 'loyalty' && loyaltyTab === 'programme') admConfigChanged('programme', data);
+      } else if (type === 'menuBookChanged') {
+        if (currentActivePanel === 'menubook') admConfigChanged('menubook', data);
+      }
+    } catch (err) {
+      console.error('[admin-sse]', type, err && err.message);
+    }
+  }
+
+  // Camera hygiene: never leave the camera light on.
+  window.addEventListener('pagehide', stopActiveScanner);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopActiveScanner(); });
 
   // 7. CROSS-TAB REAL-TIME SYNCHRONIZATION
   window.addEventListener('babkeOrdersChanged', () => {

@@ -14,7 +14,10 @@
   <!-- Stylesheets -->
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/chatbot.css">
-  
+  <link rel="stylesheet" href="styles/loyalty.css">
+  <link rel="stylesheet" href="styles/wheel.css">
+  <link rel="stylesheet" href="styles/menubook.css">
+
   <!-- Logo Icon -->
   <link rel="icon" type="image/png" href="assets/BabkeLogo.png">
   
@@ -35,6 +38,11 @@
   <script defer src="scripts/cart.js"></script>
   <script defer src="scripts/chatbot.js"></script>
   <script defer src="scripts/preloader.js"></script>
+  <script defer src="scripts/vendor/qrcode-generator.js"></script>
+  <script defer src="scripts/fx-core.js"></script>
+  <script defer src="scripts/loyalty.js"></script>
+  <script defer src="scripts/wheel.js"></script>
+  <script defer src="scripts/menubook.js"></script>
 </head>
 <body>
 
@@ -76,8 +84,10 @@
         <a href="#menu" class="nav-link" data-translate="nav_menu">Menu</a>
         <a href="#about" class="nav-link" data-translate="nav_about">Our Story</a>
         <a href="#events" class="nav-link" data-translate="nav_events">Events</a>
+        <a href="#wheel" class="nav-link" data-translate="nav_wheel">Spin & Win</a>
         <a href="#gallery" class="nav-link" data-translate="nav_gallery">Socials</a>
         <a href="#reviews" class="nav-link" data-translate="nav_reviews">Reviews</a>
+        <a href="#loyalty" class="nav-link" data-translate="nav_loyalty">Loyalty</a>
         <a href="#contact" class="nav-link" data-translate="nav_contact">Find Us</a>
       </nav>
 
@@ -201,6 +211,7 @@
     <div class="section-header">
       <h2 class="section-title" data-translate="menu_section_title">CHOOSE YOUR CRAVING</h2>
       <p class="section-subtitle" data-translate="menu_section_subtitle">Crafted with authentic Lebanese ingredients and grilled over red-hot embers.</p>
+      <a href="#menubook" class="btn-secondary-dark menubook-cta" data-translate="menubook_cta">Open the menu book</a>
     </div>
 
     <div class="menu-container">
@@ -227,6 +238,15 @@
         <!-- Dynamically rendered by scripts/app.js -->
       </div>
     </div>
+  </section>
+
+  <!-- MENU BOOK (3D FLIP-BOOK) SECTION -->
+  <section class="menubook-section" id="menubook" aria-labelledby="menubook-title">
+    <div class="section-header">
+      <h2 class="section-title" id="menubook-title" data-translate="menubook_title">THE MENU BOOK</h2>
+      <p class="section-subtitle" data-translate="menubook_subtitle">Turn the pages of our charcoal grill menu. Tap any dish to add it to your order.</p>
+    </div>
+    <div class="menubook-root" id="menubook-root"><!-- Rendered by scripts/menubook.js --></div>
   </section>
 
   <!-- STORY / ABOUT SECTION -->
@@ -304,6 +324,15 @@
     </div>
   </section>
 
+  <!-- PRIZE WHEEL SECTION -->
+  <section class="wheel-section" id="wheel" aria-labelledby="wheel-title">
+    <div class="section-header">
+      <h2 class="section-title" id="wheel-title" data-translate="wheel_title">THE BABKE WHEEL</h2>
+      <p class="section-subtitle" data-translate="wheel_subtitle">Spin for free and try your luck: mezze, shawarma or bonus seals. The embers decide.</p>
+    </div>
+    <div class="wheel-root" id="wheel-root"><!-- Rendered by scripts/wheel.js --></div>
+  </section>
+
   <!-- INSTAGRAM / GALLERY GRID SECTION -->
   <section class="gallery-section" id="gallery">
     <div class="section-header">
@@ -350,6 +379,15 @@
         </a>
       </div>
     </div>
+  </section>
+
+  <!-- LOYALTY CARD SECTION -->
+  <section class="loyalty-section" id="loyalty" aria-labelledby="loyalty-title">
+    <div class="section-header">
+      <h2 class="section-title" id="loyalty-title" data-translate="loyalty_title">EVERY ORDER LEAVES ITS SEAL</h2>
+      <p class="section-subtitle" data-translate="loyalty_subtitle">Collect a seal with every order and unlock dishes from the grill. Your card lives on your phone.</p>
+    </div>
+    <div class="loyalty-root" id="loyalty-root"><!-- Rendered by scripts/loyalty.js --></div>
   </section>
 
   <!-- LOCATION & DELIVERY INTEGRATION SECTION -->

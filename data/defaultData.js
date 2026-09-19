@@ -669,6 +669,41 @@ const DEFAULT_DATA = {
       { id: "pv-30", date: "2026-07-30", cuisseQty: 51.2, cuisseVal: 13.87, cuisseTot: 710.14, blancQty: 22, blancVal: 17.6, blancTot: 387.2, escalopeQty: 35, escalopeVal: 17.8, escalopeTot: 623.0, cuisseCompQty: 0.8, cuisseCompVal: 10.5, cuisseCompTot: 8.4, oeufQty: 0, oeufVal: 0, oeufTot: 0 },
       { id: "pv-31", date: "2026-07-31", cuisseQty: 58.5, cuisseVal: 14.0, cuisseTot: 819.00, blancQty: 28, blancVal: 17.6, blancTot: 492.8, escalopeQty: 43, escalopeVal: 17.8, escalopeTot: 765.4, cuisseCompQty: 1.3, cuisseCompVal: 10.8, cuisseCompTot: 14.04, oeufQty: 0, oeufVal: 0, oeufTot: 0 }
     ]
+  },
+  // Loyalty card ("Carte Babke") defaults. This file is PUBLIC (served to the
+  // landing page and the admin), so it holds no secrets and nothing about the
+  // prize draw: that lives only in server.js.
+  loyaltyProgram: {
+    active: true,
+    cardTitle: { fr: "Carte Babke", en: "Babke Card", tn: "كارت بابكي" },
+    stampRule: { fr: "1 sceau par commande dès 10 DT", en: "1 seal per order from 10 DT", tn: "طابع على كل كوموند من 10 دينار" },
+    stampGoal: 10, welcomeBonus: 1, maxStampsPerDay: 3,
+    tiers: [
+      { id: "tier-5",  stamps: 5,  active: true, reward: { fr: "Taboulé Libanais offert (7,5 DT)", en: "Free Lebanese Tabbouleh (7.5 DT)", tn: "تبولة لبنانية بلاش (7.5 د)" } },
+      { id: "tier-10", stamps: 10, active: true, reward: { fr: "Chawarma Poulet Classique offert (12,5 DT)", en: "Free Classic Chicken Shawarma (12.5 DT)", tn: "شاورما دجاج كلاسيك بلاش (12.5 د)" } }
+    ]
+  },
+  // 3D menu book ("Le Carnet") defaults.
+  menuBook: {
+    enabled: true, itemsPerPage: 3, showSoldOut: true,
+    cover: {
+      kicker:   { fr: "Depuis le Levant", en: "From the Levant", tn: "من بلاد الشام" },
+      title:    { fr: "La Carte", en: "The Menu", tn: "المنيو" },
+      subtitle: { fr: "Grillades au charbon · Hammam Sousse", en: "Charcoal grill · Hammam Sousse", tn: "مشاوي عالفحم · حمام سوسة" }
+    },
+    categories: [
+      { id: "wraps", visible: true, title: { fr: "Wraps & Sandwichs", en: "Wraps & Sandwiches", tn: "سندويشات" }, kicker: { fr: "Roulés minute, dorés au charbon", en: "Rolled to order, charcoal-toasted", tn: "ملفوفة في الحين و محمّرة عالفحم" } },
+      { id: "plates", visible: true, title: { fr: "Plats Grillades", en: "Feast Platters", tn: "أطباق مشوية" }, kicker: { fr: "Pour les grandes faims", en: "For the big appetites", tn: "للجوع الكبير" } },
+      { id: "mezze", visible: true, title: { fr: "Mezzés & Entrées", en: "Mezze & Dips", tn: "مقبلات و غطوس" }, kicker: { fr: "À partager au centre de la table", en: "To share across the table", tn: "للقسمة في وسط الطاولة" } },
+      { id: "specialties", visible: true, title: { fr: "Spécialités", en: "Specialties", tn: "العروض الخاصة" }, kicker: { fr: "Les recettes de la maison", en: "House recipes", tn: "وصفات الدار" } }
+    ],
+    housePage: {
+      title: { fr: "La Maison", en: "The House", tn: "الدار" },
+      body:  { fr: "Nos broches tournent dès l'ouverture, notre toum est montée chaque matin et chaque pain passe sur la braise à la minute. Bienvenue chez Babke, le Levant au cœur de Hammam Sousse.",
+               en: "Our spits turn from opening time, our toum is whipped every morning and every bread meets the embers to order. Welcome to Babke, the Levant in the heart of Hammam Sousse.",
+               tn: "السيخ يدور من أول ما نحلّو، الثومية تتعمل كل صباح و الخبزة تتحمّر عالجمر في الحين. مرحبا بيك في بابكي، الشام في قلب حمام سوسة." }
+    },
+    backPage: { note: { fr: "Touchez un plat pour l'ajouter à votre commande.", en: "Tap a dish to add it to your order.", tn: "انزل على ماكلة باش تزيدها للكوموند." } }
   }
 };
 
