@@ -468,7 +468,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       '<g>' + wedges + '</g>' +
       '<circle cx="100" cy="100" r="' + R + '" fill="url(#wheelSheen)"/>' +
       '<g stroke="rgba(255,214,150,.55)" stroke-width=".6" stroke-linecap="round">' + spokes + '</g>' +
-      '<path d="' + KHATAM_PATH(CX, CY, ROSETTE_RADIUS) + '" fill="none" stroke="#ffb830" stroke-width=".8" stroke-linejoin="round" opacity=".35"/>' +
       '<g class="wheel-labels">' + labels + '</g>' +
       '<g class="wheel-winner-layer"></g>' +
       '</svg>';

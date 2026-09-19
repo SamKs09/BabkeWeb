@@ -8,7 +8,7 @@
 /* the result overlay is appended to <body>, so it re-declares the feature vars */
 .wheel-section,
 .wheel-result-overlay {
-  --wheel-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23ffb830' stroke-width='1'%3E%3Crect x='14' y='14' width='20' height='20'/%3E%3Crect x='14' y='14' width='20' height='20' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E");
+  --wheel-tile: none;
   --wheel-ember: #c93f16;
   --wheel-brass: #b8781f;
   --wheel-charcoal: #1c1714;

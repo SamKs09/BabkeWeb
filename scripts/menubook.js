@@ -132,14 +132,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const EASE_OUT_QUAD = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'; // WAAPI stand-in for power2.out
 
   // 8-point khatam star (two squares), filled
-  const STAR = '<svg class="menubook-star" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-    '<path fill="currentColor" d="M12 0L15.51 3.51H20.49V8.49L24 12L20.49 15.51V20.49H15.51L12 24L8.49 20.49H3.51V15.51L0 12L3.51 8.49V3.51H8.49Z"/></svg>';
+  const STAR = '<img class="menubook-star" src="assets/BabkeLogo.png" alt="" aria-hidden="true" draggable="false" decoding="async">';
   // khatam rosette used as a watermark
-  const ROSETTE = '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width=".32">' +
-    '<circle cx="24" cy="24" r="22.5"/><circle cx="24" cy="24" r="19"/>' +
-    '<rect x="10.6" y="10.6" width="26.8" height="26.8"/><rect x="10.6" y="10.6" width="26.8" height="26.8" transform="rotate(45 24 24)"/>' +
-    '<rect x="16.2" y="16.2" width="15.6" height="15.6" transform="rotate(22.5 24 24)"/><rect x="16.2" y="16.2" width="15.6" height="15.6" transform="rotate(67.5 24 24)"/>' +
-    '<circle cx="24" cy="24" r="4.2"/></g></svg>';
+  const ROSETTE = '<img class="menubook-rosette-mark" src="assets/BabkeLogo.png" alt="" aria-hidden="true" draggable="false" decoding="async">';
   const PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
   const ICON_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></g></svg>';
   const ICON_PHONE = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M6.5 3.5h3l1.6 4.4-2.1 1.3a10.5 10.5 0 0 0 5.8 5.8l1.3-2.1 4.4 1.6v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2z"/></svg>';

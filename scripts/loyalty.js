@@ -179,11 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const SEAL_SVG = '<img class="loyalty-seal-mark" src="assets/BabkeLogo.png" alt="" ' +
     'aria-hidden="true" draggable="false" decoding="async" loading="lazy">';
   // Locked QR placeholder: khatam outline with a keyhole.
-  const LOCK_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false" fill="none" ' +
-    'stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">' +
-    '<rect x="13" y="13" width="22" height="22"/>' +
-    '<rect x="13" y="13" width="22" height="22" transform="rotate(45 24 24)"/>' +
-    '<circle cx="24" cy="21.6" r="3.2"/><path d="M22.4 24.3 21.3 30 26.7 30 25.6 24.3"/></svg>';
+  const LOCK_SVG = '<img class="loyalty-lock-mark" src="assets/BabkeLogo.png" alt="" aria-hidden="true" draggable="false" decoding="async">';
   const CLOSE_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false" ' +
     'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 
