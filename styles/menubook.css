@@ -19,9 +19,12 @@
      drive anything inside the book with a custom property: it is
      inherited, so changing one restyles the whole subtree every frame and
      repaints the paper (photos included).
-   - .menubook-sheet.is-turning (added on the first frame of a gesture,
-     removed by the resting layout) gives the two shades their own layer so
-     their opacity changes without repainting the page under them.
+   - .menubook-sheet.is-ready (set by the resting layout on the two leaves
+     either side of the spread, the only ones a turn can start on) gives
+     their two shades their own layer so their opacity changes without
+     repainting the page under them. It must be in place BEFORE a turn
+     starts: adding it on a turn's first frame repaints the page as it lifts
+     and flashes it (the turn-shade flicker).
    - Filters, shadows and blurs inside a paper are rasterised once with the
      paper and then only moved; they cost nothing per frame as long as the
      paper is not repainted.
@@ -402,10 +405,11 @@ body.light-theme .menubook-paper {
   background: linear-gradient(to left, var(--menubook-shade), rgba(0, 0, 0, 0) 30%);
 }
 
-/* only the leaf in flight: its shades fade on the compositor, the paper under
-   them is neither repainted nor re-rasterised */
-.menubook-sheet.is-turning .menubook-shade-front,
-.menubook-sheet.is-turning .menubook-shade-back {
+/* only the two leaves that can turn next (set at rest, see the header): their
+   shades fade on the compositor, the paper under them is neither repainted
+   nor re-rasterised when a turn starts or lands */
+.menubook-sheet.is-ready .menubook-shade-front,
+.menubook-sheet.is-ready .menubook-shade-back {
   will-change: opacity;
 }
 

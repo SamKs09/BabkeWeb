@@ -26,9 +26,10 @@
        motion and browsers without WAAPI keep the rAF tween as the writer
        (instant under reduced motion).
      - layout() rewrites the resting z-index ramps and the inert flags after
-       every commit, cancel, tap, rebuild and breakpoint change, and drops
-       .is-turning. Resting writes are cached: an unchanged value is never
-       written again.
+       every commit, cancel, tap, rebuild and breakpoint change, and gives
+       .is-ready to the two leaves that can turn next (either side of the
+       spread) and to no other. Resting writes are cached: an unchanged value
+       is never written again.
      - Dish thumbnails load a 160px centre-cropped copy from assets/thumbs/
        when the photo is a same-origin assets/*.jpg; a missing copy falls back
        to the photo, then to item.fallbackImage.
@@ -281,7 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let sheets = [];          // .menubook-sheet elements
   let fronts = [];
   let backs = [];
-  let leaves = [];          // per sheet: { shadeF, shadeB, t, z, f, b, turning } (last written values)
+  let leaves = [];          // per sheet: { shadeF, shadeB, t, z, f, b, ready } (last written values)
   let panT = '';            // last transform written on the book (single-mode pan)
   let chips = [];           // [{ el, cat, page }]
   let rowItems = [];        // menu items by row index, for the add buttons
@@ -534,7 +535,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     leaves = sheets.map((el) => ({
       shadeF: el.querySelector('.menubook-shade-front'),
       shadeB: el.querySelector('.menubook-shade-back'),
-      t: null, z: null, f: null, b: null, turning: false
+      t: null, z: null, f: null, b: null, ready: false
     }));
   }
 
@@ -611,14 +612,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // One rotation + shading writer per leaf, lifted clear of both stacks. The
-  // first call of a gesture promotes the shades (.is-turning) and lifts the
-  // leaf; every later frame writes only transform and opacity.
+  // leaf's shades are already promoted (.is-ready, set at rest by layout()):
+  // promoting them here, on the first frame of a turn, re-rasterised the
+  // turning page while it moved and flashed it on screen. The class is only
+  // added here for a leaf layout() did not ready. Every frame writes only
+  // transform and opacity.
   function applyTurn(i, v) {
     const L = leaves[i];
     if (!L) return;
-    if (!L.turning) {
-      L.turning = true;
-      sheets[i].classList.add('is-turning');
+    if (!L.ready) {
+      L.ready = true;
+      sheets[i].classList.add('is-ready');
     }
     setLeaf(i, 'rotateY(' + (-180 * v) + 'deg)', '100');
     setShades(i, v * 1.6, (1 - v) * 1.6);
@@ -635,9 +639,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const flipped = i < s;
       setLeaf(i, 'rotateY(' + (flipped ? -180 : 0) + 'deg)', String(flipped ? i + 1 : n - i));
       setShades(i, flipped ? 1 : 0, flipped ? 0 : 1);
-      if (leaves[i].turning) {
-        leaves[i].turning = false;
-        sheets[i].classList.remove('is-turning');
+      // the leaves either side of the spread are the only ones a turn can
+      // start on: their shades stay promoted while the book is at rest, so
+      // the layer change (and the repaint of the page under the shade) happens
+      // here, with nothing moving, instead of on the first frame of a turn
+      const ready = i === s || i === s - 1;
+      if (leaves[i].ready !== ready) {
+        leaves[i].ready = ready;
+        sheets[i].classList.toggle('is-ready', ready);
       }
       let frontLive = i === s;
       let backLive = i === s - 1;
