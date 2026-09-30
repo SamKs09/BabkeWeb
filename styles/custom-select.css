@@ -46,6 +46,7 @@ body.light-theme .bs-backdrop {
 .bs {
   position: relative;
   display: inline-flex;
+  flex-direction: column; /* the select is stretched across the wrapper */
   vertical-align: baseline;
   box-sizing: border-box;
 }
@@ -59,9 +60,10 @@ body.light-theme .bs-backdrop {
   transition: none !important;
   animation: none !important;
 }
-/* The wrapper carries the select's width rules (see measure() in the JS). */
-.bs.bs--ready > select.bs-native { flex: 1 1 auto; min-width: 0 !important; }
-.bs.bs--ready.bs--sized > select.bs-native { width: 100% !important; }
+/* The wrapper also carries the select's width rules (width / min-width /
+   max-width, see measure() in the JS) so percentages keep resolving against
+   the original container; the select's own rules then resolve against the
+   wrapper and give the same box. */
 
 .bs-trigger {
   position: absolute;
@@ -93,7 +95,7 @@ body.light-theme .bs-backdrop {
   -webkit-appearance: none;
   appearance: none;
   -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .bs-value {

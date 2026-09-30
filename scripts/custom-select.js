@@ -188,7 +188,6 @@
 
     // Hide the native control from pointer and sequential focus; it is still
     // focusable by script, which the browser needs for required validation.
-    this.prevTabindex = sel.getAttribute('tabindex');
     sel.setAttribute('tabindex', '-1');
     sel.setAttribute('aria-hidden', 'true');
     sel.setAttribute('data-bs', '');
@@ -236,9 +235,9 @@
     sel.addEventListener('blur', function () { self.wrap.classList.remove('bs--focus'); });
     sel.addEventListener('keydown', function (e) {
       // Keyboard on the hidden select (after a validation focus) drives the
-      // custom UI instead of the invisible native one.
-      if (e.key === 'Tab') return;
-      e.preventDefault();
+      // custom UI instead of the invisible native one; onTriggerKey cancels
+      // the native default for every key it handles.
+      if (e.key === 'Tab' || e.key === 'Shift' || e.ctrlKey || e.metaKey) return;
       self.trig.focus();
       self.onTriggerKey(e);
     });
@@ -269,8 +268,7 @@
   // query, for instance) and hand them to the wrapper again.
   Instance.prototype.measure = function () {
     var wrap = this.wrap;
-    // Drop our own overrides first so the select's rules are read unaltered.
-    wrap.classList.remove('bs--ready', 'bs--sized');
+    wrap.classList.remove('bs--sized');
     SIZE_PROPS.forEach(function (p) { wrap.style.removeProperty(p[0]); });
     this.applySizes(specifiedSizes(this.sel));
   };
@@ -282,11 +280,7 @@
       var v = sizes[p[0]];
       if (v && p[1].indexOf(v) === -1) { wrap.style.setProperty(p[0], v); sized = true; }
     });
-    // bs--ready: the select fills the wrapper and gives up its own min-width
-    // (now on the wrapper). bs--sized: a width rule moved to the wrapper, so
-    // the select is width: 100% of it.
     wrap.classList.toggle('bs--sized', sized);
-    wrap.classList.add('bs--ready');
   };
 
   Instance.prototype.labelTrigger = function () {
