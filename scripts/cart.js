@@ -489,11 +489,50 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
+    // Les groupes de choix appartiennent au plat : on les relit dans le menu
+    // par son id, car les boutons ne portent que id/nom/prix/description.
+    const getDishModifiers = (itemDetails) => {
+      if (itemDetails && Array.isArray(itemDetails.modifiers)) return itemDetails.modifiers;
+      if (typeof BabkeDB === 'undefined' || typeof BabkeDB.getMenu !== 'function') return [];
+      const dish = (BabkeDB.getMenu() || []).find((m) => m && m.id === (itemDetails && itemDetails.id));
+      return (dish && Array.isArray(dish.modifiers)) ? dish.modifiers : [];
+    };
+
+    const renderDishModifiers = (itemDetails) => {
+      const host = document.getElementById('dish-modifier-groups');
+      if (!host) return [];
+      const raw = getDishModifiers(itemDetails);
+      const lang = getLang();
+      const bc = window.BabkeComponents;
+      const groups = (bc && bc.normalizeModifiers) ? bc.normalizeModifiers(raw, lang) : [];
+      host.innerHTML = (bc && bc.getModifierGroupsHTML) ? bc.getModifierGroupsHTML(raw, lang) : '';
+      return groups;
+    };
+
+    // Lit les choix coches, dans l'ordre des groupes du plat.
+    const collectModifierChoices = () => {
+      const groups = activeDishModifiers || [];
+      return groups.map((g) => {
+        const picked = [];
+        customizationForm.querySelectorAll(
+          'input[data-mod-group="' + (window.CSS && CSS.escape ? CSS.escape(g.id) : g.id) + '"]:checked'
+        ).forEach((el) => {
+          const opt = g.options.find((o) => o.id === el.dataset.modOption);
+          picked.push({ id: el.dataset.modOption, label: el.value, price: opt ? opt.price : 0 });
+        });
+        return { id: g.id, label: g.label, type: g.type, required: g.required, max: g.max, picked: picked };
+      });
+    };
+
+    let activeDishModifiers = [];
+
     const openCustomizationModal = (itemDetails) => {
       currentCustomizingItem = itemDetails;
       modalQty = 1;
       modalQtyVal.textContent = modalQty;
 
+      // Rendu AVANT reset() : les champs doivent exister pour etre remis a zero.
+      activeDishModifiers = renderDishModifiers(itemDetails);
       customizationForm.reset();
       modalSpecialNotes.value = '';
 
@@ -532,6 +571,10 @@ document.addEventListener('DOMContentLoaded', () => {
         unitPrice += addon.price;
       });
 
+      collectModifierChoices().forEach(group => {
+        group.picked.forEach(opt => { unitPrice += opt.price; });
+      });
+
       const checkedCheese = customizationForm.querySelector('input[name="cheese"]:checked');
       if (checkedCheese && checkedCheese.value !== 'none') {
         unitPrice += resolveAddonPrice(checkedCheese);
@@ -551,7 +594,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (customizationForm) {
       customizationForm.addEventListener('change', (e) => {
         const name = e.target && e.target.name;
-        if (name === 'addition' || name === 'cheese') updateModalTotalPrice();
+        const isMod = !!(e.target && e.target.dataset && e.target.dataset.modGroup);
+        if (isMod && e.target.type === 'checkbox') enforceModifierMax(e.target);
+        if (isMod || name === 'addition' || name === 'cheese') updateModalTotalPrice();
       });
     }
 
@@ -586,9 +631,51 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
+    // Un groupe limite a N : la case en trop est refusee tout de suite plutot
+    // que de laisser le client decouvrir le probleme en validant.
+    const enforceModifierMax = (changed) => {
+      const gid = changed.dataset.modGroup;
+      const group = (activeDishModifiers || []).find((g) => g.id === gid);
+      if (!group || !group.max) return;
+      const sel = 'input[data-mod-group="' + (window.CSS && CSS.escape ? CSS.escape(gid) : gid) + '"]:checked';
+      const checked = customizationForm.querySelectorAll(sel);
+      if (checked.length <= group.max) return;
+      changed.checked = false;
+      const lang = getLang();
+      const msg = {
+        en: 'Up to ' + group.max + ' choice(s) for ' + group.label + '.',
+        fr: group.label + ' : ' + group.max + ' choix maximum.',
+        tn: group.label + ' : ' + group.max + ' كان.'
+      };
+      if (typeof window.showToast === 'function') window.showToast('⚠️ ' + (msg[lang] || msg.en));
+    };
+
+    // Renvoie le premier groupe obligatoire laisse vide, sinon null.
+    const firstMissingModifier = () => {
+      const groups = collectModifierChoices();
+      for (let i = 0; i < groups.length; i++) {
+        if (groups[i].required && !groups[i].picked.length) return groups[i];
+      }
+      return null;
+    };
+
     if (btnModalSubmit) {
       btnModalSubmit.addEventListener('click', () => {
         if (!currentCustomizingItem) return;
+
+        const missing = firstMissingModifier();
+        if (missing) {
+          const lang = getLang();
+          const msg = {
+            en: 'Please choose: ' + missing.label,
+            fr: 'Choisissez : ' + missing.label,
+            tn: 'اختار : ' + missing.label
+          };
+          if (typeof window.showToast === 'function') window.showToast('⚠️ ' + (msg[lang] || msg.en));
+          const wrap = customizationForm.querySelector('[data-mod-group-wrap="' + (window.CSS && CSS.escape ? CSS.escape(missing.id) : missing.id) + '"]');
+          if (wrap && wrap.scrollIntoView) wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
 
         const spiceLevel = customizationForm.querySelector('input[name="spice-level"]:checked').value;
         
@@ -610,14 +697,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const additions = addonItems.map(addon => addon.label);
         const addonsCost = addonItems.reduce((sum, addon) => sum + addon.price, 0);
 
-        const totalAddonsCost = addonsCost + cheesePrice;
+        // Ingredients choisis sur le plat. Ils partent AUSSI dans `addons`
+        // (en texte "Groupe : Ingredient") : le panier, le message WhatsApp et
+        // la fiche commande de l'admin lisent deja ce tableau, la cuisine voit
+        // donc les choix sans aucun autre changement.
+        const modifierGroups = collectModifierChoices().filter(g => g.picked.length);
+        const modifierCost = modifierGroups.reduce((sum, g) =>
+          sum + g.picked.reduce((s2, o) => s2 + o.price, 0), 0);
+        const modifierLabels = modifierGroups.map(g =>
+          g.label + ' : ' + g.picked.map(o => o.label).join(', '));
+        const modifierChoices = modifierGroups.map(g => ({
+          id: g.id,
+          label: g.label,
+          options: g.picked.map(o => ({ id: o.id, label: o.label, price: o.price }))
+        }));
+
+        const totalAddonsCost = addonsCost + cheesePrice + modifierCost;
         const notes = modalSpecialNotes.value.trim();
 
         // Build garniture summary string for unique cart key. Add-ons are keyed by
         // their stable ids so the same choice merges regardless of display language.
         const garnitureKey = [...sauces, ...veggies, cheese].filter(Boolean).sort().join(',');
         const addonKey = addonItems.map(addon => addon.id).sort().join(',');
-        const customKey = `${currentCustomizingItem.id}-${spiceLevel}-${garnitureKey}-${addonKey}-${notes}`;
+        // Deux fois le meme plat avec des ingredients differents = deux lignes.
+        const modifierKey = modifierGroups
+          .map(g => g.id + ':' + g.picked.map(o => o.id).sort().join('+'))
+          .sort().join(',');
+        const customKey = `${currentCustomizingItem.id}-${spiceLevel}-${garnitureKey}-${addonKey}-${modifierKey}-${notes}`;
 
         const cartItem = {
           key: customKey,
@@ -630,7 +736,8 @@ document.addEventListener('DOMContentLoaded', () => {
           sauces: sauces,
           veggies: veggies,
           cheese: cheese,
-          addons: additions,
+          addons: additions.concat(modifierLabels),
+          modifierChoices: modifierChoices,
           addonItems: addonItems,
           addonsCost: totalAddonsCost,
           exclusions: [],

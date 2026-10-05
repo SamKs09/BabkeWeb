@@ -41,33 +41,185 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 0b. CARTE IMPRIMÉE — catégories réelles du menu.
   // La carte photographiée par le propriétaire ne contient que deux catégories.
-  // Les anciens identifiants (wraps / plates / mezze / specialties, et les
-  // kebab / plate / side / dessert / drink du filtre) n'existent plus.
-  // Source unique : le <select> de la fiche plat et le filtre du catalogue sont
-  // tous les deux rendus à partir de cette liste.
-  const MENU_CATEGORIES = [
-    { id: 'plats', label: 'Plats' },
-    { id: 'enfant', label: 'Menu Enfant' }
-  ];
+  // Les catégories sont des DONNÉES, pas une liste figée.
+  // Source unique : les catégories du livre-menu (/api/admin/menu-book, déjà
+  // publiées dans /api/all-data), complétées par toute catégorie portée par un
+  // plat existant — donc rien ici ne limite ce que le patron peut créer.
+  // Le <select> de la fiche plat et le filtre du catalogue lisent les deux.
+  const CATEGORY_ID_RE = /^[a-z0-9-]{2,30}$/;
+
+  const categoryLabelFrom = (title, id) => {
+    if (typeof title === 'string' && title.trim()) return title.trim();
+    if (title && typeof title === 'object') {
+      const hit = [title.fr, title.en, title.tn].find((v) => typeof v === 'string' && v.trim());
+      if (hit) return hit.trim();
+    }
+    return String(id || '');
+  };
+
+  const getMenuCategories = () => {
+    const out = [];
+    const seen = new Set();
+    const push = (rawId, label) => {
+      const id = String(rawId == null ? '' : rawId).trim();
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      out.push({ id, label: label || id });
+    };
+    let settings = null;
+    try {
+      settings = (typeof BabkeDB !== 'undefined' && typeof BabkeDB.getMenuBook === 'function')
+        ? BabkeDB.getMenuBook() : null;
+    } catch (e) { settings = null; }
+    const listed = (settings && Array.isArray(settings.categories)) ? settings.categories : [];
+    listed.forEach((c) => { if (c && c.id != null) push(c.id, categoryLabelFrom(c.title, c.id)); });
+    // Catégories orphelines (un plat les utilise mais le livre-menu ne les
+    // liste pas encore) : visibles quand même, sinon le plat serait impossible
+    // à rouvrir sans changer sa catégorie.
+    let menu = [];
+    try {
+      menu = (typeof BabkeDB !== 'undefined' && typeof BabkeDB.getMenu === 'function')
+        ? (BabkeDB.getMenu() || []) : [];
+    } catch (e) { menu = []; }
+    freshCategories.forEach((label, id) => push(id, label));
+    menu.forEach((m) => { if (m && m.category) push(m.category, null); });
+    if (!out.length) { push('plats', 'Plats'); push('enfant', 'Menu Enfant'); }
+    return out;
+  };
+
+  // Catégories créées à l'instant depuis la fiche plat : gardées ici pour que
+  // le <select> les affiche tout de suite, même si le rafraîchissement du
+  // cache public (/api/all-data) traîne ou échoue.
+  const freshCategories = new Map();
 
   const menuCategoryLabel = (id) => {
-    const found = MENU_CATEGORIES.find((c) => c.id === id);
+    const found = getMenuCategories().find((c) => c.id === id);
     return found ? found.label : String(id == null ? '—' : id);
   };
 
-  // Rebuild the menu-item form <select> from MENU_CATEGORIES. `keepId` lets an
-  // item whose category predates the new carte keep its value instead of being
+  // Rebuild the menu-item form <select> from the live categories. `keepId` lets
+  // an item whose category is unknown keep its value instead of being
   // silently re-filed under the first option when the modal opens.
+  // Les <select> de l'admin sont habilles par scripts/custom-select.js : la
+  // liste visible est un miroir construit a l'enhance. Reecrire les <option>
+  // ou changer .value ne suffit donc pas, il faut lui demander de se remirer.
+  const admRefreshSelect = (sel) => {
+    if (sel && window.BabkeSelect && typeof window.BabkeSelect.refresh === 'function') {
+      window.BabkeSelect.refresh(sel);
+    }
+  };
+
+  const NEW_CATEGORY_VALUE = '__new_category__';
+  // Seuls les rôles autorisés à écrire le carnet côté serveur
+  // (requireRoles('admin','sm_manager') sur /api/admin/menu-book) voient
+  // l'option de création — sinon le bouton promettrait un 403.
+  const canManageCategories = () => (userRole === 'admin' || userRole === 'sm_manager');
+
+  const slugifyCategory = (value) => String(value == null ? '' : value)
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+/, '').slice(0, 30).replace(/-+$/, '');
+
+  // Crée la catégorie dans le carnet (la source unique) et la renvoie.
+  const createMenuCategory = async (rawName) => {
+    const name = String(rawName == null ? '' : rawName).trim().slice(0, 30);
+    const base = slugifyCategory(name);
+    if (!CATEGORY_ID_RE.test(base)) throw new Error('Nom invalide : au moins 2 lettres ou chiffres.');
+    const taken = new Set(getMenuCategories().map((c) => c.id));
+    let id = base;
+    for (let n = 2; taken.has(id) && n < 100; n++) id = base.slice(0, 27) + '-' + n;
+    if (taken.has(id)) throw new Error('Cette catégorie existe déjà.');
+    const mb = await adminApi('/api/admin/menu-book');
+    const list = Array.isArray(mb.categories) ? mb.categories.slice() : [];
+    if (list.length >= 12) throw new Error('Maximum 12 catégories dans le carnet.');
+    list.push({ id, title: { fr: name, en: name, tn: name }, kicker: { fr: '', en: '', tn: '' }, visible: true });
+    await adminApi('/api/admin/menu-book', { method: 'PUT', body: Object.assign({}, mb, { categories: list }) });
+    freshCategories.set(id, name);
+    try { await BabkeDB.init(true); } catch (e) { /* freshCategories couvre le trou */ }
+    return { id, label: name };
+  };
+
+  const bindNewCategoryUI = (sel) => {
+    if (sel.dataset.newcatBound === '1') return;
+    sel.dataset.newcatBound = '1';
+    const box = document.createElement('div');
+    box.className = 'adm-newcat';
+    box.hidden = true;
+    box.innerHTML = `
+      <input type="text" class="adm-newcat-name" maxlength="30" autocomplete="off" placeholder="Nom de la catégorie (ex. Sandwichs)">
+      <div class="adm-newcat-actions">
+        <button type="button" class="btn-admin-primary adm-newcat-ok">Créer</button>
+        <button type="button" class="btn-adm-ghost adm-newcat-cancel">Annuler</button>
+      </div>
+      <p class="adm-error adm-newcat-err" role="alert" hidden></p>`;
+    // custom-select.js enveloppe le <select> dans un .bs : le panneau doit se
+    // placer APRES cette enveloppe, sinon il tombe sous le bouton qui la
+    // recouvre et devient incliquable.
+    const placeBox = () => {
+      const target = sel.closest('.bs') || sel;
+      if (box.parentElement !== target.parentElement || target.nextElementSibling !== box) {
+        target.insertAdjacentElement('afterend', box);
+      }
+    };
+    placeBox();
+    sel._newcatPlace = placeBox;
+    sel._newcatBox = box;
+    const input = box.querySelector('.adm-newcat-name');
+    const err = box.querySelector('.adm-newcat-err');
+    const okBtn = box.querySelector('.adm-newcat-ok');
+    let previous = sel.value;
+    const close = (value) => {
+      box.hidden = true;
+      err.hidden = true;
+      input.value = '';
+      syncMenuCategoryOptions(value);
+      sel.value = value;
+      admRefreshSelect(sel);
+      previous = value;
+    };
+    sel.addEventListener('change', () => {
+      if (sel.value !== NEW_CATEGORY_VALUE) { previous = sel.value; return; }
+      placeBox();
+      box.hidden = false;
+      err.hidden = true;
+      input.focus();
+    });
+    box.querySelector('.adm-newcat-cancel').addEventListener('click', () => close(previous));
+    const submit = async () => {
+      if (okBtn.disabled) return;
+      okBtn.disabled = true;
+      err.hidden = true;
+      try {
+        const created = await createMenuCategory(input.value);
+        close(created.id);
+        showToast('Catégorie « ' + created.label + ' » créée.');
+      } catch (e) {
+        err.textContent = (e && e.message) ? e.message : 'Création impossible.';
+        err.hidden = false;
+      } finally {
+        okBtn.disabled = false;
+      }
+    };
+    okBtn.addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+  };
+
   const syncMenuCategoryOptions = (keepId) => {
     const sel = document.getElementById('menu-form-category');
     if (!sel) return;
-    const known = MENU_CATEGORIES.some((c) => c.id === keepId);
+    const cats = getMenuCategories();
+    const known = cats.some((c) => c.id === keepId);
     const legacy = (keepId && !known)
       ? `<option value="${admEsc(keepId)}">⚠ ${admEsc(keepId)} (catégorie retirée de la carte)</option>`
       : '';
-    sel.innerHTML = legacy + MENU_CATEGORIES
+    const canNew = canManageCategories();
+    sel.innerHTML = legacy + cats
       .map((c) => `<option value="${admEsc(c.id)}">${admEsc(c.label)}</option>`)
-      .join('');
+      .join('')
+      + (canNew ? `<option value="${NEW_CATEGORY_VALUE}">＋ Nouvelle catégorie…</option>` : '');
+    if (canNew) bindNewCategoryUI(sel);
+    if (sel._newcatBox) sel._newcatBox.hidden = true;
+    admRefreshSelect(sel);
   };
 
   // 0c. SUPPLÉMENTS (add-ons payants du panier).
@@ -193,6 +345,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Live Notifications Indicators & Auditory Alerts (UX Upgrade)
   let unreadNotificationCount = 0;
 
+  // One switch for every incoming alert: the chime, the toast and the unread
+  // count in the tab title. Turning it off stops all three and nothing piles
+  // up while it is off. The choice is remembered across reloads.
+  const ALERTS_KEY = 'babke_admin_alerts';
+  let alertsEnabled = true;
+  try { alertsEnabled = window.localStorage.getItem(ALERTS_KEY) !== 'off'; } catch (e) { alertsEnabled = true; }
+
+  // Incoming alerts only (a new order, reservation, expense...). Toasts that
+  // confirm something the user just did are not routed through here.
+  const notifyIncoming = (message) => {
+    if (!alertsEnabled) return;
+    showToast(message);
+    unreadNotificationCount++;
+    updatePageTitle();
+    playNotificationAlert();
+  };
+
   const updatePageTitle = () => {
     if (unreadNotificationCount > 0) {
       document.title = `(${unreadNotificationCount}) Babke Admin Dashboard`;
@@ -202,6 +371,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const playNotificationAlert = () => {
+    if (!alertsEnabled) return;
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (!AudioContext) return;
@@ -281,12 +451,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         addActivityLog(`New Order received: ${order.id}`);
         // showToast() renders its message as HTML and the order comes from the
         // public, unauthenticated POST /api/orders: escape it.
-        showToast(`New Order from ${admEsc((order.customer || {}).name)}!`);
-        
-        // Trigger live alert indicator & audio chime (UX Upgrade)
-        unreadNotificationCount++;
-        updatePageTitle();
-        playNotificationAlert();
+        notifyIncoming(`New Order from ${admEsc((order.customer || {}).name)}!`);
 
         // Refresh overview/orders page if currently looking at it
         if (currentActivePanel === 'orders-reservations' || currentActivePanel === 'overview') {
@@ -301,12 +466,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const reservation = JSON.parse(e.data);
         addActivityLog(`New Reservation booked: ${reservation.id}`);
-        showToast(`New Reservation for ${admEsc(reservation.guests)} guests!`);
-        
-        // Trigger live alert indicator & audio chime (UX Upgrade)
-        unreadNotificationCount++;
-        updatePageTitle();
-        playNotificationAlert();
+        notifyIncoming(`New Reservation for ${admEsc(reservation.guests)} guests!`);
 
         if (currentActivePanel === 'orders-reservations' || currentActivePanel === 'overview') {
           switchPanel(currentActivePanel);
@@ -320,7 +480,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const leftover = JSON.parse(e.data);
         addActivityLog(`New leftover logged: ${leftover.item}`);
-        showToast(`Leftovers updated: ${leftover.item}!`);
+        notifyIncoming(`Leftovers updated: ${admEsc(leftover.item)}!`);
         if (currentActivePanel === 'leftovers') {
           switchPanel(currentActivePanel);
         }
@@ -343,10 +503,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const expense = JSON.parse(e.data);
         addActivityLog(`New Expense logged: ${expense.category} - ${expense.amount} TND`);
-        showToast(`💰 New Expense logged by ${expense.recordedBy || 'Cashier'}: ${expense.amount} TND!`);
-        unreadNotificationCount++;
-        updatePageTitle();
-        playNotificationAlert();
+        notifyIncoming(`💰 New Expense logged by ${admEsc(expense.recordedBy || 'Cashier')}: ${admEsc(expense.amount)} TND!`);
 
         if (currentActivePanel === 'expenses' || currentActivePanel === 'overview') {
           switchPanel(currentActivePanel);
@@ -512,7 +669,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const loginErrorMsg = document.getElementById('login-error-msg');
   const logoutBtn = document.getElementById('btn-admin-logout');
 
-  let userRole = 'admin'; // 'admin', 'comptable', 'sm_manager', 'cashier', 'worker'
+  let userRole = 'admin'; // 'admin', 'comptable', 'sm_manager', 'cashier'
 
   const checkAuth = async () => {
     if (typeof BABKE_CONFIG === 'undefined') {
@@ -533,8 +690,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           'admin': 'PROPRIÉTAIRE',
           'comptable': 'COMPTABLE',
           'sm_manager': 'RESPONSABLE MÉDIA',
-          'cashier': 'CAISSIER',
-          'worker': 'OUVRIER'
+          'cashier': 'CAISSIER'
         };
         const label = roleLabels[userRole] || userRole.toUpperCase();
         if (roleText) roleText.textContent = label;
@@ -545,16 +701,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Toggle sidebar button visibility depending on RBAC role privileges
         const navButtons = document.querySelectorAll('.nav-item-btn[data-panel]');
-        if (userRole === 'worker') {
+        if (userRole === 'cashier') {
+          // The cashier also covers what the worker used to do: leftovers and
+          // ruined products are recorded at the counter now.
+          const cashierPanels = ['expenses', 'orders-reservations', 'menu', 'loyalty', 'wheel', 'leftovers', 'ruined'];
           navButtons.forEach(btn => {
-            btn.style.display = (btn.dataset.panel === 'leftovers' || btn.dataset.panel === 'ruined') ? 'flex' : 'none';
+            btn.style.display = cashierPanels.includes(btn.dataset.panel) ? 'flex' : 'none';
           });
-          if (!['leftovers', 'ruined'].includes(currentActivePanel)) currentActivePanel = 'leftovers';
-        } else if (userRole === 'cashier') {
-          navButtons.forEach(btn => {
-            btn.style.display = (['expenses', 'orders-reservations', 'menu', 'loyalty', 'wheel'].includes(btn.dataset.panel)) ? 'flex' : 'none';
-          });
-          if (!['expenses', 'orders-reservations', 'menu', 'loyalty', 'wheel'].includes(currentActivePanel)) currentActivePanel = 'expenses';
+          if (!cashierPanels.includes(currentActivePanel)) currentActivePanel = 'expenses';
         } else if (userRole === 'sm_manager') {
           navButtons.forEach(btn => {
             btn.style.display = (['menu', 'content', 'gallery', 'events', 'reviews', 'wheel', 'menubook'].includes(btn.dataset.panel)) ? 'flex' : 'none';
@@ -684,9 +838,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Order Audio Alert Chime Generator (Web Audio API)
-  let audioAlertsEnabled = true;
   function playOrderAudioAlert() {
-    if (!audioAlertsEnabled) return;
+    if (!alertsEnabled) return;
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
@@ -712,24 +865,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const soundToggleBtn = document.getElementById('btn-sound-toggle');
+  // The button always shows the stored setting, including right after a reload.
+  const renderAlertsToggle = () => {
+    if (!soundToggleBtn) return;
+    const icon = document.getElementById('sound-icon');
+    const label = document.getElementById('sound-label');
+    if (icon) icon.innerHTML = alertsEnabled ? `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+    if (label) label.textContent = alertsEnabled ? 'Alertes : ON' : 'Alertes : OFF';
+    soundToggleBtn.style.background = alertsEnabled ? 'rgba(255, 90, 31, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+    soundToggleBtn.style.borderColor = alertsEnabled ? 'rgba(255, 90, 31, 0.3)' : 'rgba(255, 255, 255, 0.1)';
+    soundToggleBtn.setAttribute('aria-pressed', alertsEnabled ? 'true' : 'false');
+  };
+  renderAlertsToggle();
   if (soundToggleBtn) {
     soundToggleBtn.addEventListener('click', () => {
-      audioAlertsEnabled = !audioAlertsEnabled;
-      const icon = document.getElementById('sound-icon');
-      const label = document.getElementById('sound-label');
-      if (audioAlertsEnabled) {
-        if (icon) icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`;
-        if (label) label.textContent = 'Alertes : ON';
-        soundToggleBtn.style.background = 'rgba(255, 90, 31, 0.12)';
-        soundToggleBtn.style.borderColor = 'rgba(255, 90, 31, 0.3)';
+      alertsEnabled = !alertsEnabled;
+      try { window.localStorage.setItem(ALERTS_KEY, alertsEnabled ? 'on' : 'off'); } catch (e) {}
+      // Nothing may linger from while they were on.
+      unreadNotificationCount = 0;
+      updatePageTitle();
+      renderAlertsToggle();
+      if (alertsEnabled) {
         playOrderAudioAlert();
-        showToast("Alertes sonores activées");
+        showToast('Alertes activées');
       } else {
-        if (icon) icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
-        if (label) label.textContent = 'Alertes : OFF';
-        soundToggleBtn.style.background = 'rgba(255, 255, 255, 0.05)';
-        soundToggleBtn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-        showToast("Alertes sonores désactivées");
+        showToast('Alertes désactivées : plus aucune notification');
       }
     });
   }
@@ -1427,7 +1587,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td><strong style="color: var(--text-admin-primary);">${r.item}</strong></td>
         <td><strong style="color: #ef4444;">${r.quantity} ${r.unit}</strong></td>
         <td><span style="padding: 3px 8px; border-radius: 6px; background: rgba(239, 68, 68, 0.15); color: #f87171; font-weight: 700; font-size: 0.78rem;">${r.reason}</span></td>
-        <td><span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--accent-primary);">${r.recordedBy || 'worker'}</span></td>
+        <td><span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--accent-primary);">${admEsc(r.recordedBy || '—')}</span></td>
         <td style="text-align: right;">
           <button class="btn-action-delete btn-delete-ruined" data-id="${r.id}">Supprimer</button>
         </td>
@@ -2542,7 +2702,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="filter-group" style="width: 180px;">
             <select id="menu-category-filter" class="admin-select" style="margin-bottom: 0;">
               <option value="all">Toutes les catégories</option>
-              ${MENU_CATEGORIES.map(c => `<option value="${admEsc(c.id)}">${admEsc(c.label)}</option>`).join('')}
+              ${getMenuCategories().map(c => `<option value="${admEsc(c.id)}">${admEsc(c.label)}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -3112,6 +3272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         syncMenuCategoryOptions(item.category);
         document.getElementById('menu-form-item-id').value = item.id;
         document.getElementById('menu-form-category').value = item.category;
+        admRefreshSelect(document.getElementById('menu-form-category'));
         document.getElementById('menu-form-price').value = item.price;
         
         // base64/image preview — fallback bound, never inlined into onerror.
@@ -3138,11 +3299,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('menu-form-title-tn').value = item.title.tn || '';
         document.getElementById('menu-form-desc-tn').value = item.description.tn || '';
         document.getElementById('menu-form-tags-tn').value = (item.tags.tn || []).join(', ');
+
+        menuFormModifiers = readDishModifiers(item);
+        renderMenuModifiers();
       }
     } else {
       modalTitle.textContent = "Add Menu Item";
       syncMenuCategoryOptions(null);
       document.getElementById('menu-form-item-id').value = '';
+      menuFormModifiers = [];
+      renderMenuModifiers();
     }
 
     menuModal.classList.add('open');
@@ -3172,12 +3338,179 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ----------------------------------------------------
+  // INGREDIENTS AU CHOIX (modificateurs par plat).
+  // Un sandwich se compose : le patron declare des groupes (Sauces,
+  // Legumes) et leurs ingredients, avec un prix optionnel. Un plat sans
+  // groupe reste a composition fixe - il garde seulement les supplements
+  // payants du panier, communs a toute la carte.
+  // Forme ecrite sur le plat (Menu est strict:false, aucun changement serveur) :
+  //   modifiers: [{ id, label:{en,fr,tn}, type:'single'|'multi',
+  //                 required:Boolean, max:Number,
+  //                 options:[{ id, label:{en,fr,tn}, price:Number }] }]
+  // Le meme tableau est lu par components/cartDrawer.js cote site.
+  // ----------------------------------------------------
+  let menuFormModifiers = [];
+
+  const modLabelText = (label) => {
+    if (typeof label === 'string') return label;
+    if (label && typeof label === 'object') {
+      const hit = [label.fr, label.en, label.tn].find((v) => typeof v === 'string' && v.trim());
+      if (hit) return hit.trim();
+    }
+    return '';
+  };
+
+  // Un seul nom saisi, recopie dans les trois langues : le patron ne traduit
+  // pas, et le site retombe de toute facon sur le FR quand une langue manque.
+  const modLoc = (text) => ({ en: text, fr: text, tn: text });
+
+  const modIdFrom = (text, taken, prefix) => {
+    let base = slugifyCategory(text);
+    if (!base) base = prefix;
+    let id = base;
+    for (let n = 2; taken.has(id) && n < 999; n++) id = base.slice(0, 26) + '-' + n;
+    taken.add(id);
+    return id;
+  };
+
+  const readDishModifiers = (item) => {
+    const raw = (item && Array.isArray(item.modifiers)) ? item.modifiers : [];
+    return raw.map((g) => ({
+      name: modLabelText(g && g.label),
+      type: (g && g.type === 'single') ? 'single' : 'multi',
+      required: !!(g && g.required),
+      max: Math.max(0, admNum(g && g.max)),
+      options: ((g && Array.isArray(g.options)) ? g.options : []).map((o) => ({
+        name: modLabelText(o && o.label),
+        price: Math.max(0, Number((o && o.price) || 0))
+      }))
+    })).filter((g) => g.name || g.options.length);
+  };
+
+  const renderMenuModifiers = () => {
+    const host = document.getElementById('menu-form-modifiers');
+    if (!host) return;
+    host.innerHTML = menuFormModifiers.map((g, gi) => `
+      <div class="adm-mod-group" data-g="${gi}">
+        <div class="adm-mod-head">
+          <input type="text" class="adm-mod-name" maxlength="40" autocomplete="off" placeholder="Nom du groupe (ex. Sauces)" value="${admEsc(g.name)}">
+          <select class="admin-select adm-sel-sm adm-mod-type">
+            <option value="multi"${g.type === 'multi' ? ' selected' : ''}>Plusieurs choix</option>
+            <option value="single"${g.type === 'single' ? ' selected' : ''}>Un seul choix</option>
+          </select>
+          <label class="adm-check"><input type="checkbox" class="adm-mod-req"${g.required ? ' checked' : ''}> Obligatoire</label>
+          <label class="adm-check adm-mod-maxwrap">Max <input type="number" class="adm-mod-max" min="0" step="1" value="${g.max || ''}" placeholder="&#8734;"></label>
+          <button type="button" class="btn-admin-action adm-mod-del" aria-label="Retirer le groupe" title="Retirer le groupe">&#10005;</button>
+        </div>
+        <div class="adm-mod-opts">
+          ${g.options.map((o, oi) => `
+            <div class="adm-mod-opt" data-o="${oi}">
+              <input type="text" class="adm-mod-opt-name" maxlength="40" autocomplete="off" placeholder="Ingredient (ex. Harissa)" value="${admEsc(o.name)}">
+              <input type="number" class="adm-mod-opt-price" step="0.5" min="0" placeholder="0" value="${o.price ? o.price : ''}">
+              <span class="adm-muted adm-small">TND</span>
+              <button type="button" class="btn-admin-action adm-mod-opt-del" aria-label="Retirer l'ingredient" title="Retirer l'ingredient">&#10005;</button>
+            </div>`).join('') || '<p class="adm-muted adm-small">Aucun ingredient dans ce groupe.</p>'}
+        </div>
+        <button type="button" class="btn-adm-ghost adm-mod-opt-add">+ Ingredient</button>
+      </div>`).join('');
+  };
+
+  // DOM -> etat. Appele avant tout rendu et avant l'enregistrement, sinon la
+  // frappe en cours serait perdue au premier ajout de ligne.
+  const syncMenuModifiers = () => {
+    const host = document.getElementById('menu-form-modifiers');
+    if (!host) return;
+    host.querySelectorAll('.adm-mod-group[data-g]').forEach((row) => {
+      const g = menuFormModifiers[Number(row.dataset.g)];
+      if (!g) return;
+      const nameEl = row.querySelector('.adm-mod-name');
+      const typeEl = row.querySelector('.adm-mod-type');
+      const reqEl = row.querySelector('.adm-mod-req');
+      const maxEl = row.querySelector('.adm-mod-max');
+      if (nameEl) g.name = nameEl.value.trim().slice(0, 40);
+      if (typeEl) g.type = typeEl.value === 'single' ? 'single' : 'multi';
+      if (reqEl) g.required = reqEl.checked;
+      if (maxEl) g.max = Math.max(0, Math.floor(Number(maxEl.value) || 0));
+      row.querySelectorAll('.adm-mod-opt[data-o]').forEach((orow) => {
+        const o = g.options[Number(orow.dataset.o)];
+        if (!o) return;
+        const on = orow.querySelector('.adm-mod-opt-name');
+        const op = orow.querySelector('.adm-mod-opt-price');
+        if (on) o.name = on.value.trim().slice(0, 40);
+        if (op) o.price = Math.max(0, Number(op.value) || 0);
+      });
+    });
+  };
+
+  // Etat -> forme enregistree. Les groupes et ingredients sans nom sont
+  // ecartes : une ligne vide oubliee ne doit pas atterrir sur le site.
+  const buildModifiersPayload = () => {
+    syncMenuModifiers();
+    const groupIds = new Set();
+    return menuFormModifiers.map((g) => {
+      const options = g.options.filter((o) => o.name).map((o) => ({ name: o.name, price: o.price }));
+      if (!g.name || !options.length) return null;
+      const optIds = new Set();
+      return {
+        id: modIdFrom(g.name, groupIds, 'groupe'),
+        label: modLoc(g.name),
+        type: g.type === 'single' ? 'single' : 'multi',
+        required: !!g.required,
+        max: g.type === 'single' ? 1 : (g.max || 0),
+        options: options.map((o) => ({ id: modIdFrom(o.name, optIds, 'option'), label: modLoc(o.name), price: o.price }))
+      };
+    }).filter(Boolean);
+  };
+
+  const modifiersHost = document.getElementById('menu-form-modifiers');
+  const addModifierBtn = document.getElementById('menu-form-add-modifier');
+  if (addModifierBtn) {
+    addModifierBtn.addEventListener('click', () => {
+      syncMenuModifiers();
+      menuFormModifiers.push({ name: '', type: 'multi', required: false, max: 0, options: [{ name: '', price: 0 }] });
+      renderMenuModifiers();
+      const last = modifiersHost && modifiersHost.querySelector('.adm-mod-group:last-child .adm-mod-name');
+      if (last) last.focus();
+    });
+  }
+  if (modifiersHost) {
+    modifiersHost.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const row = btn.closest('.adm-mod-group[data-g]');
+      if (!row) return;
+      const gi = Number(row.dataset.g);
+      const g = menuFormModifiers[gi];
+      if (!g) return;
+      syncMenuModifiers();
+      if (btn.classList.contains('adm-mod-del')) menuFormModifiers.splice(gi, 1);
+      else if (btn.classList.contains('adm-mod-opt-add')) g.options.push({ name: '', price: 0 });
+      else if (btn.classList.contains('adm-mod-opt-del')) {
+        const orow = btn.closest('.adm-mod-opt[data-o]');
+        if (!orow) return;
+        g.options.splice(Number(orow.dataset.o), 1);
+      } else return;
+      renderMenuModifiers();
+    });
+    // Un seul choix impose un maximum de 1 : le champ Max perdrait son sens.
+    modifiersHost.addEventListener('change', (e) => {
+      if (!e.target.classList.contains('adm-mod-type')) return;
+      syncMenuModifiers();
+      renderMenuModifiers();
+    });
+  }
+
   // Menu Form Submit
   if (menuItemForm) {
     menuItemForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('menu-form-item-id').value;
       const category = document.getElementById('menu-form-category').value;
+      if (category === NEW_CATEGORY_VALUE) {
+        showToast('Donnez un nom a la nouvelle categorie, ou choisissez-en une existante.');
+        return;
+      }
       const price = parseFloat(document.getElementById('menu-form-price').value);
       const base64Image = base64Input.value.trim();
 
@@ -3201,7 +3534,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         fallbackImage: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
         title: { en: titleEn, fr: titleFr, tn: titleTn },
         description: { en: descEn, fr: descFr, tn: descTn },
-        tags: { en: tagsEn, fr: tagsFr, tn: tagsTn }
+        tags: { en: tagsEn, fr: tagsFr, tn: tagsTn },
+        modifiers: buildModifiersPayload()
       };
 
       const submitBtn = menuItemForm.querySelector('button[type="submit"]');
@@ -5014,7 +5348,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           l.item,
           l.quantity,
           l.unit,
-          l.recordedBy || 'worker'
+          l.recordedBy || '—'
         ]);
         exportToCsv(`Babke_Restes_Invendus_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
         showToast("📊 Exportation Excel des Restes générée avec succès !", "success");
@@ -7931,6 +8265,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${anyNew ? '<div class="adm-banner adm-banner-info">De nouvelles catégories du menu ont été ajoutées à la liste : vérifiez leurs titres puis enregistrez.</div>' : ''}
           ${skipped.length ? `<div class="adm-banner adm-banner-warn">Catégorie(s) ignorée(s), identifiant non valide : ${skipped.map((s) => `<code>${escapeHtml(s)}</code>`).join(', ')}</div>` : ''}
           <div class="adm-menubook-cats"></div>
+          <div class="adm-mb-addcat">
+            <input type="text" class="adm-mb-newcat" maxlength="30" autocomplete="off" placeholder="Nouvelle catégorie (ex. Sandwichs)">
+            <button type="button" class="btn-adm-ghost adm-mb-addcat-btn">＋ Ajouter une catégorie</button>
+          </div>
+          <p class="adm-muted adm-small">L’identifiant est dérivé du nom. Une catégorie ne peut être retirée que si aucun plat ne l’utilise. Enregistrez pour appliquer.</p>
         </div>
         <p class="adm-error adm-form-error" role="alert" hidden></p>
         <div class="adm-form-footer"><button type="submit" class="btn-admin-primary adm-save">Enregistrer le carnet</button></div>
@@ -7955,6 +8294,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <span class="adm-muted adm-small">${admNum(countByCat[c.id])} plat(s)</span>
             ${c.isNew ? '<span class="adm-chip adm-chip-new">Nouvelle catégorie</span>' : ''}
             <label class="adm-check adm-cat-visible"><input type="checkbox" data-cf="visible"${c.visible ? ' checked' : ''}> Visible</label>
+            <button type="button" class="btn-admin-action adm-cat-del" aria-label="Retirer la catégorie" title="${countByCat[c.id] ? 'Déplacez les plats avant de retirer cette catégorie' : 'Retirer cette catégorie'}"${(countByCat[c.id] || cats.length <= 1) ? ' disabled' : ''}>✕</button>
           </div>
           <div class="adm-menubook-cat-fields">
             <div><span class="adm-label">Titre (30)</span>${admLangGrid(`cat${i}.title`, c.title, 30)}</div>
@@ -7980,12 +8320,35 @@ document.addEventListener('DOMContentLoaded', async () => {
       const i = row ? Number(row.dataset.i) : -1;
       if (i < 0) return;
       syncCats();
-      if (b.classList.contains('adm-cat-up') && i > 0) [cats[i - 1], cats[i]] = [cats[i], cats[i - 1]];
+      if (b.classList.contains('adm-cat-del')) {
+        // Garde-fou : retirer une catégorie encore portée par un plat le
+        // rendrait orphelin (et il reviendrait dans la liste au rechargement).
+        if (countByCat[cats[i].id] || cats.length <= 1) return;
+        cats.splice(i, 1);
+      }
+      else if (b.classList.contains('adm-cat-up') && i > 0) [cats[i - 1], cats[i]] = [cats[i], cats[i - 1]];
       else if (b.classList.contains('adm-cat-down') && i < cats.length - 1) [cats[i + 1], cats[i]] = [cats[i], cats[i + 1]];
       else return;
       f.dirty = true;
       drawCats();
     });
+    const addCatBtn = form.querySelector('.adm-mb-addcat-btn');
+    const addCatInput = form.querySelector('.adm-mb-newcat');
+    const addCat = () => {
+      const name = String(addCatInput.value || '').trim().slice(0, 30);
+      const id = slugifyCategory(name);
+      if (!CATEGORY_ID_RE.test(id)) { errEl.textContent = 'Nom de catégorie invalide : au moins 2 lettres ou chiffres.'; errEl.hidden = false; return; }
+      if (cats.some((c) => c.id === id)) { errEl.textContent = 'Cette catégorie existe déjà : ' + id; errEl.hidden = false; return; }
+      if (cats.length >= 12) { errEl.textContent = 'Maximum 12 catégories.'; errEl.hidden = false; return; }
+      syncCats();
+      cats.push({ id, title: { fr: name, en: name, tn: name }, kicker: { fr: '', en: '', tn: '' }, visible: true, isNew: true });
+      addCatInput.value = '';
+      errEl.hidden = true;
+      f.dirty = true;
+      drawCats();
+    };
+    addCatBtn.addEventListener('click', addCat);
+    addCatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCat(); } });
     catsEl.addEventListener('change', (e) => {
       const box = e.target.closest('[data-cf="visible"]');
       if (box) { const row = box.closest('.adm-menubook-cat'); if (row) row.classList.toggle('is-inactive', !box.checked); }
@@ -8250,7 +8613,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         quantity,
         unit,
         reason,
-        recordedBy: userRole || 'worker',
+        recordedBy: userRole || 'cashier',
         createdAt: new Date().toISOString()
       };
 

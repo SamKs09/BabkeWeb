@@ -41,7 +41,7 @@
         <form class="login-form" id="admin-login-form">
           <div class="login-input-group">
             <label for="login-username">Nom d'utilisateur / Identifiant</label>
-            <input type="text" id="login-username" placeholder="ex : admin, comptable, media, cashier, worker" required autocomplete="username">
+            <input type="text" id="login-username" placeholder="ex : admin, comptable, media, cashier" required autocomplete="username">
           </div>
           <div class="login-input-group">
             <label for="login-password">Mot de passe</label>
@@ -479,8 +479,9 @@
           <div class="form-grid-admin">
             <div class="form-group-admin">
               <label for="menu-form-category">Catégorie</label>
-              <!-- Catégories réelles de la carte imprimée. Rendues à nouveau
-                   au runtime depuis MENU_CATEGORIES (admin.js) : source unique. -->
+              <!-- Options rendues au runtime depuis getMenuCategories() (admin.js) :
+                   carnet + catégories portées par un plat. Celles-ci ne sont
+                   qu'un repli si le script ne tourne pas. -->
               <select id="menu-form-category" required>
                 <option value="plats">Plats</option>
                 <option value="enfant">Menu Enfant</option>
@@ -554,6 +555,16 @@
               <label for="menu-form-tags-tn" style="display:block; text-align:right;">العلامات (TN, comma separated)</label>
               <input type="text" id="menu-form-tags-tn" placeholder="مثال: الأكثر طلبًا، محرحر" style="text-align: right;">
             </div>
+          </div>
+
+          <!-- Ingrédients au choix. Vide = plat à composition fixe (les plats
+               gardent leurs suppléments payants du panier). Enregistré sur le
+               plat dans `modifiers`, lu par components/cartDrawer.js. -->
+          <div class="form-group-admin adm-mods-block">
+            <label>Ingrédients au choix</label>
+            <p class="adm-muted adm-small adm-mods-hint">Pour les sandwichs et tout plat à composer : ajoutez un groupe (ex. « Sauces ») puis ses ingrédients. Laissez vide pour un plat servi tel quel.</p>
+            <div id="menu-form-modifiers"></div>
+            <button type="button" class="btn-adm-ghost" id="menu-form-add-modifier">＋ Ajouter un groupe de choix</button>
           </div>
 
         </div>

@@ -190,6 +190,86 @@
    * @param supplements  normalised paid add-ons (see bc.normalizeSupplements)
    * @param lang         'en' | 'fr' | 'tn'
    */
+  // ----------------------------------------------------
+  // INGREDIENTS AU CHOIX, PAR PLAT.
+  // Le patron les declare sur le plat dans l'admin (fiche plat ->
+  // "Ingredients au choix"). Forme stockee :
+  //   modifiers: [{ id, label:{en,fr,tn}, type:'single'|'multi',
+  //                 required, max, options:[{ id, label:{en,fr,tn}, price }] }]
+  // Un plat sans groupe est servi tel quel : aucune section de choix ne
+  // s'affiche, seuls les supplements payants du panier restent proposes.
+  // ----------------------------------------------------
+  bc.pickModifierLabel = function(label, lang) {
+    if (typeof label === 'string') return label;
+    if (label && typeof label === 'object') {
+      const order = [lang, 'fr', 'en', 'tn'];
+      for (let i = 0; i < order.length; i++) {
+        const v = label[order[i]];
+        if (typeof v === 'string' && v.trim()) return v.trim();
+      }
+    }
+    return '';
+  };
+
+  bc.normalizeModifiers = function(raw, lang) {
+    if (!Array.isArray(raw)) return [];
+    const groups = [];
+    raw.forEach(function(g, gi) {
+      if (!g || typeof g !== 'object') return;
+      const label = bc.pickModifierLabel(g.label, lang);
+      const options = (Array.isArray(g.options) ? g.options : []).map(function(o, oi) {
+        if (!o || typeof o !== 'object') return null;
+        const oLabel = bc.pickModifierLabel(o.label, lang);
+        if (!oLabel) return null;
+        const price = Number(o.price);
+        return {
+          id: String(o.id || ('opt-' + gi + '-' + oi)),
+          label: oLabel,
+          price: (isFinite(price) && price > 0) ? price : 0
+        };
+      }).filter(Boolean);
+      if (!label || !options.length) return;
+      const max = Math.max(0, Math.floor(Number(g.max) || 0));
+      groups.push({
+        id: String(g.id || ('group-' + gi)),
+        label: label,
+        type: g.type === 'single' ? 'single' : 'multi',
+        required: !!g.required,
+        max: g.type === 'single' ? 1 : max,
+        options: options
+      });
+    });
+    return groups;
+  };
+
+  // Reutilise les classes des anciennes sections garniture : meme rendu,
+  // meme comportement tactile, aucune CSS nouvelle a maintenir.
+  bc.getModifierGroupsHTML = function(modifiers, lang) {
+    const groups = bc.normalizeModifiers(modifiers, lang);
+    if (!groups.length) return '';
+    const esc = bc.escapeHtml;
+    const hint = {
+      en: { one: 'Choose one', upTo: 'Choose up to', required: 'required' },
+      fr: { one: 'Un seul choix', upTo: 'Jusqu\u2019a', required: 'obligatoire' },
+      tn: { one: 'اختار واحد', upTo: 'حتى', required: 'ضروري' }
+    }[lang] || { one: 'Choose one', upTo: 'Choose up to', required: 'required' };
+    return groups.map(function(g) {
+      const note = g.type === 'single' ? hint.one : (g.max ? (hint.upTo + ' ' + g.max) : '');
+      const marks = [note, g.required ? hint.required : ''].filter(Boolean).join(' \u00b7 ');
+      const rows = g.options.map(function(o) {
+        const input = g.type === 'single'
+          ? '<input type="radio" name="mod-' + esc(g.id) + '" data-mod-group="' + esc(g.id) + '" data-mod-option="' + esc(o.id) + '" data-price="' + o.price + '" value="' + esc(o.label) + '">'
+          : '<input type="checkbox" name="mod-' + esc(g.id) + '" data-mod-group="' + esc(g.id) + '" data-mod-option="' + esc(o.id) + '" data-price="' + o.price + '" value="' + esc(o.label) + '">';
+        return '<label class="garniture-chip">' + input +
+          '<span>' + esc(o.label) + (o.price > 0 ? ' (+' + o.price.toFixed(1) + ' TND)' : '') + '</span></label>';
+      }).join('');
+      return '<div class="modifier-group" data-mod-group-wrap="' + esc(g.id) + '">' +
+        '<h4 class="modifier-group-title">' + esc(g.label) +
+        (marks ? ' <span class="modifier-group-note">(' + esc(marks) + ')</span>' : '') + '</h4>' +
+        '<div class="garniture-chip-grid">' + rows + '</div></div>';
+    }).join('');
+  };
+
   bc.getCustomizationModalHTML = function(txt, prices, supplements, lang) {
     prices = prices || {};
     const esc = bc.escapeHtml;
@@ -296,53 +376,11 @@
             </div>
           </div>
 
-          <!-- SECTION 2: Garniture — Sauces -->
-          <div class="modifier-group">
-            <h4 class="modifier-group-title">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 12 2.1 8.6"/><path d="m12 12 6.4-8.6"/><path d="M12 12v10"/></svg>
-              ${txt.modal_sauces_title}
-            </h4>
-            <div class="garniture-chip-grid">
-              <label class="garniture-chip">
-                <input type="checkbox" name="sauce" value="${txt.garni_toum_val}">
-                <span>${txt.garni_toum}</span>
-              </label>
-              <label class="garniture-chip">
-                <input type="checkbox" name="sauce" value="${txt.garni_houmous_val}">
-                <span>${txt.garni_houmous}</span>
-              </label>
-              <label class="garniture-chip">
-                <input type="checkbox" name="sauce" value="${txt.garni_harissa_val}">
-                <span>${txt.garni_harissa}</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- SECTION 3: Garniture — Légumes -->
-          <div class="modifier-group">
-            <h4 class="modifier-group-title">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></svg>
-              ${txt.modal_veggies_title}
-            </h4>
-            <div class="garniture-chip-grid">
-              <label class="garniture-chip">
-                <input type="checkbox" name="veggie" value="${txt.garni_tomato_val}">
-                <span>${txt.garni_tomato}</span>
-              </label>
-              <label class="garniture-chip">
-                <input type="checkbox" name="veggie" value="${txt.garni_onion_val}">
-                <span>${txt.garni_onion}</span>
-              </label>
-              <label class="garniture-chip">
-                <input type="checkbox" name="veggie" value="${txt.garni_cornichon_val}">
-                <span>${txt.garni_cornichon}</span>
-              </label>
-              <label class="garniture-chip">
-                <input type="checkbox" name="veggie" value="${txt.garni_laitue_val}">
-                <span>${txt.garni_laitue}</span>
-              </label>
-            </div>
-          </div>
+          <!-- SECTIONS 2-3 : les anciens choix gratuits (sauces / legumes),
+               identiques pour toute la carte, sont remplaces par les groupes
+               declares sur le plat. Rempli a l'ouverture par scripts/cart.js
+               (renderDishModifiers) ; vide pour un plat a composition fixe. -->
+          <div id="dish-modifier-groups"></div>
 
 ${cheeseSection}
           <!-- SECTION 5: Extra Additions (paid, data-driven from content.supplements) -->

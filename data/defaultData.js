@@ -769,7 +769,7 @@ const DEFAULT_DATA = {
       quantity: 1.5,
       unit: "kg",
       reason: "Cramé",
-      recordedBy: "worker",
+      recordedBy: "cashier",
       createdAt: "2026-07-28T21:40:00.000Z"
     },
     {
@@ -779,7 +779,7 @@ const DEFAULT_DATA = {
       quantity: 2,
       unit: "paquets",
       reason: "Périmé",
-      recordedBy: "worker",
+      recordedBy: "cashier",
       createdAt: "2026-07-29T08:30:00.000Z"
     }
   ],

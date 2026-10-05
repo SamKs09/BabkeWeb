@@ -23,9 +23,7 @@ const REQUIRED_ENV = [
   'MEDIA_USERNAME',
   'MEDIA_PASSWORD',
   'CASHIER_USERNAME',
-  'CASHIER_PASSWORD',
-  'WORKER_USERNAME',
-  'WORKER_PASSWORD'
+  'CASHIER_PASSWORD'
 ];
 
 const missingEnv = REQUIRED_ENV.filter(
@@ -368,7 +366,7 @@ const RuinedProduct = mongoose.model('RuinedProduct', new mongoose.Schema({
   quantity: { type: Number, required: true },
   unit: { type: String, default: 'kg' },
   reason: { type: String, required: true }, // "Cramé", "Périmé", "Erreur Préparation", "Stockage Défectueux", "Autre"
-  recordedBy: { type: String, default: 'worker' },
+  recordedBy: { type: String, default: 'cashier' },
   createdAt: { type: Date, default: Date.now }
 }));
 
@@ -998,8 +996,6 @@ app.post('/api/admin/login', loginLimiter, async (req, res) => {
   const cashierUser = process.env.CASHIER_USERNAME;
   const cashierPass = process.env.CASHIER_PASSWORD;
 
-  const workerUser = process.env.WORKER_USERNAME;
-  const workerPass = process.env.WORKER_PASSWORD;
 
   let role = null;
   if (username === adminUser && password === adminPass) {
@@ -1010,8 +1006,6 @@ app.post('/api/admin/login', loginLimiter, async (req, res) => {
     role = 'sm_manager';
   } else if (username === cashierUser && password === cashierPass) {
     role = 'cashier';
-  } else if (username === workerUser && password === workerPass) {
-    role = 'worker';
   }
 
   if (role) {
@@ -1601,7 +1595,7 @@ app.put('/api/menu/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) =
   }
 });
 
-// Toggle/update menu item availability (accessible by cashiers, workers, and admins)
+// Toggle/update menu item availability (accessible by cashiers and admins)
 app.patch('/api/menu/:id/availability', authMiddleware, async (req, res) => {
   try {
     const { available } = req.body;

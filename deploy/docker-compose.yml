@@ -56,8 +56,6 @@ services:
       MEDIA_PASSWORD: ${MEDIA_PASSWORD:?MEDIA_PASSWORD missing from /opt/babke/.env}
       CASHIER_USERNAME: ${CASHIER_USERNAME:?CASHIER_USERNAME missing from /opt/babke/.env}
       CASHIER_PASSWORD: ${CASHIER_PASSWORD:?CASHIER_PASSWORD missing from /opt/babke/.env}
-      WORKER_USERNAME: ${WORKER_USERNAME:?WORKER_USERNAME missing from /opt/babke/.env}
-      WORKER_PASSWORD: ${WORKER_PASSWORD:?WORKER_PASSWORD missing from /opt/babke/.env}
       # Comma-separated https origins allowed to send credentialed requests.
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?ALLOWED_ORIGINS missing from /opt/babke/.env}
     depends_on:

@@ -2802,3 +2802,68 @@ body.light-theme .adm-supp-row { background: rgba(192, 58, 46, 0.03); }
   .adm-module .btn-admin-primary:hover,
   .adm-module .stat-card:hover { transform: none; }
 }
+
+/* ====================================================================
+   CATÉGORIES & INGRÉDIENTS AU CHOIX (gestion libre de la carte)
+   - .adm-newcat     : création d'une catégorie depuis la fiche plat
+   - .adm-mb-addcat  : ajout d'une catégorie dans l'éditeur du carnet
+   - .adm-mod-*      : groupes d'ingrédients d'un plat
+   Aucune nouvelle variable : tout reprend les tokens --*-admin.
+   ==================================================================== */
+.adm-newcat {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-admin);
+  border-radius: 10px;
+  background: rgba(255, 90, 31, 0.05);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.adm-newcat .adm-newcat-name { flex: 1 1 180px; min-width: 0; }
+.adm-newcat-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.adm-newcat .adm-newcat-err { flex: 1 1 100%; margin: 0; }
+
+.adm-mb-addcat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+.adm-mb-addcat .adm-mb-newcat { flex: 1 1 200px; min-width: 0; }
+
+.adm-menubook-cat .adm-cat-del { margin-inline-start: auto; }
+
+.adm-mods-block .adm-mods-hint { margin: 0 0 10px; }
+.adm-mod-group {
+  border: 1px solid var(--border-admin);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.adm-mod-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.adm-mod-head .adm-mod-name { flex: 1 1 160px; min-width: 0; }
+.adm-mod-head .adm-mod-max { width: 4.5rem; }
+.adm-mod-head .adm-mod-del { margin-inline-start: auto; }
+.adm-mod-opts { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.adm-mod-opt { display: flex; gap: 8px; align-items: center; }
+.adm-mod-opt .adm-mod-opt-name { flex: 1 1 auto; min-width: 0; }
+.adm-mod-opt .adm-mod-opt-price { width: 5.5rem; flex: 0 0 auto; }
+.adm-mod-opt p { margin: 0; }
+
+/* Le modal plat est étroit sur téléphone : on empile plutôt que de serrer. */
+@media (max-width: 560px) {
+  .adm-mod-head .adm-mod-del,
+  .adm-menubook-cat .adm-cat-del { margin-inline-start: 0; }
+  .adm-mod-opt { flex-wrap: wrap; }
+  .adm-mod-opt .adm-mod-opt-name { flex: 1 1 100%; }
+}
