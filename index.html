@@ -525,9 +525,13 @@
     </div>
     <div class="footer-bottom">
       <p data-translate="footer_rights">&copy; 2026 Babke Kebab & Plates. Built with passion for street food.</p>
+      <!-- Credit du studio. Le .com n'a pas de HTTPS qui reponde, donc le
+           lien pointait dans le vide depuis une page en https : on utilise
+           breaknroot.tn, le domaine qui repond. -->
       <div class="footer-powered-by">
-        <span class="powered-text">Powered by</span>
-        <a href="https://breaknroot.com" target="_blank" class="powered-brand">BreakNRoot.com</a>
+        <span class="powered-text" data-translate="footer_powered">Powered by</span>
+        <a href="https://breaknroot.tn" target="_blank" rel="noopener" class="powered-brand">BreakNRoot.tn</a>
+        <span class="powered-copy">&copy; 2026</span>
       </div>
     </div>
   </footer>

@@ -2042,6 +2042,12 @@ body.light-theme .app-footer {
   opacity: 0.85;
 }
 
+.footer-powered-by .powered-copy {
+  color: var(--text-muted);
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
 .footer-powered-by .powered-brand {
   font-weight: 700;
   color: var(--text-muted);

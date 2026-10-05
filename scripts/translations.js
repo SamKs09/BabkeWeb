@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       read_more_reviews: "READ MORE REAL GOOGLE REVIEWS (4.3/5 ★ based on 500+ reviews)",
       
       footer_nav_title: "Navigation",
+      footer_powered: "Powered by",
       footer_nav_home: "Home",
       footer_nav_menu: "Menu",
       footer_nav_about: "Our Story",
@@ -158,6 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       read_more_reviews: "LIRE PLUS D'AVIS GOOGLE (4.3/5 ★ basés sur 500+ avis)",
       
       footer_nav_title: "Navigation",
+      footer_powered: "Réalisé par",
       footer_nav_home: "Accueil",
       footer_nav_menu: "Menu",
       footer_nav_about: "Notre Histoire",
@@ -241,6 +243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       read_more_reviews: "اقرأ المزيد من تقييمات جوجل (4.3/5 ★ استنادًا إلى أكثر من 500 تقييم)",
       
       footer_nav_title: "تصفح الموقع",
+      footer_powered: "تصميم",
       footer_nav_home: "الرئيسية",
       footer_nav_menu: "المنيو",
       footer_nav_about: "حكايتنا",
