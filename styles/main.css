@@ -5316,3 +5316,132 @@ body.light-theme .checkbox-custom-label {
   text-transform: none;
   opacity: 0.7;
 }
+
+/* ==========================================================================
+   TRAITEUR & ÉVÉNEMENTS (section #traiteur, cartes de prestations).
+   Reprend les tokens existants : aucune couleur nouvelle. Masquee par
+   defaut dans le HTML, c'est renderCatering() qui l'affiche.
+   ========================================================================== */
+.catering-section {
+  padding: 90px 6vw 110px;
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.02));
+}
+
+.catering-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 26px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.catering-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 90, 31, 0.16);
+  background: var(--bg-card, rgba(20, 17, 15, 0.82));
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.catering-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-primary, #ff5a1f);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+.catering-card-media {
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: rgba(255, 90, 31, 0.07);
+}
+
+.catering-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Prestation sans photo : un bandeau discret, pas une image cassee. */
+.catering-card-media.is-empty {
+  background:
+    linear-gradient(135deg, rgba(255, 90, 31, 0.14), rgba(255, 90, 31, 0.03));
+}
+
+.catering-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 22px 26px;
+}
+
+.catering-card-meta {
+  align-self: flex-start;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 11px;
+  border-radius: 999px;
+  color: var(--accent-primary, #ff5a1f);
+  background: rgba(255, 90, 31, 0.12);
+}
+
+.catering-card-title {
+  font-size: 1.22rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.catering-card-desc {
+  font-size: 0.93rem;
+  line-height: 1.6;
+  color: var(--text-secondary, #c4bbb4);
+}
+
+.catering-cta-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 38px;
+}
+
+.btn-catering-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 34px;
+  border-radius: 999px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #fff;
+  background: var(--accent-primary, #ff5a1f);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.btn-catering-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(255, 90, 31, 0.32);
+}
+
+body.light-theme .catering-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light-theme .catering-card-desc { color: #4b4440; }
+
+@media (max-width: 600px) {
+  .catering-section { padding: 64px 5vw 80px; }
+  .catering-grid { gap: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catering-card,
+  .btn-catering-cta { transition: none; }
+  .catering-card:hover,
+  .btn-catering-cta:hover { transform: none; }
+}

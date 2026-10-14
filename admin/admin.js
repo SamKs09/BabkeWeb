@@ -700,6 +700,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (adminShell) adminShell.style.display = 'flex';
 
         // Toggle sidebar button visibility depending on RBAC role privileges
+        // Rouvrir le panneau demande par l'URL AVANT le filtrage RBAC : si le
+        // role n'y a pas droit, le filtrage ci-dessous le renvoie sur son
+        // panneau par defaut, comme pour un acces direct.
+        const panelFromUrl = panelFromHash();
+        if (panelFromUrl) currentActivePanel = panelFromUrl;
+
         const navButtons = document.querySelectorAll('.nav-item-btn[data-panel]');
         if (userRole === 'cashier') {
           // The cashier also covers what the worker used to do: leftovers and
@@ -724,7 +730,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           navButtons.forEach(btn => btn.style.display = 'flex');
         }
 
-        switchPanel(currentActivePanel);
+        // silent : au chargement on corrige l'URL sans empiler une entree.
+        switchPanel(currentActivePanel, { silent: true });
         startSseStream(); // Initialize SSE listener for real-time updates
       } else {
         if (loginWrapper) loginWrapper.style.display = 'flex';
@@ -897,9 +904,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 4. ROUTING BETWEEN DASHBOARD PANELS
   let currentActivePanel = 'overview'; // Default
 
-  const switchPanel = async (panelName) => {
+  // ----------------------------------------------------
+  // L'ONGLET OUVERT VIT DANS L'URL (#menu, #stock, #orders-reservations...).
+  // Avant, il ne vivait que dans cette variable : un F5, un retour arriere ou
+  // un lien partage ramenaient tout le monde sur « overview », et le panneau
+  // sur lequel on travaillait etait perdu a chaque rafraichissement.
+  // La liste des panneaux valides est lue dans le DOM, donc elle suit
+  // automatiquement le menu (et le filtrage RBAC s'applique par-dessus).
+  // ----------------------------------------------------
+  const knownPanels = () => Array.from(document.querySelectorAll('.nav-item-btn[data-panel]'))
+    .map((b) => b.dataset.panel);
+
+  const panelFromHash = () => {
+    const raw = String(location.hash || '').replace(/^#/, '').trim();
+    return (raw && knownPanels().includes(raw)) ? raw : '';
+  };
+
+  // `push` : un clic dans le menu ajoute une entree (le bouton Retour revient
+  // au panneau precedent). Une restauration ou un retour arriere remplace,
+  // pour ne pas empiler deux fois le meme etat.
+  const writePanelHash = (panel, push) => {
+    const target = '#' + panel;
+    if (location.hash === target) return;
+    try {
+      if (push && history.pushState) history.pushState(null, '', target);
+      else if (history.replaceState) history.replaceState(null, '', target);
+      else location.hash = target;
+    } catch (e) {
+      // file:// ou historique bloque : l'onglet fonctionne, sans l'URL.
+    }
+  };
+
+  const switchPanel = async (panelName, opts) => {
     stopActiveScanner(); // never leave the counter camera running on another panel
     currentActivePanel = panelName;
+    // Garder l'URL en phase (les rendus declenches par le SSE repassent ici
+    // avec le meme panneau : writePanelHash ne fait alors rien).
+    writePanelHash(panelName, !(opts && opts.silent));
     
     // Reset notifications when visiting the orders logs or expenses logs
     if (panelName === 'orders-reservations' || panelName === 'expenses') {
@@ -940,6 +981,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         'content': 'Contenu du Site Web',
         'gallery': 'Galerie Instagram',
         'events': 'Événements & Popups',
+        'traiteur': 'Traiteur & Événements',
         'reviews': 'Avis Clients',
         'orders-reservations': 'Commandes & Réservations',
         'loyalty': '💳 Carte de Fidélité',
@@ -987,6 +1029,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       case 'events':
         renderEventsPanel();
         break;
+      case 'traiteur':
+        renderTraiteurPanel();
+        break;
       case 'orders-reservations':
         renderOrdersReservationsPanel();
         break;
@@ -1002,6 +1047,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
+
+  // Retour / Suivant du navigateur, et URL modifiee a la main.
+  // Le garde-fou sur currentActivePanel evite un double rendu quand les deux
+  // evenements partent pour le meme changement.
+  const applyPanelFromHash = () => {
+    const panel = panelFromHash();
+    if (!panel || panel === currentActivePanel) return;
+    const btn = document.querySelector('.nav-item-btn[data-panel="' + panel + '"]');
+    if (btn && btn.style.display === 'none') return; // panneau interdit a ce role
+    switchPanel(panel, { silent: true });
+  };
+  window.addEventListener('popstate', applyPanelFromHash);
+  window.addEventListener('hashchange', applyPanelFromHash);
+
+  // Un rafraichissement ou une fermeture pendant une saisie non enregistree
+  // faisait disparaitre le travail sans un mot. Les formulaires suivis dans
+  // admForms portent deja un indicateur `dirty` : on le reutilise.
+  window.addEventListener('beforeunload', (e) => {
+    let dirty = false;
+    try {
+      dirty = Object.keys(admForms).some((k) => admForms[k] && admForms[k].dirty);
+    } catch (err) { dirty = false; }
+    if (!dirty) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
 
   // Wire sidebar clicks
   document.querySelectorAll('.nav-item-btn[data-panel]').forEach(btn => {
@@ -3972,6 +4043,253 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
   // D. GALLERY MANAGEMENT PANEL
+  // ----------------------------------------------------
+  // TRAITEUR & ÉVÉNEMENTS.
+  // Les prestations que le client reserve (mariage, catering livre...),
+  // par opposition au panneau « Événements & Popups » qui porte des dates.
+  // Tout vit dans content.catering et part par PUT /api/content, donc rien
+  // de nouveau cote serveur. La section du site se cache seule si elle est
+  // desactivee ou vide.
+  //   catering: { enabled, title{}, subtitle{}, ctaLabel{},
+  //               services:[{ id, image, fallbackImage,
+  //                           title{}, description{}, meta{} }] }
+  // ----------------------------------------------------
+  let traiteurDraft = null;
+
+  const cateringLoc3 = (value) => {
+    if (typeof value === 'string') return { fr: value, en: value, tn: value };
+    const v = (value && typeof value === 'object') ? value : {};
+    return { fr: v.fr || '', en: v.en || '', tn: v.tn || '' };
+  };
+
+  const cateringServiceId = (title, taken) => {
+    let base = slugifyCategory(title) || 'prestation';
+    let id = base;
+    for (let n = 2; taken.has(id) && n < 999; n++) id = base.slice(0, 26) + '-' + n;
+    taken.add(id);
+    return id;
+  };
+
+  function renderTraiteurPanel() {
+    const contentArea = document.getElementById('admin-body-content');
+    if (!contentArea) return;
+    const content = BabkeDB.getContent() || {};
+    const data = content.catering || {};
+
+    // Brouillon de travail : le contenu reel n'est touche qu'a l'enregistrement.
+    traiteurDraft = {
+      enabled: data.enabled !== false,
+      title: cateringLoc3(data.title),
+      subtitle: cateringLoc3(data.subtitle),
+      ctaLabel: cateringLoc3(data.ctaLabel),
+      services: (Array.isArray(data.services) ? data.services : []).map((sv) => ({
+        id: (sv && sv.id) ? String(sv.id) : '',
+        image: (sv && sv.image) ? sv.image : '',
+        fallbackImage: (sv && sv.fallbackImage) ? sv.fallbackImage : '',
+        title: cateringLoc3(sv && sv.title),
+        description: cateringLoc3(sv && sv.description),
+        meta: cateringLoc3(sv && sv.meta)
+      }))
+    };
+
+    contentArea.innerHTML = `
+      <form id="traiteur-form" novalidate autocomplete="off">
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h3>🍽️ Section « Traiteur &amp; Événements »</h3>
+            <span class="adm-muted adm-small">Affichée en bas du site, sous le contact</span>
+          </div>
+          <div class="adm-menubook-controls">
+            ${admSwitchHtml('catering-enabled', traiteurDraft.enabled, 'Section affichée sur le site')}
+          </div>
+          <fieldset class="adm-fieldset"><legend>Titre de la section (60)</legend>${admLangGrid('catering.title', traiteurDraft.title, 60)}</fieldset>
+          <fieldset class="adm-fieldset"><legend>Sous-titre (200, facultatif)</legend>${admLangGrid('catering.subtitle', traiteurDraft.subtitle, 200, { textarea: true, rows: 2, required: false })}</fieldset>
+          <fieldset class="adm-fieldset"><legend>Bouton de contact (40)</legend>${admLangGrid('catering.cta', traiteurDraft.ctaLabel, 40)}</fieldset>
+          <p class="adm-muted adm-small">Le bouton ouvre WhatsApp sur le numéro du restaurant (config/settings.js).</p>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h3>Prestations</h3>
+            <button type="button" class="btn-admin-primary" id="catering-add">+ Ajouter une prestation</button>
+          </div>
+          <div id="catering-services"></div>
+        </div>
+        <p class="adm-error adm-form-error" id="catering-error" role="alert" hidden></p>
+        <div class="adm-form-footer">
+          <button type="submit" class="btn-admin-primary" id="catering-save">Enregistrer le traiteur</button>
+        </div>
+      </form>`;
+
+    const form = document.getElementById('traiteur-form');
+    const list = document.getElementById('catering-services');
+    const errEl = document.getElementById('catering-error');
+
+    const drawServices = () => {
+      list.innerHTML = traiteurDraft.services.map((sv, i) => `
+        <div class="adm-catering-row" data-i="${i}">
+          <div class="adm-catering-media">
+            ${sv.image
+              ? `<img src="${admEsc(getAdminImageSrc(sv.image))}" alt="">`
+              : '<span class="adm-muted adm-small">Aucune photo</span>'}
+            <div class="adm-catering-media-actions">
+              <button type="button" class="btn-adm-ghost adm-btn-sm adm-catering-pick">Photo…</button>
+              ${sv.image ? '<button type="button" class="btn-adm-ghost adm-btn-sm adm-catering-clear">Retirer</button>' : ''}
+            </div>
+          </div>
+          <div class="adm-catering-fields">
+            <div class="adm-catering-head">
+              <div class="adm-seg-order">
+                <button type="button" class="btn-admin-action adm-catering-up" aria-label="Monter"${i === 0 ? ' disabled' : ''}>↑</button>
+                <button type="button" class="btn-admin-action adm-catering-down" aria-label="Descendre"${i === traiteurDraft.services.length - 1 ? ' disabled' : ''}>↓</button>
+              </div>
+              <span class="adm-muted adm-small">Prestation ${i + 1}</span>
+              <button type="button" class="btn-admin-action delete adm-catering-del" aria-label="Supprimer la prestation" title="Supprimer">✕</button>
+            </div>
+            <fieldset class="adm-fieldset"><legend>Titre (60)</legend>${admLangGrid('svc' + i + '.title', sv.title, 60)}</fieldset>
+            <fieldset class="adm-fieldset"><legend>Description (400)</legend>${admLangGrid('svc' + i + '.desc', sv.description, 400, { textarea: true, rows: 3, required: false })}</fieldset>
+            <fieldset class="adm-fieldset"><legend>Mention (40, ex. « À partir de 20 convives »)</legend>${admLangGrid('svc' + i + '.meta', sv.meta, 40, { required: false })}</fieldset>
+          </div>
+        </div>`).join('') ||
+        '<p class="adm-muted">Aucune prestation. La section reste cachée sur le site tant qu’il n’y en a pas.</p>';
+    };
+
+    // DOM -> brouillon, avant chaque rendu et avant l’enregistrement.
+    const syncServices = () => {
+      list.querySelectorAll('.adm-catering-row[data-i]').forEach((row) => {
+        const i = Number(row.dataset.i);
+        const sv = traiteurDraft.services[i];
+        if (!sv) return;
+        sv.title = admReadLoc(row, 'svc' + i + '.title');
+        sv.description = admReadLoc(row, 'svc' + i + '.desc');
+        sv.meta = admReadLoc(row, 'svc' + i + '.meta');
+      });
+    };
+
+    const syncSection = () => {
+      traiteurDraft.enabled = form.querySelector('[name="catering-enabled"]').checked;
+      traiteurDraft.title = admReadLoc(form, 'catering.title');
+      traiteurDraft.subtitle = admReadLoc(form, 'catering.subtitle');
+      traiteurDraft.ctaLabel = admReadLoc(form, 'catering.cta');
+    };
+
+    drawServices();
+
+    document.getElementById('catering-add').addEventListener('click', () => {
+      syncServices();
+      traiteurDraft.services.push({
+        id: '', image: '', fallbackImage: '',
+        title: { fr: '', en: '', tn: '' },
+        description: { fr: '', en: '', tn: '' },
+        meta: { fr: '', en: '', tn: '' }
+      });
+      drawServices();
+      const last = list.querySelector('.adm-catering-row:last-child [data-loc$=".fr"]');
+      if (last) last.focus();
+    });
+
+    list.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn || btn.disabled) return;
+      const row = btn.closest('.adm-catering-row[data-i]');
+      if (!row) return;
+      const i = Number(row.dataset.i);
+      const svc = traiteurDraft.services;
+      if (!svc[i]) return;
+
+      if (btn.classList.contains('adm-catering-pick')) {
+        // Une seule entrée fichier, créée à la demande : la photo est stockée
+        // en data URI dans le document content, comme le reste du site.
+        const picker = document.createElement('input');
+        picker.type = 'file';
+        picker.accept = 'image/*';
+        picker.addEventListener('change', async () => {
+          const file = picker.files && picker.files[0];
+          if (!file) return;
+          try {
+            const dataUri = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = () => reject(new Error('lecture impossible'));
+              reader.readAsDataURL(file);
+            });
+            syncServices();
+            traiteurDraft.services[i].image = dataUri;
+            drawServices();
+          } catch (err) {
+            showToast('Photo illisible.');
+          }
+        });
+        picker.click();
+        return;
+      }
+      syncServices();
+      if (btn.classList.contains('adm-catering-clear')) svc[i].image = '';
+      else if (btn.classList.contains('adm-catering-del')) {
+        if (!confirm('Supprimer cette prestation ?')) return;
+        svc.splice(i, 1);
+      } else if (btn.classList.contains('adm-catering-up') && i > 0) {
+        [svc[i - 1], svc[i]] = [svc[i], svc[i - 1]];
+      } else if (btn.classList.contains('adm-catering-down') && i < svc.length - 1) {
+        [svc[i + 1], svc[i]] = [svc[i], svc[i + 1]];
+      } else return;
+      drawServices();
+    });
+
+    form.addEventListener('input', () => { errEl.hidden = true; });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      syncSection();
+      syncServices();
+
+      const fail = (msg) => { errEl.textContent = msg; errEl.hidden = false; };
+      if (!traiteurDraft.title.fr) return fail('Titre de la section : le français est obligatoire.');
+      if (!traiteurDraft.ctaLabel.fr) return fail('Bouton de contact : le français est obligatoire.');
+      const kept = traiteurDraft.services.filter((sv) => sv.title.fr || sv.title.en || sv.title.tn);
+      for (const sv of kept) {
+        if (!sv.title.fr) return fail('Chaque prestation doit avoir un titre en français.');
+      }
+      if (traiteurDraft.enabled && !kept.length) {
+        return fail('Ajoutez au moins une prestation, ou décochez « Section affichée sur le site ».');
+      }
+
+      const taken = new Set();
+      const payload = {
+        enabled: traiteurDraft.enabled,
+        title: traiteurDraft.title,
+        subtitle: traiteurDraft.subtitle,
+        ctaLabel: traiteurDraft.ctaLabel,
+        services: kept.map((sv) => ({
+          id: sv.id && !taken.has(sv.id) ? (taken.add(sv.id), sv.id) : cateringServiceId(sv.title.fr, taken),
+          image: sv.image,
+          fallbackImage: sv.fallbackImage,
+          title: sv.title,
+          description: sv.description,
+          meta: sv.meta
+        }))
+      };
+
+      const saveBtn = document.getElementById('catering-save');
+      const original = saveBtn.textContent;
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Enregistrement…';
+      try {
+        const fresh = BabkeDB.getContent() || {};
+        fresh.catering = payload;
+        const res = await BabkeDB.saveContent(fresh);
+        if (res && res.error) throw new Error(res.error);
+        addActivityLog('Traiteur & Événements mis à jour (' + payload.services.length + ' prestation(s))');
+        showToast('Traiteur enregistré.');
+        renderTraiteurPanel();
+      } catch (err) {
+        fail((err && err.message) ? err.message : 'Enregistrement impossible.');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = original;
+      }
+    });
+  }
+
   function renderGalleryPanel() {
     const contentArea = document.getElementById('admin-body-content');
     if (!contentArea) return;

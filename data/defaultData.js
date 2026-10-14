@@ -570,6 +570,69 @@ const DEFAULT_DATA = {
       zigzag: "https://www.facebook.com/ZigZag.Tunisie/",
       menutium: "https://menutium.com/"
     },
+    // TRAITEUR & ÉVÉNEMENTS. Des prestations que le client réserve (pas
+    // des dates comme la collection Events) : le patron ajoute, retire et
+    // réordonne les cartes depuis le panneau « Traiteur » de l'admin.
+    catering: {
+      enabled: true,
+      title: {
+        en: "Catering & Private Events",
+        fr: "Traiteur & Événements",
+        tn: "تربيزة و مناسبات"
+      },
+      subtitle: {
+        en: "Babke comes to you: weddings, birthdays, company lunches and village festivals.",
+        fr: "Le Babke se déplace chez vous : mariages, anniversaires, déjeuners d'entreprise et fêtes de village.",
+        tn: "بابكي يجي عندك: أعراس، عياد ميلاد، غدوة شركة و أعراس الحومة."
+      },
+      ctaLabel: {
+        en: "Request a quote",
+        fr: "Demander un devis",
+        tn: "اطلب تسعيرة"
+      },
+      services: [
+        {
+          id: "traiteur-chez-vous",
+          image: "",
+          fallbackImage: "",
+          title: {
+            en: "Babke at your place",
+            fr: "Le Babke chez vous",
+            tn: "بابكي في دارك"
+          },
+          description: {
+            en: "Our grill, our team and our Levant spices set up at your address. Carved to order in front of your guests.",
+            fr: "Notre grill, notre équipe et nos épices du Levant s'installent chez vous. Découpé devant vos invités, à la commande.",
+            tn: "الڨريل متاعنا، الفريق متاعنا و بهارات الشام يجيو لدارك. نقطعو قدام ضيوفك ساعة بساعة."
+          },
+          meta: {
+            en: "From 20 guests",
+            fr: "À partir de 20 convives",
+            tn: "من 20 ضيف"
+          }
+        },
+        {
+          id: "catering-livre",
+          image: "",
+          fallbackImage: "",
+          title: {
+            en: "Catering, delivered",
+            fr: "Catering livré",
+            tn: "كاترينڨ موصّل"
+          },
+          description: {
+            en: "Platters and wraps from our card, delivered hot for a meeting or a party. No service on site.",
+            fr: "Plateaux et sandwichs de notre carte, livrés chauds pour une réunion ou une fête. Sans service sur place.",
+            tn: "صواني و لفات من الكارت متاعنا، توصل سخونة لاجتماع ولا حفلة. بلا خدمة في البلاصة."
+          },
+          meta: {
+            en: "Ordered 48h ahead",
+            fr: "À commander 48h à l'avance",
+            tn: "تتكومندا 48 ساعة قبل"
+          }
+        }
+      ]
+    },
     footer: {
       desc: {
         en: "Elevating the street kebab experience with Levant spices and charcoal embers in Hammam Sousse.",

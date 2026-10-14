@@ -625,6 +625,134 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // D. Dynamic Events Swiper Rendering
+  // ----------------------------------------------------
+  // TRAITEUR & ÉVÉNEMENTS.
+  // Des prestations qu'on reserve, pas des dates : elles vivent dans
+  // content.catering et non dans la collection Events. Une section vide ou
+  // desactivee disparait, pour qu'un patron qui n'en veut pas n'ait rien a
+  // supprimer dans le HTML.
+  // ----------------------------------------------------
+  const renderCatering = () => {
+    const section = document.getElementById('traiteur');
+    const grid = document.getElementById('catering-grid');
+    if (!section || !grid) return;
+    if (typeof BabkeDB === 'undefined' || typeof BabkeDB.getContent !== 'function') return;
+
+    const content = BabkeDB.getContent() || {};
+    const data = content.catering || {};
+    const lang = getLang();
+    const loc = (field) => {
+      if (!field) return '';
+      if (typeof field === 'string') return field;
+      if (typeof field === 'object') return field[lang] || field.fr || field.en || field.tn || '';
+      return String(field);
+    };
+
+    const services = Array.isArray(data.services) ? data.services.filter((sv) => sv && loc(sv.title)) : [];
+    if (data.enabled === false || !services.length) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = 'block';
+
+    const heading = loc(data.title);
+    const sub = loc(data.subtitle);
+    const titleEl = document.getElementById('catering-title');
+    const subEl = section.querySelector('.section-subtitle');
+    if (titleEl && heading) titleEl.textContent = heading;
+    if (subEl) {
+      subEl.textContent = sub || '';
+      subEl.style.display = sub ? '' : 'none';
+    }
+
+    grid.innerHTML = '';
+    services.forEach((sv) => {
+      const card = document.createElement('article');
+      card.className = 'catering-card';
+      const title = loc(sv.title);
+      const desc = loc(sv.description);
+      const meta = loc(sv.meta);
+      const img = sv.image || sv.fallbackImage;
+
+      if (img) {
+        const figure = document.createElement('div');
+        figure.className = 'catering-card-media';
+        const el = document.createElement('img');
+        el.alt = title;
+        el.loading = 'lazy';
+        el.decoding = 'async';
+        // Une photo illisible (URL morte, fichier casse) ne doit pas laisser
+        // l'icone d'image brisee sur la carte : on tente le repli, puis on
+        // retombe sur le bandeau sobre.
+        el.addEventListener('error', function onErr() {
+          this.removeEventListener('error', onErr);
+          if (sv.fallbackImage && this.src !== sv.fallbackImage) {
+            this.addEventListener('error', function onErr2() {
+              this.removeEventListener('error', onErr2);
+              figure.classList.add('is-empty');
+              this.remove();
+            });
+            this.src = sv.fallbackImage;
+            return;
+          }
+          figure.classList.add('is-empty');
+          this.remove();
+        });
+        // src APRES le gestionnaire : une data URI illisible echoue dans la
+        // foulee, un listener pose apres l'affectation manquerait l'evenement.
+        el.src = img;
+        figure.appendChild(el);
+        card.appendChild(figure);
+      } else {
+        // Pas encore de photo : un bandeau sobre plutot quune image cassee.
+        const ph = document.createElement('div');
+        ph.className = 'catering-card-media is-empty';
+        card.appendChild(ph);
+      }
+
+      const body = document.createElement('div');
+      body.className = 'catering-card-body';
+      if (meta) {
+        const chip = document.createElement('span');
+        chip.className = 'catering-card-meta';
+        chip.textContent = meta;
+        body.appendChild(chip);
+      }
+      const h3 = document.createElement('h3');
+      h3.className = 'catering-card-title';
+      h3.textContent = title;
+      body.appendChild(h3);
+      if (desc) {
+        const p = document.createElement('p');
+        p.className = 'catering-card-desc';
+        p.textContent = desc;
+        body.appendChild(p);
+      }
+      card.appendChild(body);
+      grid.appendChild(card);
+    });
+
+    // Le devis part sur WhatsApp, comme les commandes : un seul numero,
+    // celui de config/settings.js.
+    const cta = document.getElementById('catering-cta');
+    if (cta) {
+      const label = loc(data.ctaLabel);
+      if (label) cta.textContent = label;
+      const phone = (typeof BABKE_CONFIG !== 'undefined' && BABKE_CONFIG.PHONE_NUMBER) ? BABKE_CONFIG.PHONE_NUMBER : '';
+      if (phone) {
+        const ask = {
+          en: 'Hello Babke, I would like a quote for catering.',
+          fr: 'Bonjour Babke, je souhaite un devis traiteur.',
+          tn: 'عسلامة بابكي، نحب تسعيرة تربيزة.'
+        };
+        cta.href = 'https://api.whatsapp.com/send?phone=' + phone +
+          '&text=' + encodeURIComponent(ask[lang] || ask.en);
+        cta.target = '_blank';
+        cta.rel = 'noopener';
+      }
+    }
+  };
+
   const renderEvents = () => {
     const section = document.getElementById('events');
     const track = document.getElementById('events-swiper-track');
@@ -954,6 +1082,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderReviews();
     renderGallery();
     renderEvents();
+    renderCatering();
     injectReservationForm();
     updateStoreStatusBanner();
     setInterval(updateStoreStatusBanner, 30000); // Live update check every 30s
@@ -964,10 +1093,12 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('babkeReviewsChanged', renderReviews);
   window.addEventListener('babkeGalleryChanged', renderGallery);
   window.addEventListener('babkeEventsChanged', renderEvents);
+  window.addEventListener('babkeContentChanged', renderCatering);
   window.addEventListener('babkeLangChanged', () => {
     renderMenu();
     renderReviews();
     renderEvents();
+    renderCatering();
     injectReservationForm();
     updateStoreStatusBanner();
   });

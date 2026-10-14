@@ -283,6 +283,8 @@ const Content = mongoose.model('Content', new mongoose.Schema({
   // dropped on save. Both of these were being lost: the suppléments never
   // reached the cart, and the owner's saved add-on prices never persisted.
   supplements: mongoose.Schema.Types.Mixed,
+  // Traiteur & Événements (prestations + textes de la section).
+  catering: mongoose.Schema.Types.Mixed,
   customizationPrices: mongoose.Schema.Types.Mixed
 }));
 
@@ -685,7 +687,7 @@ async function seedDatabase() {
       // strict schema used to drop them. Only fields that are MISSING are set,
       // so anything the owner has already edited is left alone.
       const backfill = {};
-      for (const field of ['supplements', 'customizationPrices']) {
+      for (const field of ['supplements', 'customizationPrices', 'catering']) {
         if (defaultData.content[field] !== undefined) {
           const exists = await Content.exists({ key: 'main', [field]: { $exists: true } });
           if (!exists) backfill[field] = defaultData.content[field];

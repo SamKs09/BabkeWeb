@@ -86,6 +86,7 @@
         <a href="#menu" class="nav-link" data-translate="nav_menu">Menu</a>
         <a href="#about" class="nav-link" data-translate="nav_about">Our Story</a>
         <a href="#events" class="nav-link" data-translate="nav_events">Events</a>
+        <a href="#traiteur" class="nav-link" data-translate="nav_catering">Catering</a>
         <a href="#wheel" class="nav-link" data-translate="nav_wheel">Spin & Win</a>
         <a href="#gallery" class="nav-link" data-translate="nav_gallery">Socials</a>
         <a href="#reviews" class="nav-link" data-translate="nav_reviews">Reviews</a>
@@ -498,6 +499,21 @@
   </div>
 
   <!-- FOOTER -->
+  <!-- TRAITEUR & ÉVÉNEMENTS — derniere section avant le pied de page.
+       Les cartes viennent de content.catering (scripts/app.js ->
+       renderCatering) et sont gerees dans le panneau « Traiteur » de
+       l'admin. La section se cache seule si elle est desactivee ou vide. -->
+  <section class="catering-section" id="traiteur" aria-labelledby="catering-title" style="display:none;">
+    <div class="section-header-container">
+      <h2 class="section-title" id="catering-title" data-translate="catering_title">Catering &amp; Private Events</h2>
+      <p class="section-subtitle" data-translate="catering_subtitle">Babke comes to you for weddings, birthdays and company lunches.</p>
+    </div>
+    <div class="catering-grid" id="catering-grid"></div>
+    <div class="catering-cta-row">
+      <a class="btn-catering-cta" id="catering-cta" href="#contact" data-translate="catering_cta">Request a quote</a>
+    </div>
+  </section>
+
   <footer class="app-footer">
     <div class="footer-container">
       <div class="footer-brand">

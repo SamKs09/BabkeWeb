@@ -76,6 +76,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       footer_nav_title: "Navigation",
       footer_powered: "Powered by",
+      catering_title: "Catering & Private Events",
+      catering_subtitle: "Babke comes to you for weddings, birthdays and company lunches.",
+      catering_cta: "Request a quote",
+      nav_catering: "Catering",
       footer_nav_home: "Home",
       footer_nav_menu: "Menu",
       footer_nav_about: "Our Story",
@@ -160,6 +164,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       footer_nav_title: "Navigation",
       footer_powered: "Réalisé par",
+      catering_title: "Traiteur & Événements",
+      catering_subtitle: "Le Babke se déplace chez vous : mariages, anniversaires et déjeuners d'entreprise.",
+      catering_cta: "Demander un devis",
+      nav_catering: "Traiteur",
       footer_nav_home: "Accueil",
       footer_nav_menu: "Menu",
       footer_nav_about: "Notre Histoire",
@@ -244,6 +252,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       footer_nav_title: "تصفح الموقع",
       footer_powered: "تصميم",
+      catering_title: "تربيزة و مناسبات",
+      catering_subtitle: "بابكي يجي عندك: أعراس، عياد ميلاد و غدوة شركة.",
+      catering_cta: "اطلب تسعيرة",
+      nav_catering: "تربيزة",
       footer_nav_home: "الرئيسية",
       footer_nav_menu: "المنيو",
       footer_nav_about: "حكايتنا",
