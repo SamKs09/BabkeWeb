@@ -8,6 +8,70 @@ const BabkeDB = {
   cache: null,
   initPromise: null,
 
+  // true dès qu'un chargement de /api/all-data a échoué : les écrans ne
+  // doivent pas présenter un cache de secours comme la vérité.
+  degraded: false,
+
+  // ----------------------------------------------------
+  // TOUTE ÉCRITURE PASSE PAR ICI.
+  // Chaque save/add/delete met le cache à jour et prévient l'interface AVANT
+  // d'envoyer la requête, pour que l'écran réagisse tout de suite. Le prix de
+  // ce confort : si la requête est refusée et que personne ne lit la réponse,
+  // l'écran ment jusqu'au prochain rafraîchissement, et le patron croit avoir
+  // enregistré. apiFetch lève une erreur sur toute réponse non-OK ;
+  // resyncAfterFailedWrite remet ensuite le cache en phase avec le serveur.
+  // ----------------------------------------------------
+  async apiFetch(url, options) {
+    let res;
+    try {
+      res = await fetch(url, Object.assign({ credentials: 'same-origin' }, options || {}));
+    } catch (networkErr) {
+      const err = new Error('Serveur injoignable — la modification n’a PAS été enregistrée.');
+      err.status = 0;
+      throw err;
+    }
+    if (res.ok) return res;
+
+    let detail = '';
+    try {
+      const body = await res.clone().json();
+      detail = body.message || body.error || '';
+    } catch (e) { /* réponse sans JSON */ }
+
+    const byStatus = {
+      401: 'Session expirée — reconnectez-vous. La modification n’a PAS été enregistrée.',
+      403: 'Votre rôle n’a pas le droit d’enregistrer ici. La modification n’a PAS été enregistrée.',
+      413: 'Fichier trop lourd pour le serveur — la modification n’a PAS été enregistrée.',
+      429: 'Trop de requêtes — réessayez dans un instant. Rien n’a été enregistré.'
+    };
+    const err = new Error(byStatus[res.status] || detail || ('Enregistrement refusé par le serveur (HTTP ' + res.status + ').'));
+    err.status = res.status;
+    err.detail = detail;
+    throw err;
+  },
+
+  // Après un refus, le cache porte encore la modification fantôme : on le
+  // recharge depuis le serveur et on redessine, pour que l’écran montre ce
+  // qui est vraiment enregistré plutôt que ce que l’on espérait.
+  async resyncAfterFailedWrite(eventName) {
+    try {
+      await this.init(true);
+      if (eventName) window.dispatchEvent(new Event(eventName));
+      window.dispatchEvent(new Event('babkeDataRefreshed'));
+    } catch (e) {
+      console.error('Resync after a failed write did not succeed:', e);
+    }
+  },
+
+  // Les écritures groupées remplacent TOUTE la collection (réordonner la
+  // carte, la galerie...). Si le dernier chargement a échoué, le cache peut
+  // être vide : l’envoyer effacerait le vrai contenu côté serveur.
+  assertNotDegraded(what) {
+    if (!this.degraded) return;
+    const err = new Error('Données non chargées (serveur injoignable) — ' + what + ' annulé pour ne rien écraser. Rechargez la page.');
+    err.status = 0;
+    throw err;
+  },
   // Initialize and load all data from the Express backend
   init(forceRefetch = false) {
     if (this.cache && !forceRefetch) {
@@ -27,13 +91,20 @@ const BabkeDB = {
       })
       .then(data => {
         this.cache = data;
+        this.degraded = false;
         console.log("Babke DB initialized from backend server successfully.");
         window.dispatchEvent(new Event('babkeDataRefreshed'));
         return data;
       })
       .catch(err => {
         console.error("Critical error fetching database state:", err);
-        // Fallback structures if backend goes down
+        this.degraded = true;
+        window.dispatchEvent(new Event('babkeDataUnavailable'));
+        // Garder les données déjà chargées : les remplacer par des tableaux
+        // vides ferait croire à une base vide, et un enregistrement groupé
+        // (PUT /api/menu, /api/gallery...) écraserait alors le vrai contenu.
+        if (this.cache) return this.cache;
+        // Premier chargement raté : squelette vide, mais degraded reste vrai.
         this.cache = {
           menu: [],
           content: {},
@@ -56,12 +127,13 @@ const BabkeDB = {
   },
 
   async saveMenu(menu) {
+    this.assertNotDegraded('la carte');
     if (this.cache) this.cache.menu = menu;
     window.dispatchEvent(new Event('babkeMenuChanged'));
     babkeChannel.postMessage({ type: 'menu_changed' });
 
     try {
-      const res = await fetch('/api/menu', {
+      const res = await this.apiFetch('/api/menu', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(menu)
@@ -69,6 +141,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error saving menu to backend:', err);
+      await this.resyncAfterFailedWrite('babkeMenuChanged');
+      throw err;
     }
   },
 
@@ -88,7 +162,7 @@ const BabkeDB = {
     try {
       const url = isEdit ? `/api/menu/${item.id}` : '/api/menu';
       const method = isEdit ? 'PUT' : 'POST';
-      const res = await fetch(url, {
+      const res = await this.apiFetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(item)
@@ -96,6 +170,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error saving menu item to backend:', err);
+      await this.resyncAfterFailedWrite('babkeMenuChanged');
+      throw err;
     }
   },
 
@@ -111,7 +187,7 @@ const BabkeDB = {
     }
 
     try {
-      const res = await fetch(`/api/menu/${encodeURIComponent(id)}/availability`, {
+      const res = await this.apiFetch(`/api/menu/${encodeURIComponent(id)}/availability`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -124,6 +200,8 @@ const BabkeDB = {
       }
     } catch (err) {
       console.warn('Backend server offline, saved availability state to local storage:', err);
+      await this.resyncAfterFailedWrite('babkeMenuChanged');
+      throw err;
     }
   },
 
@@ -135,12 +213,14 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'menu_changed' });
 
     try {
-      const res = await fetch(`/api/menu/${id}`, {
+      const res = await this.apiFetch(`/api/menu/${id}`, {
         method: 'DELETE'
       });
       return await res.json();
     } catch (err) {
       console.error('Error deleting menu item from backend:', err);
+      await this.resyncAfterFailedWrite('babkeMenuChanged');
+      throw err;
     }
   },
 
@@ -157,7 +237,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'content_changed' });
 
     try {
-      const res = await fetch('/api/content', {
+      const res = await this.apiFetch('/api/content', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(content)
@@ -165,6 +245,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error saving website content to backend:', err);
+      await this.resyncAfterFailedWrite('babkeContentChanged');
+      throw err;
     }
   },
 
@@ -174,12 +256,13 @@ const BabkeDB = {
   },
 
   async saveReviews(reviews) {
+    this.assertNotDegraded('les avis');
     if (this.cache) this.cache.reviews = reviews;
     window.dispatchEvent(new Event('babkeReviewsChanged'));
     babkeChannel.postMessage({ type: 'reviews_changed' });
 
     try {
-      const res = await fetch('/api/reviews', {
+      const res = await this.apiFetch('/api/reviews', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(reviews)
@@ -187,6 +270,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error saving reviews to backend:', err);
+      await this.resyncAfterFailedWrite('babkeReviewsChanged');
+      throw err;
     }
   },
 
@@ -206,7 +291,7 @@ const BabkeDB = {
     try {
       const url = isEdit ? `/api/reviews/${review.id}` : '/api/reviews';
       const method = isEdit ? 'PUT' : 'POST';
-      const res = await fetch(url, {
+      const res = await this.apiFetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(review)
@@ -214,6 +299,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error saving review to backend:', err);
+      await this.resyncAfterFailedWrite('babkeReviewsChanged');
+      throw err;
     }
   },
 
@@ -225,12 +312,14 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'reviews_changed' });
 
     try {
-      const res = await fetch(`/api/reviews/${id}`, {
+      const res = await this.apiFetch(`/api/reviews/${id}`, {
         method: 'DELETE'
       });
       return await res.json();
     } catch (err) {
       console.error('Error deleting review from backend:', err);
+      await this.resyncAfterFailedWrite('babkeReviewsChanged');
+      throw err;
     }
   },
 
@@ -240,12 +329,13 @@ const BabkeDB = {
   },
 
   async saveGallery(gallery) {
+    this.assertNotDegraded('la galerie');
     if (this.cache) this.cache.gallery = gallery;
     window.dispatchEvent(new Event('babkeGalleryChanged'));
     babkeChannel.postMessage({ type: 'gallery_changed' });
 
     try {
-      const res = await fetch('/api/gallery', {
+      const res = await this.apiFetch('/api/gallery', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(gallery)
@@ -253,6 +343,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error saving gallery to backend:', err);
+      await this.resyncAfterFailedWrite('babkeGalleryChanged');
+      throw err;
     }
   },
 
@@ -264,7 +356,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'gallery_changed' });
 
     try {
-      const res = await fetch('/api/gallery', {
+      const res = await this.apiFetch('/api/gallery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(photo)
@@ -272,6 +364,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error adding gallery photo to backend:', err);
+      await this.resyncAfterFailedWrite('babkeGalleryChanged');
+      throw err;
     }
   },
 
@@ -283,12 +377,14 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'gallery_changed' });
 
     try {
-      const res = await fetch(`/api/gallery/${id}`, {
+      const res = await this.apiFetch(`/api/gallery/${id}`, {
         method: 'DELETE'
       });
       return await res.json();
     } catch (err) {
       console.error('Error deleting gallery photo from backend:', err);
+      await this.resyncAfterFailedWrite('babkeGalleryChanged');
+      throw err;
     }
   },
 
@@ -306,7 +402,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'orders_changed' });
 
     try {
-      const res = await fetch('/api/orders', {
+      const res = await this.apiFetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(order)
@@ -314,6 +410,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error placing order to backend:', err);
+      await this.resyncAfterFailedWrite('babkeOrdersChanged');
+      throw err;
     }
   },
 
@@ -328,16 +426,17 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'orders_changed' });
 
     try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(id)}`, {
+      const res = await this.apiFetch(`/api/orders/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ status })
       });
-      return res.ok;
+      return true;
     } catch (err) {
       console.error(`Error updating status for order ${id}:`, err);
-      return true; // Return true as local cache is updated
+      await this.resyncAfterFailedWrite('babkeOrdersChanged');
+      throw err;
     }
   },
 
@@ -355,7 +454,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'reservations_changed' });
 
     try {
-      const res = await fetch('/api/reservations', {
+      const res = await this.apiFetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -364,6 +463,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error creating reservation to backend:', err);
+      await this.resyncAfterFailedWrite('babkeReservationsChanged');
+      throw err;
     }
   },
 
@@ -378,16 +479,17 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'reservations_changed' });
 
     try {
-      const res = await fetch(`/api/reservations/${encodeURIComponent(id)}`, {
+      const res = await this.apiFetch(`/api/reservations/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ status })
       });
-      return res.ok;
+      return true;
     } catch (err) {
       console.error(`Error updating status for reservation ${id}:`, err);
-      return true;
+      await this.resyncAfterFailedWrite('babkeReservationsChanged');
+      throw err;
     }
   },
 
@@ -397,12 +499,13 @@ const BabkeDB = {
   },
 
   async saveEvents(events) {
+    this.assertNotDegraded('les événements');
     if (this.cache) this.cache.events = events;
     window.dispatchEvent(new Event('babkeEventsChanged'));
     babkeChannel.postMessage({ type: 'events_changed' });
 
     try {
-      const res = await fetch('/api/events', {
+      const res = await this.apiFetch('/api/events', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -411,6 +514,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error saving events to backend:', err);
+      await this.resyncAfterFailedWrite('babkeEventsChanged');
+      throw err;
     }
   },
 
@@ -430,7 +535,7 @@ const BabkeDB = {
     try {
       const url = isEdit ? `/api/events/${encodeURIComponent(event.id)}` : '/api/events';
       const method = isEdit ? 'PUT' : 'POST';
-      const res = await fetch(url, {
+      const res = await this.apiFetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -439,6 +544,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error saving event item to backend:', err);
+      await this.resyncAfterFailedWrite('babkeEventsChanged');
+      throw err;
     }
   },
 
@@ -450,13 +557,15 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'events_changed' });
 
     try {
-      const res = await fetch(`/api/events/${encodeURIComponent(id)}`, {
+      const res = await this.apiFetch(`/api/events/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         credentials: 'include'
       });
       return await res.json();
     } catch (err) {
       console.error('Error deleting event from backend:', err);
+      await this.resyncAfterFailedWrite('babkeEventsChanged');
+      throw err;
     }
   },
 
@@ -474,7 +583,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'leftovers_changed' });
 
     try {
-      const res = await fetch('/api/leftovers', {
+      const res = await this.apiFetch('/api/leftovers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(leftover)
@@ -482,6 +591,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error logging leftover item to backend:', err);
+      await this.resyncAfterFailedWrite('babkeLeftoversChanged');
+      throw err;
     }
   },
 
@@ -495,12 +606,14 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'leftovers_changed' });
 
     try {
-      const res = await fetch(`/api/leftovers/${id}`, {
+      const res = await this.apiFetch(`/api/leftovers/${id}`, {
         method: 'DELETE'
       });
       return await res.json();
     } catch (err) {
       console.error('Error deleting leftover log from backend:', err);
+      await this.resyncAfterFailedWrite('babkeLeftoversChanged');
+      throw err;
     }
   },
 
@@ -518,7 +631,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'expenses_changed' });
 
     try {
-      const res = await fetch('/api/expenses', {
+      const res = await this.apiFetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(expense)
@@ -526,6 +639,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error logging expense item to backend:', err);
+      await this.resyncAfterFailedWrite('babkeExpensesChanged');
+      throw err;
     }
   },
 
@@ -539,12 +654,14 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'expenses_changed' });
 
     try {
-      const res = await fetch(`/api/expenses/${id}`, {
+      const res = await this.apiFetch(`/api/expenses/${id}`, {
         method: 'DELETE'
       });
       return await res.json();
     } catch (err) {
       console.error('Error deleting expense log from backend:', err);
+      await this.resyncAfterFailedWrite('babkeExpensesChanged');
+      throw err;
     }
   },
 
@@ -562,7 +679,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'ruined_changed' });
 
     try {
-      const res = await fetch('/api/ruined-products', {
+      const res = await this.apiFetch('/api/ruined-products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(item)
@@ -570,6 +687,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error logging ruined product to backend:', err);
+      await this.resyncAfterFailedWrite('babkeRuinedChanged');
+      throw err;
     }
   },
 
@@ -583,10 +702,12 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'ruined_changed' });
 
     try {
-      const res = await fetch(`/api/ruined-products/${id}`, { method: 'DELETE' });
+      const res = await this.apiFetch(`/api/ruined-products/${id}`, { method: 'DELETE' });
       return await res.json();
     } catch (err) {
       console.error('Error deleting ruined product log:', err);
+      await this.resyncAfterFailedWrite('babkeRuinedChanged');
+      throw err;
     }
   },
 
@@ -604,7 +725,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'product_types_changed' });
 
     try {
-      const res = await fetch('/api/product-types', {
+      const res = await this.apiFetch('/api/product-types', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(type)
@@ -612,6 +733,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error adding product type to backend:', err);
+      await this.resyncAfterFailedWrite('babkeProductTypesChanged');
+      throw err;
     }
   },
 
@@ -625,10 +748,12 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'product_types_changed' });
 
     try {
-      const res = await fetch(`/api/product-types/${id}`, { method: 'DELETE' });
+      const res = await this.apiFetch(`/api/product-types/${id}`, { method: 'DELETE' });
       return await res.json();
     } catch (err) {
       console.error('Error deleting product type:', err);
+      await this.resyncAfterFailedWrite('babkeProductTypesChanged');
+      throw err;
     }
   },
 
@@ -646,7 +771,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'stock_changed' });
 
     try {
-      const res = await fetch('/api/stock/movements', {
+      const res = await this.apiFetch('/api/stock/movements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(movement)
@@ -654,6 +779,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error adding stock movement:', err);
+      await this.resyncAfterFailedWrite('babkeStockChanged');
+      throw err;
     }
   },
 
@@ -667,10 +794,12 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'stock_changed' });
 
     try {
-      const res = await fetch(`/api/stock/movements/${id}`, { method: 'DELETE' });
+      const res = await this.apiFetch(`/api/stock/movements/${id}`, { method: 'DELETE' });
       return await res.json();
     } catch (err) {
       console.error('Error deleting stock movement:', err);
+      await this.resyncAfterFailedWrite('babkeStockChanged');
+      throw err;
     }
   },
 
@@ -699,7 +828,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'accounting_sheets_changed' });
 
     try {
-      const res = await fetch('/api/accounting-sheets', {
+      const res = await this.apiFetch('/api/accounting-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(item)
@@ -707,6 +836,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error adding accounting sheet entry:', err);
+      await this.resyncAfterFailedWrite('babkeAccountingSheetsChanged');
+      throw err;
     }
   },
 
@@ -724,7 +855,7 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'accounting_sheets_changed' });
 
     try {
-      const res = await fetch(`/api/accounting-sheets/${encodeURIComponent(id)}`, {
+      const res = await this.apiFetch(`/api/accounting-sheets/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(item)
@@ -732,6 +863,8 @@ const BabkeDB = {
       return await res.json();
     } catch (err) {
       console.error('Error updating accounting sheet entry:', err);
+      await this.resyncAfterFailedWrite('babkeAccountingSheetsChanged');
+      throw err;
     }
   },
 
@@ -745,10 +878,12 @@ const BabkeDB = {
     babkeChannel.postMessage({ type: 'accounting_sheets_changed' });
 
     try {
-      const res = await fetch(`/api/accounting-sheets/${encodeURIComponent(id)}?sheetType=${encodeURIComponent(sheetType)}`, { method: 'DELETE' });
+      const res = await this.apiFetch(`/api/accounting-sheets/${encodeURIComponent(id)}?sheetType=${encodeURIComponent(sheetType)}`, { method: 'DELETE' });
       return await res.json();
     } catch (err) {
       console.error('Error deleting accounting sheet entry:', err);
+      await this.resyncAfterFailedWrite('babkeAccountingSheetsChanged');
+      throw err;
     }
   },
 

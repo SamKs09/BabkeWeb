@@ -281,6 +281,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Immersive Glassmorphic Toast Notification utility
   // Professional Glassmorphic Toast Notification utility (Error, Warning, Success, Info)
+  // ----------------------------------------------------
+  // FILET DE SÉCURITÉ POUR LES ÉCRITURES REFUSÉES.
+  // data/store.js lève désormais une erreur quand le serveur refuse une
+  // écriture (401 session expirée, 403 rôle, 400/413 contenu refusé) et
+  // resynchronise le cache. Tous les panneaux ne rattrapent pas cette erreur :
+  // ce gestionnaire garantit qu'aucun refus ne passe plus en silence, et
+  // qu'une session expirée ramène bien à l'écran de connexion.
+  // ----------------------------------------------------
+  let sessionExpiryHandled = false;
+  const reportWriteFailure = (err) => {
+    if (!err || typeof err.status !== 'number') return false;
+    if (err.status === 401) {
+      if (sessionExpiryHandled) return true;
+      sessionExpiryHandled = true;
+      showToast(err.message, 'error', 'Session expirée');
+      setTimeout(() => window.location.reload(), 2600);
+      return true;
+    }
+    showToast(err.message, 'error', 'Non enregistré');
+    return true;
+  };
+  // Un /api/all-data en échec laissait le tableau de bord vide, comme si le
+  // restaurant n'avait plus rien. On le dit, au lieu de le laisser croire.
+  window.addEventListener('babkeDataUnavailable', () => {
+    showToast('Données non chargées — le serveur ne répond pas. Ce qui s’affiche peut être incomplet ; rechargez avant de modifier.', 'error', 'Hors ligne');
+  });
+
+  window.addEventListener('unhandledrejection', (e) => {
+    if (reportWriteFailure(e.reason)) e.preventDefault();
+  });
+
   const showToast = (message, type = 'info', title = null) => {
     let container = document.querySelector('.babke-toast-container');
     if (!container) {
@@ -2969,7 +3000,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast(nextAvail ? "🟢 Article marqué comme DISPONIBLE !" : "🔴 Article marqué comme INDISPONIBLE (Épuisé).");
           } catch (err) {
             console.warn("Availability update warning:", err);
-            showToast(nextAvail ? "🟢 Article marqué comme DISPONIBLE !" : "🔴 Article marqué comme INDISPONIBLE (Épuisé).");
+            if (!reportWriteFailure(err)) showToast(nextAvail ? "🟢 Article marqué comme DISPONIBLE !" : "🔴 Article marqué comme INDISPONIBLE (Épuisé).");
           } finally {
             renderMenuPanel();
           }
@@ -3035,7 +3066,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           showToast("Customization option standards updated successfully!");
         } catch (err) {
           console.error("Error saving customization prices:", err);
-          showToast("Failed to save customization standards!");
+          if (!reportWriteFailure(err)) showToast("Failed to save customization standards!");
         } finally {
           submitBtn.disabled = false;
           submitBtn.innerHTML = origText;
@@ -3306,7 +3337,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // was there so the rest of the dashboard does not show unsaved rows.
         if (BabkeDB.cache) BabkeDB.cache.content = previousContent;
         showError(`Échec de l'enregistrement des suppléments : ${err && err.message ? err.message : 'erreur inconnue'}`);
-        showToast("Échec de l'enregistrement des suppléments.", 'error');
+        if (!reportWriteFailure(err)) showToast("Échec de l'enregistrement des suppléments.", 'error');
       } finally {
         saveBtn.disabled = false;
         saveBtn.removeAttribute('aria-busy');
@@ -3625,7 +3656,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderMenuPanel();
       } catch (err) {
         console.error("Error saving menu item:", err);
-        showToast("Failed to save menu item!");
+        // Le message du serveur vaut mieux que « échec » : il dit si c’est la
+        // session, le rôle ou le contenu qui a été refusé.
+        if (!reportWriteFailure(err)) showToast("Échec de l’enregistrement du plat.", 'error');
+        renderMenuPanel();
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
@@ -3645,7 +3679,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderMenuPanel();
     } catch (err) {
       console.error("Error deleting menu item:", err);
-      showToast("Failed to delete menu item!");
+      if (!reportWriteFailure(err)) showToast("Failed to delete menu item!");
     }
   };
 
@@ -4363,7 +4397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           openGalleryModal(newPhoto.id);
         } catch (err) {
           console.error("Error uploading gallery photo:", err);
-          showToast("Gallery photo upload failed.");
+          if (!reportWriteFailure(err)) showToast("Gallery photo upload failed.");
         }
       });
     }
@@ -4424,7 +4458,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderGalleryPanel();
     } catch (err) {
       console.error("Error deleting gallery photo:", err);
-      showToast("Failed to delete gallery photo!");
+      if (!reportWriteFailure(err)) showToast("Failed to delete gallery photo!");
     }
   };
 
@@ -4608,7 +4642,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderReviewsPanel();
       } catch (err) {
         console.error("Error saving review:", err);
-        showToast("Failed to save review!");
+        if (!reportWriteFailure(err)) showToast("Failed to save review!");
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
@@ -4627,6 +4661,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderReviewsPanel();
       } catch (err) {
         console.error("Error toggling review feature:", err);
+        reportWriteFailure(err);
       }
     }
   };
@@ -4642,6 +4677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderReviewsPanel();
       } catch (err) {
         console.error("Error toggling review visibility:", err);
+        reportWriteFailure(err);
       }
     }
   };
@@ -4658,7 +4694,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderReviewsPanel();
     } catch (err) {
       console.error("Error deleting review:", err);
-      showToast("Failed to delete review!");
+      if (!reportWriteFailure(err)) showToast("Failed to delete review!");
     }
   };
 
@@ -4835,7 +4871,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } catch (err) {
         console.error("Error saving gallery photo updates:", err);
-        showToast("Failed to save changes!");
+        if (!reportWriteFailure(err)) showToast("Failed to save changes!");
       }
     });
   }
@@ -5043,7 +5079,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderEventsPanel();
       } catch (err) {
         console.error("Error saving event:", err);
-        showToast("Failed to save event!");
+        if (!reportWriteFailure(err)) showToast("Failed to save event!");
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
@@ -5063,7 +5099,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderEventsPanel();
     } catch (err) {
       console.error("Error deleting event:", err);
-      showToast("Failed to delete event!");
+      if (!reportWriteFailure(err)) showToast("Failed to delete event!");
     }
   };
 
@@ -5231,6 +5267,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               }
             } catch (err) {
               console.error("Order status update failed:", err);
+              reportWriteFailure(err);
             } finally {
               selectEl.disabled = false;
               renderOrdersReservationsPanel();
@@ -5324,6 +5361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               }
             } catch (err) {
               console.error("Reservation status update failed:", err);
+              reportWriteFailure(err);
             } finally {
               selectEl.disabled = false;
               renderOrdersReservationsPanel();
@@ -5832,7 +5870,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           renderLeftoversPanel();
         } catch (err) {
           console.error("Failed to log leftovers:", err);
-          showToast("Failed to save log.");
+          if (!reportWriteFailure(err)) showToast("Failed to save log.");
         }
       });
     }
@@ -5849,7 +5887,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           renderLeftoversPanel();
         } catch (err) {
           console.error("Failed to delete leftover log:", err);
-          showToast("Failed to delete entry.");
+          if (!reportWriteFailure(err)) showToast("Failed to delete entry.");
         }
       });
     });
@@ -6150,7 +6188,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           renderExpensesPanel();
         } catch (err) {
           console.error("Failed to add expense:", err);
-          showToast("❌ Error saving expense entry.");
+          if (!reportWriteFailure(err)) showToast("❌ Error saving expense entry.");
         }
       });
     }
@@ -6166,7 +6204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderExpensesPanel();
           } catch (err) {
             console.error("Failed to delete expense:", err);
-            showToast("❌ Error deleting expense log.");
+            if (!reportWriteFailure(err)) showToast("❌ Error deleting expense log.");
           }
         }
       });
