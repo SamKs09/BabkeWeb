@@ -254,6 +254,13 @@ const requireRoles = (...roles) => (req, res, next) => {
   next();
 };
 
+// Qui peut modifier le site public : le propriétaire et le responsable média.
+// Ces deux rôles voient déjà les panneaux « Catalogue du Menu », « Contenu du
+// Site », « Galerie » et « Avis » ; jusqu’ici seul le propriétaire pouvait y
+// enregistrer, et le responsable média perdait chaque modification. La remise
+// à zéro de la base reste, elle, strictement réservée au propriétaire.
+const siteEditorMiddleware = requireRoles('admin', 'sm_manager');
+
 
 // ----------------------------------------------------
 // MONGOOSE MODELS
@@ -1570,17 +1577,19 @@ app.get('/api/menu', async (req, res) => {
   }
 });
 
-app.post('/api/menu', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.post('/api/menu', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     const newItem = new Menu(req.body);
     await newItem.save();
+    await createAuditLog(req.admin.role, req.admin.username, 'MENU_CREATE',
+      `Plat ajouté : ${newItem.id} (${newItem.category}, ${newItem.price} TND)`);
     res.status(201).json(newItem);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.put('/api/menu/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.put('/api/menu/:id', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     const updateData = { ...req.body };
     delete updateData._id;
@@ -1590,6 +1599,8 @@ app.put('/api/menu/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) =
       { new: true }
     );
     if (!updated) return res.status(404).json({ error: 'Menu item not found' });
+    await createAuditLog(req.admin.role, req.admin.username, 'MENU_UPDATE',
+      `Plat modifié : ${updated.id} (${updated.category}, ${updated.price} TND)`);
     sendSseNotification('menuChanged', updated);
     res.json(updated);
   } catch (err) {
@@ -1631,7 +1642,7 @@ app.patch('/api/menu/:id/availability', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/menu/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.delete('/api/menu/:id', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     const deleted = await Menu.findOneAndDelete({ id: req.params.id });
     if (!deleted) return res.status(404).json({ error: 'Menu item not found' });
@@ -1641,7 +1652,7 @@ app.delete('/api/menu/:id', authMiddleware, ownerOnlyMiddleware, async (req, res
   }
 });
 
-app.put('/api/menu', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.put('/api/menu', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     await Menu.deleteMany({});
     const updatedMenu = await Menu.insertMany(req.body);
@@ -1661,7 +1672,7 @@ app.get('/api/content', async (req, res) => {
   }
 });
 
-app.put('/api/content', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.put('/api/content', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     // Exclude database metadata fields
     const { _id, key, ...rest } = req.body;
@@ -1670,6 +1681,8 @@ app.put('/api/content', authMiddleware, ownerOnlyMiddleware, async (req, res) =>
       { $set: rest },
       { new: true, upsert: true }
     );
+    await createAuditLog(req.admin.role, req.admin.username, 'CONTENT_UPDATE',
+      `Contenu du site mis à jour (${Object.keys(rest).join(', ') || 'aucun champ'})`);
     res.json(content);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1686,7 +1699,7 @@ app.get('/api/reviews', async (req, res) => {
   }
 });
 
-app.post('/api/reviews', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.post('/api/reviews', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     const newReview = new Review(req.body);
     await newReview.save();
@@ -1696,7 +1709,7 @@ app.post('/api/reviews', authMiddleware, ownerOnlyMiddleware, async (req, res) =
   }
 });
 
-app.put('/api/reviews/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.put('/api/reviews/:id', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     const updated = await Review.findOneAndUpdate(
       { id: req.params.id },
@@ -1710,7 +1723,7 @@ app.put('/api/reviews/:id', authMiddleware, ownerOnlyMiddleware, async (req, res
   }
 });
 
-app.delete('/api/reviews/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.delete('/api/reviews/:id', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     const deleted = await Review.findOneAndDelete({ id: req.params.id });
     if (!deleted) return res.status(404).json({ error: 'Review not found' });
@@ -1720,7 +1733,7 @@ app.delete('/api/reviews/:id', authMiddleware, ownerOnlyMiddleware, async (req, 
   }
 });
 
-app.put('/api/reviews', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.put('/api/reviews', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     await Review.deleteMany({});
     const updatedReviews = await Review.insertMany(req.body);
@@ -1740,7 +1753,7 @@ app.get('/api/gallery', async (req, res) => {
   }
 });
 
-app.post('/api/gallery', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.post('/api/gallery', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     const newPhoto = new Gallery(req.body);
     await newPhoto.save();
@@ -1750,7 +1763,7 @@ app.post('/api/gallery', authMiddleware, ownerOnlyMiddleware, async (req, res) =
   }
 });
 
-app.delete('/api/gallery/:id', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.delete('/api/gallery/:id', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     const deleted = await Gallery.findOneAndDelete({ id: req.params.id });
     if (!deleted) return res.status(404).json({ error: 'Gallery photo not found' });
@@ -1760,7 +1773,7 @@ app.delete('/api/gallery/:id', authMiddleware, ownerOnlyMiddleware, async (req, 
   }
 });
 
-app.put('/api/gallery', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.put('/api/gallery', authMiddleware, siteEditorMiddleware, async (req, res) => {
   try {
     await Gallery.deleteMany({});
     const updatedGallery = await Gallery.insertMany(req.body);
@@ -1852,7 +1865,7 @@ function scrapeInstagramLikes(url) {
   });
 }
 
-app.post('/api/gallery/scrape-likes', authMiddleware, ownerOnlyMiddleware, async (req, res) => {
+app.post('/api/gallery/scrape-likes', authMiddleware, siteEditorMiddleware, async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'Instagram URL is required' });
 
